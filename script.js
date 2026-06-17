@@ -40,13 +40,6 @@ const appState = {
     deletingSyncedBackfill: false
 };
 
-const IMPORT_FUTURE_VACATIONS_HINT_DEFAULT =
-    "همه رویدادهای شخصی ۳۰ روز آینده تقویم Google Calendar بررسی و به‌عنوان مرخصی ثبت می‌شوند";
-const IMPORT_FUTURE_VACATIONS_HINT_USED_WITH_VACATIONS =
-    "همگام‌سازی ۳۰ روزه انجام شده است. برای حذف مرخصی‌های ثبت‌شده از بخش زیر استفاده کنید.";
-const IMPORT_FUTURE_VACATIONS_HINT_USED_EMPTY =
-    "همگام‌سازی ۳۰ روزه انجام شده است. برای استفاده مجدد، ابتدا از بخش «حذف مرخصی‌های همگام‌شده» استفاده کنید.";
-
 document.addEventListener("DOMContentLoaded", initApp);
 
 function isOAuthReturn() {
@@ -1234,9 +1227,13 @@ function applyImportFutureBackfillUndoUiState() {
     btn.setAttribute("aria-busy", busy ? "true" : "false");
 
     if (hint) {
-        hint.textContent = hasTrackedVacations
-            ? `${slotCount} مرخصی از همگام‌سازی ۳۰ روزه در پذیرش۲۴ ثبت شده است.`
-            : "مرخصی فعالی نیست؛ برای استفاده مجدد از همگام‌سازی ۳۰ روزه، دکمه را بزنید.";
+        if (hasTrackedVacations) {
+            hint.textContent = `${slotCount} مرخصی ثبت شده`;
+            hint.hidden = false;
+        } else {
+            hint.textContent = "";
+            hint.hidden = true;
+        }
     }
 
     if (btnText) {
@@ -1269,14 +1266,14 @@ async function handleDeleteSyncedBackfillClick() {
     const confirmOptions = slotCount > 0
         ? {
             title: "حذف مرخصی‌های همگام‌شده",
-            message: `همه ${slotCount} مرخصی ثبت‌شده از همگام‌سازی ۳۰ روزه در پذیرش۲۴ حذف می‌شوند. بعد از آن می‌توانید دوباره این گزینه را فعال کنید.`,
-            acceptLabel: "حذف مرخصی‌ها",
+            message: `${slotCount} مرخصی از پذیرش۲۴ حذف می‌شود.`,
+            acceptLabel: "حذف",
             danger: true,
             variant: "danger"
         }
         : {
-            title: "حذف مرخصی‌های همگام‌شده",
-            message: "مرخصی فعالی در پذیرش۲۴ نیست. با این عملیات می‌توانید دوباره همگام‌سازی ۳۰ روزه را فعال کنید.",
+            title: "فعال‌سازی مجدد همگام‌سازی",
+            message: "می‌توانید دوباره همگام‌سازی ۳۰ روزه را فعال کنید.",
             acceptLabel: "ادامه",
             danger: false,
             variant: "default"
@@ -1319,13 +1316,13 @@ async function runImportFutureBackfillCleanup(confirmOptions) {
         resetImportFutureVacationsAfterSyncedDelete();
 
         if (Number(data.removed) > 0) {
-            showToast(`${data.removed} مرخصی حذف شد. می‌توانید دوباره همگام‌سازی ۳۰ روزه را فعال کنید.`);
+            showToast(`${data.removed} مرخصی حذف شد.`);
         } else if (Number(data.already_gone) > 0 || Number(data.not_found) > 0) {
-            showToast("مرخصی فعالی نبود. می‌توانید دوباره همگام‌سازی ۳۰ روزه را فعال کنید.");
+            showToast("مرخصی فعالی نبود.");
         } else if (Number(data.failed) > 0) {
             showToast("برخی مرخصی‌ها حذف نشدند. دوباره تلاش کنید.", "warning");
         } else {
-            showToast("انجام شد. می‌توانید دوباره همگام‌سازی ۳۰ روزه را فعال کنید.");
+            showToast("انجام شد.");
         }
     } catch (error) {
         console.error("[Hamgam] import future backfill cleanup failed:", error);
@@ -1339,9 +1336,7 @@ async function runImportFutureBackfillCleanup(confirmOptions) {
 function applyImportFutureVacationsUiState() {
     const importFutureEl = document.querySelector('[data-field="importFutureVacations"]');
     const option = importFutureEl?.closest(".vacation-sub-option");
-    const hint = option?.querySelector(".vacation-sub-option-hint");
     const used = appState.importFutureVacationsUsed;
-    const hasTrackedVacations = appState.importFutureBackfillSlotCount > 0;
 
     if (!importFutureEl || !option) {
         return;
@@ -1354,11 +1349,6 @@ function applyImportFutureVacationsUiState() {
         option.classList.add("vacation-sub-option--disabled");
         option.classList.remove("vacation-sub-option--inactive");
         option.setAttribute("aria-disabled", "true");
-        if (hint) {
-            hint.textContent = hasTrackedVacations
-                ? IMPORT_FUTURE_VACATIONS_HINT_USED_WITH_VACATIONS
-                : IMPORT_FUTURE_VACATIONS_HINT_USED_EMPTY;
-        }
         return;
     }
 
@@ -1366,9 +1356,6 @@ function applyImportFutureVacationsUiState() {
     importFutureEl.removeAttribute("aria-disabled");
     option.classList.remove("vacation-sub-option--disabled");
     option.removeAttribute("aria-disabled");
-    if (hint) {
-        hint.textContent = IMPORT_FUTURE_VACATIONS_HINT_DEFAULT;
-    }
 }
 
 function setVacationCenterSelection(selection) {

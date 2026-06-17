@@ -812,6 +812,35 @@ body {
     background: rgba(255, 255, 255, 0.96);
 }
 
+.vacation-sync-undo__copy {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.vacation-sync-undo__title {
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.55;
+    color: #334155;
+}
+
+.vacation-sync-undo--reset .vacation-sync-undo__title {
+    color: #5b21b6;
+}
+
+.vacation-sync-undo__meta {
+    font-size: 10px;
+    line-height: 1.5;
+    color: #64748b;
+}
+
+.vacation-sync-undo__meta[hidden] {
+    display: none !important;
+}
+
 .vacation-sync-undo__hint {
     margin: 0;
     flex: 1;

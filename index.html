@@ -165,7 +165,7 @@
                                     </svg>
                                 </button>
                             </div>
-                            <p class="vacation-centers-hint">مرخصی Google Calendar برای مراکز انتخاب‌شده در پذیرش۲۴ ثبت می‌شود</p>
+                            <p class="vacation-centers-hint">مرخصی فقط برای مراکز انتخاب‌شده ثبت می‌شود</p>
                         </div>
 
                         <div class="vacation-centers-body" id="vacationCentersBody">
@@ -203,8 +203,7 @@
                             <svg viewBox="0 0 24 24"><path d="M20 6L9 17L4 12"/></svg>
                         </span>
                         <span class="vacation-sub-option-body">
-                            <span class="vacation-sub-option-title">همه رویدادهایی که قبلاً در Google Calendar برای روزهای آینده ایجاد کرده‌ام، در پذیرش۲۴ به‌عنوان مرخصی اعمال شود</span>
-                            <span class="vacation-sub-option-hint">همه رویدادهای شخصی ۳۰ روز آینده تقویم Google Calendar بررسی و به‌عنوان مرخصی ثبت می‌شوند</span>
+                            <span class="vacation-sub-option-title">همگام‌سازی ۳۰ روز آینده Google Calendar به‌عنوان مرخصی</span>
                         </span>
                     </label>
 
@@ -217,8 +216,7 @@
                             <svg viewBox="0 0 24 24"><path d="M20 6L9 17L4 12"/></svg>
                         </span>
                         <span class="vacation-sub-option-body">
-                            <span class="vacation-sub-option-title">با حذف رویداد نوبت از Google Calendar، نوبت در پذیرش۲۴ نیز لغو شود</span>
-                            <span class="vacation-sub-option-hint">اگر رویداد نوبت را از تقویم پاک کنید، همان نوبت در پذیرش۲۴ هم حذف می‌شود</span>
+                            <span class="vacation-sub-option-title">لغو نوبت پذیرش۲۴ با حذف رویداد از Google Calendar</span>
                         </span>
                     </label>
 
@@ -228,8 +226,7 @@
                             <svg viewBox="0 0 24 24"><path d="M20 6L9 17L4 12"/></svg>
                         </span>
                         <span class="vacation-sub-option-body">
-                            <span class="vacation-sub-option-title">اگر نوبت مرکز انتخاب‌شده با بازه مرخصی تداخل داشته باشد، آن نوبت لغو و مرخصی ثبت شود</span>
-                            <span class="vacation-sub-option-hint">فقط نوبت‌های همان مرکز(های) درمانی که برای مرخصی انتخاب کرده‌اید لغو می‌شوند؛ نوبت مراکز دیگر در تقویم دست‌نخورده می‌ماند</span>
+                            <span class="vacation-sub-option-title">لغو نوبت هم‌پوشان با مرخصی (مراکز انتخاب‌شده)</span>
                         </span>
                     </label>
 
@@ -241,17 +238,18 @@
                         <span class="vacation-sub-option-body">
                             <span class="vacation-sub-option-title">
                                 <span class="section-hint-badge">به‌زودی</span>
-
-                                انتقال نوبت هم‌پوشان به اولین زمان خالی پزشک
+                                انتقال نوبت هم‌پوشان به اولین زمان خالی
                             </span>
-                            <span class="vacation-sub-option-hint">اگر نوبتی وسط بازه مرخصی باشد، به اولین زمان آزاد شما منتقل می‌شود</span>
                         </span>
                     </div>
                     </div>
                 </div>
 
                 <div id="deleteSyncedBackfillWrap" class="vacation-sync-undo" hidden>
-                    <p id="deleteSyncedBackfillHint" class="vacation-sync-undo__hint">مرخصی‌های ثبت‌شده از همگام‌سازی ۳۰ روزه در پذیرش۲۴ حذف می‌شوند.</p>
+                    <div class="vacation-sync-undo__copy">
+                        <span class="vacation-sync-undo__title">حذف مرخصی‌های همگام‌شده</span>
+                        <span id="deleteSyncedBackfillHint" class="vacation-sync-undo__meta" hidden></span>
+                    </div>
                     <button type="button" id="deleteSyncedBackfillBtn" class="vacation-sync-undo__btn" aria-label="حذف مرخصی‌های همگام‌شده">
                         <span class="vacation-sync-undo__btn-text">حذف</span>
                         <span class="vacation-sync-undo__btn-spinner" aria-hidden="true"></span>
