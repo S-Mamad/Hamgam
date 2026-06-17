@@ -1,4 +1,5 @@
 ---
 deployment:
   tasks:
-    - /bin/bash scripts/cpanel-deploy.sh
+    - export DEPLOYPATH=/home/eavlxtce/hamgam.zamanak24.ir/
+    - /bin/cp -R . $DEPLOYPATH
