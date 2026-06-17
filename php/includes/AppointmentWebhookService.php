@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/AppointmentWebhookException.php';
 require_once __DIR__ . '/GoogleCalendarWatch.php';
 require_once __DIR__ . '/GoogleEventParser.php';
 
@@ -37,23 +38,23 @@ final class AppointmentWebhookService
         );
         if ($appointmentRange === null) {
             RequestContext::log('paziresh24-hamgam', 'Appointment resolve failed doctor=' . $doctorUserId . ' book_id=' . $bookId);
-            Response::jsonError('Appointment fetch failed', 502);
+            throw new AppointmentWebhookException('Appointment fetch failed', 502);
         }
 
         $event = CalendarEventBuilder::build($appointmentRange, $context['settings'], $booking);
         if ($event === null) {
             RequestContext::log('paziresh24-hamgam', 'Invalid appointment time range doctor=' . $doctorUserId . ' book_id=' . $bookId);
-            Response::jsonError('Invalid appointment time range', 422);
+            throw new AppointmentWebhookException('Invalid appointment time range', 422);
         }
 
         $createdBody = GoogleCalendar::createEventReturningBody($context['google_access_token'], $event);
         if ($createdBody === null) {
             RequestContext::log('paziresh24-hamgam', 'Calendar event creation failed doctor=' . $doctorUserId . ' book_id=' . $bookId);
-            Response::jsonError('Calendar event creation failed', 502);
+            throw new AppointmentWebhookException('Calendar event creation failed', 502);
         }
 
-        GoogleCalendarBookingRepository::recordProcessedBooking($doctorUserId, $bookId);
         $googleEventId = is_string($createdBody['id'] ?? null) ? $createdBody['id'] : '';
+        GoogleCalendarBookingRepository::recordProcessedBooking($doctorUserId, $bookId, $googleEventId);
 
         RequestContext::log(
             'paziresh24-hamgam',
@@ -76,36 +77,59 @@ final class AppointmentWebhookService
      */
     public static function handleCancel(array $booking, string $doctorUserId, string $bookId): array
     {
-        $context = self::resolveDoctorContext($doctorUserId, $bookId);
+        $context = self::resolveGoogleOnlyContext($doctorUserId, $bookId);
         if (isset($context['skip'])) {
             GoogleCalendarBookingRepository::removeProcessedBooking($doctorUserId, $bookId);
             return ['ok' => true, 'skipped' => $context['skip']];
         }
 
-        $existingEvents = self::findCalendarEvents($context['google_access_token'], $bookId);
         $deletedCount = 0;
+        $storedEventId = GoogleCalendarBookingRepository::getGoogleEventId($doctorUserId, $bookId);
 
-        foreach ($existingEvents as $existingEvent) {
-            $eventId = GoogleEventParser::extractEventId($existingEvent);
-            if ($eventId === null || $eventId === '') {
-                continue;
-            }
-
-            if (GoogleCalendar::deleteEvent($context['google_access_token'], $eventId)) {
+        if ($storedEventId !== null) {
+            if (GoogleCalendar::deleteEvent($context['google_access_token'], $storedEventId)) {
                 $deletedCount++;
                 RequestContext::log(
                     'paziresh24-hamgam',
-                    'calendar event deleted doctor=' . $doctorUserId
+                    'calendar event deleted via stored id doctor=' . $doctorUserId
                     . ' book_id=' . $bookId
-                    . ' google_event_id=' . $eventId
+                    . ' google_event_id=' . $storedEventId
                 );
             } else {
                 RequestContext::log(
                     'paziresh24-hamgam',
-                    'calendar event delete failed doctor=' . $doctorUserId
+                    'stored calendar event delete failed doctor=' . $doctorUserId
                     . ' book_id=' . $bookId
-                    . ' google_event_id=' . $eventId
+                    . ' google_event_id=' . $storedEventId
                 );
+            }
+        }
+
+        if ($deletedCount === 0) {
+            $existingEvents = self::findCalendarEvents($context['google_access_token'], $bookId);
+
+            foreach ($existingEvents as $existingEvent) {
+                $eventId = GoogleEventParser::extractEventId($existingEvent);
+                if ($eventId === null || $eventId === '') {
+                    continue;
+                }
+
+                if (GoogleCalendar::deleteEvent($context['google_access_token'], $eventId)) {
+                    $deletedCount++;
+                    RequestContext::log(
+                        'paziresh24-hamgam',
+                        'calendar event deleted doctor=' . $doctorUserId
+                        . ' book_id=' . $bookId
+                        . ' google_event_id=' . $eventId
+                    );
+                } else {
+                    RequestContext::log(
+                        'paziresh24-hamgam',
+                        'calendar event delete failed doctor=' . $doctorUserId
+                        . ' book_id=' . $bookId
+                        . ' google_event_id=' . $eventId
+                    );
+                }
             }
         }
 
@@ -141,17 +165,22 @@ final class AppointmentWebhookService
         );
         if ($appointmentRange === null) {
             RequestContext::log('paziresh24-hamgam', 'Update resolve failed doctor=' . $doctorUserId . ' book_id=' . $bookId);
-            Response::jsonError('Appointment fetch failed', 502);
+            throw new AppointmentWebhookException('Appointment fetch failed', 502);
         }
 
         $event = CalendarEventBuilder::build($appointmentRange, $context['settings'], $booking);
         if ($event === null) {
             RequestContext::log('paziresh24-hamgam', 'Invalid update time range doctor=' . $doctorUserId . ' book_id=' . $bookId);
-            Response::jsonError('Invalid appointment time range', 422);
+            throw new AppointmentWebhookException('Invalid appointment time range', 422);
         }
 
+        $storedEventId = GoogleCalendarBookingRepository::getGoogleEventId($doctorUserId, $bookId);
         $existingEvents = self::findCalendarEvents($context['google_access_token'], $bookId);
         $existingEvent = $existingEvents[0] ?? null;
+
+        if ($existingEvent === null && $storedEventId !== null) {
+            $existingEvent = ['id' => $storedEventId];
+        }
 
         if ($existingEvent === null) {
             RequestContext::log(
@@ -161,11 +190,11 @@ final class AppointmentWebhookService
 
             $createdBody = GoogleCalendar::createEventReturningBody($context['google_access_token'], $event);
             if ($createdBody === null) {
-                Response::jsonError('Calendar event creation failed', 502);
+                throw new AppointmentWebhookException('Calendar event creation failed', 502);
             }
 
-            GoogleCalendarBookingRepository::recordProcessedBooking($doctorUserId, $bookId);
             $googleEventId = is_string($createdBody['id'] ?? null) ? $createdBody['id'] : '';
+            GoogleCalendarBookingRepository::recordProcessedBooking($doctorUserId, $bookId, $googleEventId);
 
             return array_filter([
                 'ok' => true,
@@ -176,7 +205,7 @@ final class AppointmentWebhookService
 
         $eventId = GoogleEventParser::extractEventId($existingEvent);
         if ($eventId === null || $eventId === '') {
-            Response::jsonError('Calendar event update failed', 502);
+            throw new AppointmentWebhookException('Calendar event update failed', 502);
         }
 
         $updatedBody = GoogleCalendar::updateEventReturningBody($context['google_access_token'], $eventId, $event);
@@ -187,10 +216,10 @@ final class AppointmentWebhookService
                 . ' book_id=' . $bookId
                 . ' google_event_id=' . $eventId
             );
-            Response::jsonError('Calendar event update failed', 502);
+            throw new AppointmentWebhookException('Calendar event update failed', 502);
         }
 
-        GoogleCalendarBookingRepository::recordProcessedBooking($doctorUserId, $bookId);
+        GoogleCalendarBookingRepository::recordProcessedBooking($doctorUserId, $bookId, $eventId);
 
         RequestContext::log(
             'paziresh24-hamgam',
@@ -246,6 +275,33 @@ final class AppointmentWebhookService
     /**
      * @return array{
      *   google_access_token: string,
+     *   skip?: string
+     * }
+     */
+    private static function resolveGoogleOnlyContext(string $doctorUserId, string $bookId): array
+    {
+        $tokenRow = GoogleTokensRepository::findByUserId($doctorUserId);
+        if (!GoogleTokensRepository::hasRefreshToken($tokenRow)) {
+            RequestContext::log('paziresh24-hamgam', 'skipped not_connected doctor=' . $doctorUserId . ' book_id=' . $bookId);
+            return ['skip' => 'not_connected'];
+        }
+
+        $refreshToken = (string) ($tokenRow['google_refresh_token'] ?? '');
+        $googleTokenData = GoogleCalendar::refreshAccessToken($refreshToken);
+        $googleAccessToken = is_array($googleTokenData) ? ($googleTokenData['access_token'] ?? '') : '';
+        if (!is_string($googleAccessToken) || $googleAccessToken === '') {
+            RequestContext::log('paziresh24-hamgam', 'Google token refresh failed doctor=' . $doctorUserId . ' book_id=' . $bookId);
+            throw new AppointmentWebhookException('Google token refresh failed', 502);
+        }
+
+        return [
+            'google_access_token' => $googleAccessToken,
+        ];
+    }
+
+    /**
+     * @return array{
+     *   google_access_token: string,
      *   hamdast_access_token: string,
      *   settings: array<string, mixed>,
      *   skip?: string
@@ -271,7 +327,7 @@ final class AppointmentWebhookService
         $googleAccessToken = is_array($googleTokenData) ? ($googleTokenData['access_token'] ?? '') : '';
         if (!is_string($googleAccessToken) || $googleAccessToken === '') {
             RequestContext::log('paziresh24-hamgam', 'Google token refresh failed doctor=' . $doctorUserId . ' book_id=' . $bookId);
-            Response::jsonError('Google token refresh failed', 502);
+            throw new AppointmentWebhookException('Google token refresh failed', 502);
         }
 
         return [

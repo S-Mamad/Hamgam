@@ -189,11 +189,13 @@ final class Database
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         paziresh24_user_id VARCHAR(64) NOT NULL,
                         book_id VARCHAR(128) NOT NULL,
+                        google_event_id VARCHAR(256) NULL,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         UNIQUE KEY uq_user_book (paziresh24_user_id, book_id),
                         INDEX idx_calendar_bookings_user (paziresh24_user_id)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
                 );
+                self::ensureColumn($pdo, 'google_calendar_bookings', 'google_event_id', 'VARCHAR(256) NULL');
                 return;
             }
 
@@ -202,10 +204,12 @@ final class Database
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     paziresh24_user_id TEXT NOT NULL,
                     book_id TEXT NOT NULL,
+                    google_event_id TEXT,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE (paziresh24_user_id, book_id)
                 )'
             );
+            self::ensureColumn($pdo, 'google_calendar_bookings', 'google_event_id', 'TEXT');
         } catch (Throwable $e) {
             error_log('[Database] booking migration failed: ' . $e->getMessage());
         }

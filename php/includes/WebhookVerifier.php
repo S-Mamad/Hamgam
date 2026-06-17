@@ -18,7 +18,12 @@ final class WebhookVerifier
         $signature = self::readHeader('svix-signature') ?? self::readHeader('webhook-signature');
 
         if ($msgId === null || $timestamp === null || $signature === null) {
-            error_log('[WebhookVerifier] missing Svix headers');
+            error_log(
+                '[WebhookVerifier] missing Svix headers id='
+                . ($msgId === null ? '0' : '1')
+                . ' ts=' . ($timestamp === null ? '0' : '1')
+                . ' sig=' . ($signature === null ? '0' : '1')
+            );
             return false;
         }
 
@@ -43,11 +48,7 @@ final class WebhookVerifier
         $expectedSignature = base64_encode(hash_hmac('sha256', $signedContent, $secretKey, true));
 
         foreach (preg_split('/\s+/', trim($signature)) ?: [] as $versionedSignature) {
-            if (!str_starts_with($versionedSignature, 'v1,')) {
-                continue;
-            }
-
-            $providedSignature = substr($versionedSignature, 3);
+            $providedSignature = self::extractProvidedSignature($versionedSignature);
             if ($providedSignature !== '' && hash_equals($expectedSignature, $providedSignature)) {
                 return true;
             }
@@ -59,9 +60,11 @@ final class WebhookVerifier
 
     private static function readHeader(string $name): ?string
     {
-        $serverKey = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
-        if (isset($_SERVER[$serverKey]) && is_string($_SERVER[$serverKey]) && $_SERVER[$serverKey] !== '') {
-            return $_SERVER[$serverKey];
+        $normalized = strtoupper(str_replace('-', '_', $name));
+        foreach (['HTTP_' . $normalized, 'REDIRECT_HTTP_' . $normalized] as $serverKey) {
+            if (isset($_SERVER[$serverKey]) && is_string($_SERVER[$serverKey]) && $_SERVER[$serverKey] !== '') {
+                return $_SERVER[$serverKey];
+            }
         }
 
         if (!function_exists('getallheaders')) {
@@ -84,17 +87,37 @@ final class WebhookVerifier
 
     private static function decodeSigningSecret(string $secret): ?string
     {
-        if (!str_starts_with($secret, 'whsec_')) {
-            return null;
+        $secret = trim($secret, " \t\n\r\0\x0B'\"");
+
+        if (str_starts_with($secret, 'whsec_')) {
+            $encoded = substr($secret, 6);
+            if ($encoded === '') {
+                return null;
+            }
+
+            $decoded = base64_decode($encoded, true);
+
+            return $decoded === false ? null : $decoded;
         }
 
-        $encoded = substr($secret, 6);
-        if ($encoded === '') {
-            return null;
+        $decoded = base64_decode($secret, true);
+        if ($decoded !== false && strlen($decoded) >= 16) {
+            return $decoded;
         }
 
-        $decoded = base64_decode($encoded, true);
+        return null;
+    }
 
-        return $decoded === false ? null : $decoded;
+    private static function extractProvidedSignature(string $versionedSignature): string
+    {
+        if (str_starts_with($versionedSignature, 'v1,')) {
+            return substr($versionedSignature, 3);
+        }
+
+        if (str_starts_with($versionedSignature, 'v1=')) {
+            return substr($versionedSignature, 3);
+        }
+
+        return $versionedSignature;
     }
 }

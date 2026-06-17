@@ -25,32 +25,76 @@ final class GoogleCalendarBookingRepository
         return $stmt->fetch() !== false;
     }
 
-    public static function recordProcessedBooking(string $userId, string $bookId): void
+    public static function getGoogleEventId(string $userId, string $bookId): ?string
     {
+        $userId = GoogleTokensRepository::normalizeUserId($userId);
+        $bookId = trim($bookId);
+        if ($bookId === '') {
+            return null;
+        }
+
+        $stmt = Database::connection()->prepare(
+            'SELECT google_event_id FROM google_calendar_bookings
+             WHERE paziresh24_user_id = :user_id AND book_id = :book_id
+             LIMIT 1'
+        );
+        $stmt->execute([
+            'user_id' => $userId,
+            'book_id' => $bookId,
+        ]);
+
+        $row = $stmt->fetch();
+        if (!is_array($row)) {
+            return null;
+        }
+
+        $eventId = $row['google_event_id'] ?? null;
+
+        return is_string($eventId) && trim($eventId) !== '' ? trim($eventId) : null;
+    }
+
+    public static function recordProcessedBooking(
+        string $userId,
+        string $bookId,
+        ?string $googleEventId = null
+    ): void {
         $userId = GoogleTokensRepository::normalizeUserId($userId);
         $bookId = trim($bookId);
         if ($bookId === '') {
             return;
         }
 
+        $googleEventId = is_string($googleEventId) ? trim($googleEventId) : '';
         $driver = Config::get('DB_DRIVER', 'sqlite');
 
         if ($driver === 'mysql') {
             $stmt = Database::connection()->prepare(
-                'INSERT INTO google_calendar_bookings (paziresh24_user_id, book_id)
-                 VALUES (:user_id, :book_id)
-                 ON DUPLICATE KEY UPDATE book_id = VALUES(book_id)'
+                'INSERT INTO google_calendar_bookings (paziresh24_user_id, book_id, google_event_id)
+                 VALUES (:user_id, :book_id, :google_event_id)
+                 ON DUPLICATE KEY UPDATE
+                    google_event_id = CASE
+                        WHEN VALUES(google_event_id) IS NOT NULL AND VALUES(google_event_id) != \'\'
+                            THEN VALUES(google_event_id)
+                        ELSE google_event_id
+                    END'
             );
         } else {
             $stmt = Database::connection()->prepare(
-                'INSERT OR IGNORE INTO google_calendar_bookings (paziresh24_user_id, book_id)
-                 VALUES (:user_id, :book_id)'
+                'INSERT INTO google_calendar_bookings (paziresh24_user_id, book_id, google_event_id)
+                 VALUES (:user_id, :book_id, :google_event_id)
+                 ON CONFLICT(paziresh24_user_id, book_id) DO UPDATE SET
+                    google_event_id = CASE
+                        WHEN excluded.google_event_id IS NOT NULL AND excluded.google_event_id != \'\'
+                            THEN excluded.google_event_id
+                        ELSE google_event_id
+                    END'
             );
         }
 
         $stmt->execute([
             'user_id' => $userId,
             'book_id' => $bookId,
+            'google_event_id' => $googleEventId !== '' ? $googleEventId : null,
         ]);
     }
 

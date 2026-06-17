@@ -1214,12 +1214,9 @@ function formatBackfillDeleteToast(data) {
 
 function applyImportFutureBackfillUndoUiState() {
     const wrap = document.getElementById("deleteSyncedBackfillWrap");
-    const card = document.getElementById("deleteSyncedBackfillCard");
     const btn = document.getElementById("deleteSyncedBackfillBtn");
-    const title = document.getElementById("deleteSyncedBackfillTitle");
     const hint = document.getElementById("deleteSyncedBackfillHint");
-    const countEl = document.getElementById("deleteSyncedBackfillCount");
-    const btnText = btn?.querySelector(".vacation-backfill-action__btn-text");
+    const btnText = btn?.querySelector(".vacation-sync-undo__btn-text");
     if (!wrap || !btn) {
         return;
     }
@@ -1230,32 +1227,20 @@ function applyImportFutureBackfillUndoUiState() {
     const busy = appState.deletingSyncedBackfill;
 
     wrap.hidden = !used;
-
-    if (card) {
-        card.classList.toggle("vacation-backfill-action__card--reset", !hasTrackedVacations);
-    }
+    wrap.classList.toggle("vacation-sync-undo--reset", used && !hasTrackedVacations);
 
     btn.disabled = busy;
     btn.classList.toggle("is-loading", busy);
     btn.setAttribute("aria-busy", busy ? "true" : "false");
 
-    if (title) {
-        title.textContent = "حذف مرخصی‌های همگام‌شده";
-    }
-
     if (hint) {
         hint.textContent = hasTrackedVacations
-            ? `${slotCount} مرخصی از همگام‌سازی ۳۰ روزه در پذیرش۲۴ ثبت شده است. برای استفاده مجدد، ابتدا حذف کنید.`
-            : "مرخصی فعالی یافت نشد. برای استفاده مجدد از همگام‌سازی ۳۰ روزه، این دکمه را بزنید.";
-    }
-
-    if (countEl) {
-        countEl.textContent = String(slotCount);
-        countEl.hidden = !hasTrackedVacations;
+            ? `${slotCount} مرخصی از همگام‌سازی ۳۰ روزه در پذیرش۲۴ ثبت شده است.`
+            : "مرخصی فعالی نیست؛ برای استفاده مجدد از همگام‌سازی ۳۰ روزه، دکمه را بزنید.";
     }
 
     if (btnText) {
-        btnText.textContent = hasTrackedVacations ? "حذف مرخصی‌ها" : "فعال‌سازی مجدد";
+        btnText.textContent = hasTrackedVacations ? "حذف" : "فعال‌سازی مجدد";
     }
 
     applyImportFutureVacationsUiState();

@@ -12,7 +12,9 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/../includes/bootstrap.php';
+require_once __DIR__ . '/../includes/AppointmentWebhookException.php';
 require_once __DIR__ . '/../includes/AppointmentWebhookService.php';
+require_once __DIR__ . '/../includes/Paziresh24WebhookPayload.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     Response::jsonError('Method not allowed', 405);
@@ -34,46 +36,71 @@ try {
         Response::jsonError('Invalid JSON', 400);
     }
 
-    $booking = $payload['data'] ?? null;
-    if (!is_array($booking)) {
+    $booking = Paziresh24WebhookPayload::extractBooking($payload);
+    if ($booking === null) {
         RequestContext::log('paziresh24-hamgam', 'skipped no_booking_data');
         Response::json(['ok' => true, 'skipped' => 'no_booking_data']);
     }
 
-    $doctorUserId = $booking['doctor_user_id'] ?? null;
-    $bookId = $booking['book_id'] ?? null;
+    $doctorUserId = Paziresh24WebhookPayload::extractDoctorUserId($booking);
+    $bookId = Paziresh24WebhookPayload::extractBookId($booking);
 
     if ($doctorUserId === null || $doctorUserId === '' || $bookId === null || $bookId === '') {
         RequestContext::log(
             'paziresh24-hamgam',
             'skipped missing_ids doctor='
-            . (is_scalar($doctorUserId) ? (string) $doctorUserId : '')
-            . ' book_id=' . (is_scalar($bookId) ? (string) $bookId : '')
+            . ($doctorUserId ?? '')
+            . ' book_id=' . ($bookId ?? '')
         );
         Response::json(['ok' => true, 'skipped' => 'missing_ids']);
     }
 
-    $doctorUserId = GoogleTokensRepository::normalizeUserId((string) $doctorUserId);
+    $doctorUserId = GoogleTokensRepository::normalizeUserId($doctorUserId);
     $bookId = (string) $bookId;
-
-    $eventType = is_string($payload['event'] ?? null) ? trim($payload['event']) : 'provider.appointment';
+    $eventType = Paziresh24WebhookPayload::extractEventType($payload);
 
     RequestContext::log(
         'paziresh24-hamgam',
-        'webhook received event=' . $eventType . ' doctor=' . $doctorUserId . ' book_id=' . $bookId
+        'webhook accepted event=' . $eventType . ' doctor=' . $doctorUserId . ' book_id=' . $bookId
     );
 
-    $result = match ($eventType) {
-        'provider.appointment.cancelled' => AppointmentWebhookService::handleCancel($booking, $doctorUserId, $bookId),
-        'provider.appointment.updated' => AppointmentWebhookService::handleUpdate($booking, $doctorUserId, $bookId),
-        'provider.appointment' => AppointmentWebhookService::handleCreate($booking, $doctorUserId, $bookId),
-        default => (function () use ($eventType): never {
-            RequestContext::log('paziresh24-hamgam', 'skipped unknown_event event=' . $eventType);
-            Response::json(['ok' => true, 'skipped' => 'unknown_event']);
-        })(),
-    };
+    Response::jsonThenContinue(
+        ['ok' => true, 'accepted' => true, 'event' => $eventType],
+        static function () use ($eventType, $booking, $doctorUserId, $bookId): void {
+            try {
+                $result = match ($eventType) {
+                    'provider.appointment.cancelled' => AppointmentWebhookService::handleCancel($booking, $doctorUserId, $bookId),
+                    'provider.appointment.updated' => AppointmentWebhookService::handleUpdate($booking, $doctorUserId, $bookId),
+                    'provider.appointment' => AppointmentWebhookService::handleCreate($booking, $doctorUserId, $bookId),
+                    default => ['ok' => true, 'skipped' => 'unknown_event'],
+                };
 
-    Response::json($result);
+                RequestContext::log(
+                    'paziresh24-hamgam',
+                    'webhook processed event=' . $eventType
+                    . ' doctor=' . $doctorUserId
+                    . ' book_id=' . $bookId
+                    . ' result=' . json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                );
+            } catch (AppointmentWebhookException $e) {
+                RequestContext::log(
+                    'paziresh24-hamgam',
+                    'webhook processing failed event=' . $eventType
+                    . ' doctor=' . $doctorUserId
+                    . ' book_id=' . $bookId
+                    . ' error=' . $e->getMessage()
+                );
+            } catch (Throwable $e) {
+                RequestContext::log(
+                    'paziresh24-hamgam',
+                    'webhook processing error event=' . $eventType
+                    . ' doctor=' . $doctorUserId
+                    . ' book_id=' . $bookId
+                    . ' error=' . $e->getMessage()
+                );
+            }
+        }
+    );
 } catch (Throwable $e) {
     RequestContext::log('paziresh24-hamgam', $e->getMessage());
     Response::jsonError('Internal server error', 500);

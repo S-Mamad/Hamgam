@@ -70,16 +70,16 @@ describe("delete synced backfill button", () => {
 
         const wrap = document.getElementById("deleteSyncedBackfillWrap");
         assert.equal(wrap.hidden, false);
-        assert.equal(document.getElementById("deleteSyncedBackfillCount").textContent, "3");
-        assert.equal(document.getElementById("deleteSyncedBackfillBtn").querySelector(".vacation-backfill-action__btn-text").textContent, "حذف");
+        assert.match(document.getElementById("deleteSyncedBackfillHint").textContent, /3 مرخصی/);
+        assert.equal(document.getElementById("deleteSyncedBackfillBtn").querySelector(".vacation-sync-undo__btn-text").textContent, "حذف");
     });
 
     test("reset mode when used but no deletable slots", () => {
         api.setImportFutureVacationsUsed(true);
         api.setImportFutureBackfillSlotCount(0);
 
-        assert.equal(document.getElementById("deleteSyncedBackfillBtn").querySelector(".vacation-backfill-action__btn-text").textContent, "بازنشانی");
-        assert.ok(document.querySelector(".vacation-backfill-action__card--reset"));
+        assert.equal(document.getElementById("deleteSyncedBackfillBtn").querySelector(".vacation-sync-undo__btn-text").textContent, "فعال‌سازی مجدد");
+        assert.ok(document.querySelector(".vacation-sync-undo--reset"));
     });
 
     test("hidden after import flag cleared", () => {

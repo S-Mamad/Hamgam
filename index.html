@@ -208,35 +208,6 @@
                         </span>
                     </label>
 
-                    <div id="deleteSyncedBackfillWrap" class="vacation-backfill-action" hidden>
-                        <div id="deleteSyncedBackfillCard" class="vacation-backfill-action__card">
-                            <div class="vacation-backfill-action__main">
-                                <div class="vacation-backfill-action__leading" aria-hidden="true">
-                                    <svg class="vacation-backfill-action__icon" viewBox="0 0 24 24" fill="none">
-                                        <path d="M4 7h16" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"/>
-                                        <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"/>
-                                        <path d="M6 7l1.15 14.1c.08.92.86 1.65 1.8 1.65h6.1c.94 0 1.72-.73 1.8-1.65L18 7" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                                        <path d="M9 7V5.4A1.6 1.6 0 0110.6 3.8h2.8A1.6 1.6 0 0115 5.4V7" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                                    </svg>
-                                    <span id="deleteSyncedBackfillCount" class="vacation-backfill-action__count" hidden>0</span>
-                                </div>
-                                <div class="vacation-backfill-action__body">
-                                    <span id="deleteSyncedBackfillTitle" class="vacation-backfill-action__title">حذف مرخصی‌های همگام‌شده</span>
-                                    <span id="deleteSyncedBackfillHint" class="vacation-backfill-action__hint">مرخصی‌های ثبت‌شده از همگام‌سازی ۳۰ روزه در پذیرش۲۴ حذف می‌شوند.</span>
-                                </div>
-                            </div>
-                            <button type="button" id="deleteSyncedBackfillBtn" class="vacation-backfill-action__btn" aria-label="حذف مرخصی‌های همگام‌شده">
-                                <svg class="vacation-backfill-action__btn-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                                    <path d="M2.5 4.5h11" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
-                                    <path d="M6 4.5V3.4a1 1 0 011-1h2a1 1 0 011 1v1.1" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
-                                    <path d="M5.5 4.5l.55 8.4c.05.65.6 1.1 1.25 1.1h1.4c.65 0 1.2-.45 1.25-1.1l.55-8.4" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
-                                </svg>
-                                <span class="vacation-backfill-action__btn-text">حذف مرخصی‌ها</span>
-                                <span class="vacation-backfill-action__btn-spinner" aria-hidden="true"></span>
-                            </button>
-                        </div>
-                    </div>
-
                     <div class="vacation-sub-divider" aria-hidden="true"></div>
                     <p class="vacation-sub-group-title">مدیریت نوبت‌ها</p>
 
@@ -277,6 +248,14 @@
                         </span>
                     </div>
                     </div>
+                </div>
+
+                <div id="deleteSyncedBackfillWrap" class="vacation-sync-undo" hidden>
+                    <p id="deleteSyncedBackfillHint" class="vacation-sync-undo__hint">مرخصی‌های ثبت‌شده از همگام‌سازی ۳۰ روزه در پذیرش۲۴ حذف می‌شوند.</p>
+                    <button type="button" id="deleteSyncedBackfillBtn" class="vacation-sync-undo__btn" aria-label="حذف مرخصی‌های همگام‌شده">
+                        <span class="vacation-sync-undo__btn-text">حذف</span>
+                        <span class="vacation-sync-undo__btn-spinner" aria-hidden="true"></span>
+                    </button>
                 </div>
 
                 <button type="button" class="vacation-info-toggle" id="vacationInfoToggle" aria-expanded="false" aria-controls="vacationInfoPanel">

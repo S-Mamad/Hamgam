@@ -791,6 +791,113 @@ body {
     padding-inline: 28px 2px;
 }
 
+.vacation-sync-undo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 10px 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid #e2e8f0;
+}
+
+.vacation-sync-undo[hidden] {
+    display: none !important;
+}
+
+.vacation-sync-undo--reset {
+    border-color: #ddd6fe;
+    background: rgba(255, 255, 255, 0.96);
+}
+
+.vacation-sync-undo__hint {
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+    font-size: 11px;
+    line-height: 1.65;
+    color: var(--slate-600);
+    text-align: justify;
+    text-align-last: right;
+}
+
+.vacation-sync-undo--reset .vacation-sync-undo__hint {
+    color: #6d28d9;
+}
+
+.vacation-sync-undo__btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 88px;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid #fecaca;
+    border-radius: 999px;
+    background: #fff;
+    color: #b91c1c;
+    font-size: 10px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.vacation-sync-undo--reset .vacation-sync-undo__btn {
+    border-color: #c4b5fd;
+    color: #6d28d9;
+}
+
+.vacation-sync-undo__btn:hover:not(:disabled) {
+    background: #fff5f5;
+    border-color: #fca5a5;
+}
+
+.vacation-sync-undo--reset .vacation-sync-undo__btn:hover:not(:disabled) {
+    background: #f5f3ff;
+    border-color: #a78bfa;
+}
+
+.vacation-sync-undo__btn:disabled,
+.vacation-sync-undo__btn.is-loading,
+.vacation-sync-undo__btn[aria-busy="true"] {
+    opacity: 0.68;
+    cursor: wait;
+}
+
+.vacation-sync-undo__btn-spinner {
+    display: none;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(185, 28, 28, 0.25);
+    border-top-color: #b91c1c;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+.vacation-sync-undo--reset .vacation-sync-undo__btn-spinner {
+    border-color: rgba(109, 40, 217, 0.25);
+    border-top-color: #6d28d9;
+}
+
+.vacation-sync-undo__btn.is-loading .vacation-sync-undo__btn-text,
+.vacation-sync-undo__btn[aria-busy="true"] .vacation-sync-undo__btn-text {
+    opacity: 0.75;
+}
+
+.vacation-sync-undo__btn.is-loading .vacation-sync-undo__btn-spinner,
+.vacation-sync-undo__btn[aria-busy="true"] .vacation-sync-undo__btn-spinner {
+    display: inline-block;
+}
+
+.vacation-sub-options-block--inactive .vacation-sync-undo {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 .import-future-reenable {
     display: flex;
     align-items: center;
