@@ -1,0 +1,15 @@
+RewriteEngine On
+
+# hamgam (اصلی)
+RewriteRule ^hamgam/button/?$ ../hamgam/button.php [L,QSA]
+RewriteRule ^hamgam/google-oauth/?$ ../hamgam/google-oauth.php [L,QSA]
+RewriteRule ^hamgam/update/?$ ../hamgam/update.php [L,QSA]
+RewriteRule ^hamgam/updatesetting/?$ ../hamgam/updatesetting.php [L,QSA]
+RewriteRule ^webhook/paziresh24-hamgam/?$ ../webhook/paziresh24-hamgam.php [L,QSA]
+
+# سازگاری با URLهای قدیمی zamanak
+RewriteRule ^zamanak/button/?$ ../hamgam/button.php [L,QSA]
+RewriteRule ^zamanak/google-oauth/?$ ../hamgam/google-oauth.php [L,QSA]
+RewriteRule ^zamanak/update/?$ ../hamgam/update.php [L,QSA]
+RewriteRule ^zamanak/updatesetting/?$ ../hamgam/updatesetting.php [L,QSA]
+RewriteRule ^webhook/paziresh24-zamanak/?$ ../webhook/paziresh24-hamgam.php [L,QSA]

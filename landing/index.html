@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>همگام | پذیرش۲۴ و Google Calendar، همیشه همگام</title>
+    <meta name="description" content="همگام نوبت‌های پذیرش۲۴ را خودکار در Google Calendar ثبت می‌کند و مرخصی‌های تقویم گوگل را در پذیرش۲۴ اعمال می‌کند. مخصوص پزشکان ایرانی.">
+    <link rel="preconnect" href="https://fonts.paziresh24.com" crossorigin>
+    <link href="https://fonts.paziresh24.com/iran-sans-x.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=7c190800">
+</head>
+<body>
+
+    <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+    <div class="cursor-glow" id="cursorGlow" aria-hidden="true"></div>
+
+    <!-- ── Navbar ─────────────────────────────────────────── -->
+    <header class="navbar" id="navbar">
+        <div class="container navbar__inner">
+            <a href="#" class="brand">
+                <span class="brand__mark" aria-hidden="true">
+                    <svg viewBox="0 0 48 48" fill="none"><rect x="6" y="10" width="36" height="32" rx="6" stroke="currentColor" stroke-width="2.5"/><path d="M6 18h36" stroke="currentColor" stroke-width="2.5"/><circle cx="16" cy="28" r="3" fill="currentColor"/><circle cx="24" cy="28" r="3" fill="currentColor" opacity="0.5"/><circle cx="32" cy="28" r="3" fill="currentColor" opacity="0.25"/></svg>
+                </span>
+                <span class="brand__text"><strong>همگام</strong><small>از زمانک</small></span>
+            </a>
+            <nav class="nav-links" aria-label="منوی اصلی">
+                <a href="#features" data-nav>امکانات</a>
+                <a href="#how-it-works" data-nav>نحوه کار</a>
+                <a href="#scenarios" data-nav>سناریوها</a>
+                <a href="#faq" data-nav>سوالات</a>
+            </nav>
+            <a href="https://www.paziresh24.com/_/hamgam/launcher/" class="btn btn--primary btn--sm nav-cta magnetic" target="_blank" rel="noopener">نصب در پذیرش۲۴</a>
+            <button class="nav-toggle" id="navToggle" aria-label="باز کردن منو" aria-expanded="false"><span></span><span></span><span></span></button>
+        </div>
+        <div class="mobile-nav" id="mobileNav" hidden>
+            <a href="#features">امکانات</a>
+            <a href="#how-it-works">نحوه کار</a>
+            <a href="#scenarios">سناریوها</a>
+            <a href="#faq">سوالات</a>
+            <a href="https://www.paziresh24.com/_/hamgam/launcher/" class="btn btn--primary magnetic" target="_blank" rel="noopener">نصب در پذیرش۲۴</a>
+        </div>
+    </header>
+
+    <!-- ── Hero ─────────────────────────────────────────────── -->
+    <section class="hero" id="hero">
+        <canvas class="hero__canvas" id="particleCanvas" aria-hidden="true"></canvas>
+        <div class="hero__aurora" aria-hidden="true">
+            <div class="aurora aurora--1"></div>
+            <div class="aurora aurora--2"></div>
+            <div class="aurora aurora--3"></div>
+        </div>
+        <div class="hero__grid" aria-hidden="true"></div>
+
+        <div class="container hero__content">
+            <div class="hero__text">
+                <div class="hero__badge reveal">
+                    <span class="pulse-ring"><span class="pulse-dot"></span></span>
+                    <span>همگام‌سازی لحظه‌ای</span>
+                    <span class="hero__badge-divider">·</span>
+                    <span>مخصوص پزشکان ایران</span>
+                </div>
+
+                <h1 class="hero__title reveal reveal--d1">
+                    نوبت‌ها در تقویم،
+                    <span class="shimmer-text">مرخصی در پذیرش۲۴</span>
+                    <br>
+                    <span class="hero__rotate-wrap">— <span id="heroRotate" class="hero__rotate">خودکار</span></span>
+                </h1>
+
+                <p class="hero__subtitle reveal reveal--d2">
+                    همگام پل هوشمند بین <strong>پذیرش۲۴</strong> و <strong>Google Calendar</strong> است.
+                    هر نوبت خودکار در تقویم می‌آید؛ هر بلوک زمانی در گوگل، نوبت‌گیری را در پذیرش۲۴ می‌بندد.
+                </p>
+
+                <div class="hero__actions reveal reveal--d3">
+                    <a href="https://www.paziresh24.com/_/hamgam/launcher/" class="btn btn--primary btn--lg btn--shine magnetic" target="_blank" rel="noopener">
+                        <span class="btn__icon">⚡</span>
+                        همین الان فعالش کن
+                    </a>
+                    <a href="#how-it-works" class="btn btn--glass btn--lg">
+                        ببین چطور کار می‌کنه
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M19 12l-7 7-7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    </a>
+                </div>
+
+                <div class="hero__trust reveal reveal--d4">
+                    <div class="trust-chip"><span>🔒</span> OAuth امن گوگل</div>
+                    <div class="trust-chip"><span>⚡</span> وب‌هوک لحظه‌ای</div>
+                    <div class="trust-chip"><span>🏥</span> چند مرکز درمانی</div>
+                    <div class="trust-chip"><span>🇮🇷</span> فارسی · تهران</div>
+                </div>
+            </div>
+
+            <div class="hero__visual reveal reveal--d2" id="heroTilt">
+                <div class="sync-stage">
+                    <div class="sync-stage__glow"></div>
+                    <div class="sync-card sync-card--p24 glass-card">
+                        <div class="sync-card__header">
+                            <span class="sync-logo sync-logo--p24"><span class="sync-logo__dot"></span>پذیرش۲۴</span>
+                            <span class="live-badge"><span></span>زنده</span>
+                        </div>
+                        <div class="sync-card__body" id="p24Feed">
+                            <div class="feed-item feed-item--pulse" data-feed="0">
+                                <div class="feed-item__icon feed-item__icon--new">+</div>
+                                <div><strong>نوبت جدید — علی رضایی</strong><span>۱۴۰۴/۰۳/۲۸ · ۱۰:۳۰ · مطب ونک</span></div>
+                            </div>
+                            <div class="feed-item" data-feed="1">
+                                <div class="feed-item__icon feed-item__icon--online">◉</div>
+                                <div><strong>ویزیت آنلاین — سارا احمدی</strong><span>۱۴۰۴/۰۳/۲۸ · ۱۴:۰۰</span></div>
+                            </div>
+                            <div class="feed-item" data-feed="2">
+                                <div class="feed-item__icon feed-item__icon--cancel">×</div>
+                                <div><strong>لغو نوبت — محمد کریمی</strong><span>۱۴۰۴/۰۳/۲۹ · ۰۹:۰۰</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sync-bridge" aria-hidden="true">
+                        <div class="sync-bridge__track"></div>
+                        <div class="sync-bridge__packet"></div>
+                        <div class="sync-bridge__packet sync-bridge__packet--2"></div>
+                        <div class="sync-bridge__icon">
+                            <svg viewBox="0 0 24 24" fill="none"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="sync-card sync-card--gcal glass-card">
+                        <div class="sync-card__header">
+                            <span class="sync-logo sync-logo--gcal">
+                                <svg width="14" height="14" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" fill="#4285F4"/><rect x="3" y="4" width="18" height="5" fill="#EA4335"/></svg>
+                                Google Calendar
+                            </span>
+                            <span class="sync-tag">همگام</span>
+                        </div>
+                        <div class="sync-card__body" id="gcalFeed">
+                            <div class="cal-event cal-event--violet" data-cal="0">
+                                <div class="cal-event__bar"></div>
+                                <div><strong>نوبت پذیرش ۲۴</strong><span>۱۰:۳۰ – ۱۱:۰۰</span></div>
+                            </div>
+                            <div class="cal-event cal-event--green" data-cal="1">
+                                <div class="cal-event__bar"></div>
+                                <div><strong>ویزیت آنلاین پذیرش ۲۴</strong><span>۱۴:۰۰ – ۱۴:۳۰</span></div>
+                            </div>
+                            <div class="cal-event cal-event--muted" data-cal="2">
+                                <div class="cal-event__bar"></div>
+                                <div><strong class="cal-event--struck">نوبت پذیرش ۲۴</strong><span>حذف شد</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sync-float-badge">
+                        <svg viewBox="0 0 24 24" fill="none"><path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                        دوطرفه · Real-time
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hero__scroll" aria-hidden="true"><div class="hero__scroll-line"></div></div>
+    </section>
+
+    <!-- ── Marquee partners ─────────────────────────────────── -->
+    <section class="marquee-section">
+        <div class="marquee" aria-hidden="true">
+            <div class="marquee__track">
+                <span>پذیرش۲۴</span><span>·</span><span>Google Calendar</span><span>·</span><span>هم‌دست</span><span>·</span><span>زمانک</span><span>·</span><span>OAuth 2.0</span><span>·</span><span>وب‌هوک لحظه‌ای</span><span>·</span>
+                <span>پذیرش۲۴</span><span>·</span><span>Google Calendar</span><span>·</span><span>هم‌دست</span><span>·</span><span>زمانک</span><span>·</span><span>OAuth 2.0</span><span>·</span><span>وب‌هوک لحظه‌ای</span><span>·</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Before / After ───────────────────────────────────── -->
+    <section class="compare" id="compare">
+        <div class="container">
+            <div class="section-header reveal">
+                <span class="section-tag">قبل و بعد</span>
+                <h2 class="section-title">روز کاری‌ات فرق می‌کنه</h2>
+            </div>
+            <div class="compare__grid">
+                <div class="compare-card compare-card--before reveal">
+                    <div class="compare-card__label">❌ بدون همگام</div>
+                    <ul>
+                        <li>هر نوبت را دستی در تقویم می‌نویسی</li>
+                        <li>مرخصی را جدا در پذیرش۲۴ ثبت می‌کنی</li>
+                        <li>فراموشی = تداخل نوبت و استرس</li>
+                        <li>اطلاعات بیمار پراکنده در دو جا</li>
+                        <li>لغو نوبت = دو جا باید حذف کنی</li>
+                    </ul>
+                </div>
+                <div class="compare-card compare-card--after reveal reveal--d1">
+                    <div class="compare-card__label">✅ با همگام</div>
+                    <ul>
+                        <li>نوبت خودکار در Google Calendar ظاهر می‌شود</li>
+                        <li>بلوک تقویم = مرخصی خودکار در پذیرش۲۴</li>
+                        <li>یک منبع حقیقت برای زمان‌بندی</li>
+                        <li>شما تعیین می‌کنی چه چیزی نمایش داده شود</li>
+                        <li>حذف از تقویم = لغو در پذیرش۲۴ (اختیاری)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Features Bento ───────────────────────────────────── -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header reveal">
+                <span class="section-tag">امکانات</span>
+                <h2 class="section-title">هرچی برای مدیریت زمان پزشک لازمه</h2>
+                <p class="section-desc">یک پلتفرم، دو جهان — بدون کپی‌پیست، بدون فراموشی، بدون استرس.</p>
+            </div>
+            <div class="bento">
+                <article class="bento__card bento__card--hero tilt-card reveal" data-tilt>
+                    <div class="bento__glow"></div>
+                    <div class="bento__icon">📅</div>
+                    <h3>ثبت خودکار نوبت</h3>
+                    <p>هر رزرو در پذیرش۲۴ → رویداد در Google Calendar. لحظه‌ای، بدون دخالت شما.</p>
+                    <div class="bento__mini-demo">
+                        <span class="mini-pill mini-pill--p24">نوبت جدید</span>
+                        <span class="mini-arrow">→</span>
+                        <span class="mini-pill mini-pill--gcal">رویداد تقویم</span>
+                    </div>
+                </article>
+                <article class="bento__card tilt-card reveal reveal--d1" data-tilt>
+                    <div class="bento__icon">🚫</div>
+                    <h3>مرخصی از تقویم</h3>
+                    <p>رویداد شخصی در گوگل = مرخصی در پذیرش۲۴. ویرایش و حذف همگام می‌ماند.</p>
+                </article>
+                <article class="bento__card tilt-card reveal reveal--d2" data-tilt>
+                    <div class="bento__icon">🎨</div>
+                    <h3>۵ رنگ تقویم</h3>
+                    <p>حضوری، آنلاین، اورژانسی — هرکدام رنگ خودش.</p>
+                </article>
+                <article class="bento__card bento__card--wide tilt-card reveal" data-tilt>
+                    <div class="bento__icon">🏥</div>
+                    <h3>چند مرکز درمانی</h3>
+                    <p>مطب ونک، کلینیک شمال، ویزیت آنلاین — مرخصی فقط برای مراکزی که انتخاب می‌کنی.</p>
+                    <div class="center-chips">
+                        <span class="center-chip center-chip--on">مطب ونک</span>
+                        <span class="center-chip center-chip--on">کلینیک شمال</span>
+                        <span class="center-chip">ویزیت آنلاین</span>
+                    </div>
+                </article>
+                <article class="bento__card tilt-card reveal reveal--d1" data-tilt>
+                    <div class="bento__icon">🔐</div>
+                    <h3>حریم خصوصی</h3>
+                    <p>نام، کد ملی، تلفن — هرکدام را که بخواهی نشان بده یا مخفی کن.</p>
+                </article>
+                <article class="bento__card tilt-card reveal reveal--d2" data-tilt>
+                    <div class="bento__icon">↩️</div>
+                    <h3>لغو دوطرفه</h3>
+                    <p>حذف رویداد نوبت از تقویم → لغو در پذیرش۲۴ (قابل تنظیم).</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── How it works ─────────────────────────────────────── -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="container">
+            <div class="section-header reveal">
+                <span class="section-tag">نحوه کار</span>
+                <h2 class="section-title">سه قدم تا آرامش</h2>
+            </div>
+            <div class="timeline">
+                <div class="timeline__step reveal" data-step="1">
+                    <div class="timeline__node"><span>۱</span></div>
+                    <div class="timeline__card glass-card">
+                        <h3>نصب از پنل پذیرش۲۴</h3>
+                        <p>بخش «هم‌دست» → اپلیکیشن همگام → نصب. بدون ثبت‌نام جدا، بدون اپ موبایل.</p>
+                    </div>
+                </div>
+                <div class="timeline__step reveal reveal--d1" data-step="2">
+                    <div class="timeline__node"><span>۲</span></div>
+                    <div class="timeline__card glass-card">
+                        <h3>اتصال Google</h3>
+                        <p>یک کلیک OAuth. فقط دسترسی مدیریت رویدادهای تقویم — نه ایمیل، نه فایل.</p>
+                    </div>
+                </div>
+                <div class="timeline__step reveal reveal--d2" data-step="3">
+                    <div class="timeline__node"><span>۳</span></div>
+                    <div class="timeline__card glass-card">
+                        <h3>تنظیم و ذخیره</h3>
+                        <p>رنگ، اطلاعات نمایشی، مراکز درمانی، مرخصی. از این لحظه همه‌چیز خودکار است.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Vacation ─────────────────────────────────────────── -->
+    <section class="vacation" id="vacation">
+        <div class="vacation__noise" aria-hidden="true"></div>
+        <div class="container vacation__inner">
+            <div class="vacation__text reveal">
+                <span class="section-tag section-tag--light">مرخصی خودکار</span>
+                <h2 class="section-title section-title--light">تقویم را باز کن،<br>پذیرش۲۴ خودش می‌فهمد</h2>
+                <p class="vacation__desc">جلسه، سفر، استراحت — هر رویداد شخصی در Google Calendar به مرخصی در مراکز انتخابی تبدیل می‌شود.</p>
+                <div class="vacation__features">
+                    <div class="vac-feat"><span>✓</span> ویرایش/حذف در تقویم = به‌روزرسانی مرخصی</div>
+                    <div class="vac-feat"><span>✓</span> واردسازی یک‌باره ۳۰ روز آینده</div>
+                    <div class="vac-feat"><span>✓</span> لغو نوبت‌های متداخل (قابل تنظیم)</div>
+                    <div class="vac-feat"><span>✓</span> نوبت‌های پذیرش۲۴ مرخصی نمی‌شوند</div>
+                </div>
+            </div>
+            <div class="vacation__demo reveal reveal--d1" id="vacationDemo">
+                <div class="vac-demo__step vac-demo__step--active" data-vac="0">
+                    <div class="vac-demo__icon">📅</div>
+                    <div><strong>جلسه هیئت علمی</strong><span>۱۴:۰۰ – ۱۶:۰۰ · امروز</span></div>
+                </div>
+                <div class="vac-demo__connector"><div class="vac-demo__pulse"></div></div>
+                <div class="vac-demo__step" data-vac="1">
+                    <div class="vac-demo__icon">⚙️</div>
+                    <div><strong>همگام تشخیص داد</strong><span>رویداد شخصی · نه نوبت پذیرش</span></div>
+                </div>
+                <div class="vac-demo__connector"><div class="vac-demo__pulse"></div></div>
+                <div class="vac-demo__step" data-vac="2">
+                    <div class="vac-demo__icon">🏥</div>
+                    <div><strong>مرخصی ثبت شد</strong><span>مطب ونک · نوبت‌گیری بسته</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Customize interactive ────────────────────────────── -->
+    <section class="customize" id="customize">
+        <div class="container">
+            <div class="section-header reveal">
+                <span class="section-tag">شخصی‌سازی</span>
+                <h2 class="section-title">تقویم تو، قوانین تو</h2>
+            </div>
+            <div class="customize__stage reveal">
+                <div class="customize__controls glass-card">
+                    <h3>تنظیمات رویداد</h3>
+                    <label class="ctrl-row"><span>نام بیمار</span><input type="checkbox" class="ctrl-toggle" data-field="name" checked></label>
+                    <label class="ctrl-row"><span>تاریخ و ساعت</span><input type="checkbox" class="ctrl-toggle" data-field="datetime" checked></label>
+                    <label class="ctrl-row"><span>کد ملی</span><input type="checkbox" class="ctrl-toggle" data-field="nationalId"></label>
+                    <label class="ctrl-row"><span>شماره تماس</span><input type="checkbox" class="ctrl-toggle" data-field="phone" checked></label>
+                    <div class="ctrl-colors">
+                        <span>رنگ</span>
+                        <div class="ctrl-dots">
+                            <button type="button" class="ctrl-dot" data-color="yellow" style="--c:#E7BA51" aria-label="زرد"></button>
+                            <button type="button" class="ctrl-dot" data-color="green" style="--c:#489160" aria-label="سبز"></button>
+                            <button type="button" class="ctrl-dot active" data-color="blue" style="--c:#3f51b5" aria-label="آبی"></button>
+                            <button type="button" class="ctrl-dot" data-color="red" style="--c:#DA5234" aria-label="قرمز"></button>
+                            <button type="button" class="ctrl-dot" data-color="sky" style="--c:#3b82f6" aria-label="آسمانی"></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="customize__preview glass-card" id="livePreview">
+                    <div class="preview-header"><span class="preview-dot"></span>پیش‌نمایش زنده</div>
+                    <div class="preview-event">
+                        <div class="preview-event__bar" id="previewBar"></div>
+                        <div class="preview-event__body">
+                            <strong>نوبت پذیرش ۲۴</strong>
+                            <div class="preview-event__lines" id="previewLines">
+                                <span data-line="name">👤 علی محمدی</span>
+                                <span data-line="phone">📞 ۰۹۱۲۱۲۳۴۵۶۷</span>
+                                <span data-line="datetime">🕐 ۱۴۰۴/۰۳/۲۸ · ۱۰:۳۰</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Scenarios ────────────────────────────────────────── -->
+    <section class="scenarios" id="scenarios">
+        <div class="container">
+            <div class="section-header reveal">
+                <span class="section-tag">سناریوهای واقعی</span>
+                <h2 class="section-title">این شرایط پیش می‌آید — همگام می‌داند</h2>
+                <p class="section-desc">سناریوهایی که هر روز برای پزشکان رخ می‌دهد و همگام چطور واکنش نشان می‌دهد.</p>
+            </div>
+            <div class="scenario-grid">
+                <article class="scenario-card reveal" data-scenario>
+                    <div class="scenario-card__icon">📥</div>
+                    <h3>بیمار نوبت می‌گیرد</h3>
+                    <p class="scenario-card__trigger">تریگر: وب‌هوک پذیرش۲۴</p>
+                    <p class="scenario-card__result">رویداد با عنوان «نوبت پذیرش ۲۴» در تقویم ساخته می‌شود. اطلاعات بیمار طبق تنظیمات شما در توضیحات قرار می‌گیرد.</p>
+                </article>
+                <article class="scenario-card reveal reveal--d1" data-scenario>
+                    <div class="scenario-card__icon">📅</div>
+                    <h3>جلسه شخصی در تقویم</h3>
+                    <p class="scenario-card__trigger">تریگر: رویداد جدید در Google Calendar</p>
+                    <p class="scenario-card__result">اگر عنوان نوبت پذیرش نباشد → مرخصی در مراکز انتخابی ثبت می‌شود. نوبت‌گیری آن بازه بسته می‌شود.</p>
+                </article>
+                <article class="scenario-card reveal reveal--d2" data-scenario>
+                    <div class="scenario-card__icon">⚠️</div>
+                    <h3>تداخل مرخصی و نوبت</h3>
+                    <p class="scenario-card__trigger">تریگر: مرخصی روی نوبت موجود</p>
+                    <p class="scenario-card__result">پیش‌فرض: نوبت‌های متداخل در مراکز انتخابی لغو می‌شوند، سپس مرخصی ثبت می‌شود. قابل خاموش کردن.</p>
+                </article>
+                <article class="scenario-card reveal" data-scenario>
+                    <div class="scenario-card__icon">🗑️</div>
+                    <h3>حذف رویداد نوبت</h3>
+                    <p class="scenario-card__trigger">تریگر: حذف از Google Calendar</p>
+                    <p class="scenario-card__result">اگر «لغو با حذف رویداد» فعال باشد → نوبت در پذیرش۲۴ هم لغو می‌شود. بیمار مطلع می‌شود.</p>
+                </article>
+                <article class="scenario-card reveal reveal--d1" data-scenario>
+                    <div class="scenario-card__icon">🏥</div>
+                    <h3>دو مطب، یک مرخصی</h3>
+                    <p class="scenario-card__trigger">تریگر: مرخصی فقط برای «مطب ونک»</p>
+                    <p class="scenario-card__result">کلینیک شمال بدون تغییر می‌ماند. بیماران آنجا همچنان نوبت می‌گیرند.</p>
+                </article>
+                <article class="scenario-card reveal reveal--d2" data-scenario>
+                    <div class="scenario-card__icon">🔄</div>
+                    <h3>تغییر زمان نوبت</h3>
+                    <p class="scenario-card__trigger">تریگر: ویرایش نوبت در پذیرش۲۴</p>
+                    <p class="scenario-card__result">رویداد تقویم به‌روز می‌شود — زمان و جزئیات جدید جایگزین می‌شود.</p>
+                </article>
+                <article class="scenario-card reveal" data-scenario>
+                    <div class="scenario-card__icon">📲</div>
+                    <h3>ویزیت آنلاین</h3>
+                    <p class="scenario-card__trigger">تریگر: نوبت آنلاین پذیرش۲۴</p>
+                    <p class="scenario-card__result">عنوان «ویزیت آنلاین پذیرش ۲۴» — با رنگ سبز از حضوری تفکیک کنید.</p>
+                </article>
+                <article class="scenario-card reveal reveal--d1" data-scenario>
+                    <div class="scenario-card__icon">⏳</div>
+                    <h3>واردسازی ۳۰ روز</h3>
+                    <p class="scenario-card__trigger">تریگر: دکمه یک‌باره در تنظیمات</p>
+                    <p class="scenario-card__result">رویدادهای شخصی ۳۰ روز آینده → مرخصی. یک‌بار برای هر پزشک. قابل بازگشت با «حذف مرخصی‌های واردشده».</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Stats ────────────────────────────────────────────── -->
+    <section class="stats">
+        <div class="container stats__row">
+            <div class="stat-block reveal"><span class="stat-block__num" data-count="2">۰</span><span class="stat-block__lbl">پلتفرم متصل</span></div>
+            <div class="stat-block reveal reveal--d1"><span class="stat-block__num" data-count="5">۰</span><span class="stat-block__lbl">رنگ تقویم</span></div>
+            <div class="stat-block reveal reveal--d2"><span class="stat-block__num" data-count="30">۰</span><span class="stat-block__suffix">روز</span><span class="stat-block__lbl">واردسازی مرخصی</span></div>
+            <div class="stat-block reveal reveal--d3"><span class="stat-block__num stat-block__num--txt">لحظه‌ای</span><span class="stat-block__lbl">همگام‌سازی</span></div>
+        </div>
+    </section>
+
+    <!-- ── FAQ ──────────────────────────────────────────────── -->
+    <section class="faq" id="faq">
+        <div class="container">
+            <div class="section-header reveal">
+                <span class="section-tag">سوالات متداول</span>
+                <h2 class="section-title">هر سناریو، پاسخ دقیق</h2>
+                <p class="section-desc">جستجو کن یا دسته‌بندی را انتخاب کن — پاسخ کامل به شرایط واقعی کاری شما.</p>
+            </div>
+
+            <div class="faq__toolbar reveal">
+                <div class="faq__search-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    <input type="search" id="faqSearch" class="faq__search" placeholder="جستجو در سوالات… مثلاً مرخصی، لغو نوبت، چند مطب" autocomplete="off">
+                </div>
+                <div class="faq__cats" id="faqCats" role="tablist">
+                    <button type="button" class="faq__cat active" data-cat="all">همه</button>
+                    <button type="button" class="faq__cat" data-cat="start">شروع کار</button>
+                    <button type="button" class="faq__cat" data-cat="appointments">نوبت‌ها</button>
+                    <button type="button" class="faq__cat" data-cat="vacation">مرخصی</button>
+                    <button type="button" class="faq__cat" data-cat="centers">چند مرکز</button>
+                    <button type="button" class="faq__cat" data-cat="privacy">حریم خصوصی</button>
+                    <button type="button" class="faq__cat" data-cat="issues">مشکلات</button>
+                </div>
+            </div>
+
+            <div class="faq__list" id="faqList">
+
+                <details class="faq-item reveal" data-cat="start" data-keywords="همگام چیست زمانک پزشک پذیرش">
+                    <summary><span class="faq-item__q">همگام چیست و دقیقاً برای چه کسانی ساخته شده؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p><strong>همگام</strong> محصولی از برند <strong>زمانک</strong> است که پزشکان و ارائه‌دهندگان درمانیِ کاربر <strong>پذیرش۲۴</strong> را به <strong>Google Calendar</strong> وصل می‌کند.</p>
+                        <p>اگر هر روز نوبت می‌گیرید، چند مطب یا کلینیک دارید، و از تقویم گوگل برای برنامه‌ریزی استفاده می‌کنید — همگام برای شماست. بیماران مستقیماً از همگام استفاده نمی‌کنند.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="start" data-keywords="نصب هم‌دست hamdast راه‌اندازی">
+                    <summary><span class="faq-item__q">قدم‌به‌قدم چطور نصب و فعال کنم؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <ol>
+                            <li>وارد <strong>پنل پذیرش۲۴</strong> شوید.</li>
+                            <li>به بخش <strong>هم‌دست (Hamdast)</strong> بروید و اپلیکیشن <strong>همگام</strong> را نصب کنید.</li>
+                            <li>روی دکمه همگام کلیک کنید — تنظیمات در iframe باز می‌شود.</li>
+                            <li>حساب <strong>Google</strong> را متصل کنید (OAuth).</li>
+                            <li>رنگ، فیلدهای نمایشی، مراکز درمانی و مرخصی را تنظیم و <strong>ذخیره</strong> کنید.</li>
+                        </ol>
+                        <p>نیازی به ثبت‌نام جدا در zamanak24.ir یا نصب اپ موبایل نیست.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="start" data-keywords="gmail workspace حساب گوگل">
+                    <summary><span class="faq-item__q">Gmail شخصی دارم یا Google Workspace — کدام را وصل کنم؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p>هر دو کار می‌کنند. معمولاً همان حسابی را وصل کنید که روزانه تقویمش را می‌بینید. اگر منشی به تقویم مشترک دسترسی دارد، همان تقویمی را انتخاب کنید که نوبت‌ها باید آنجا ظاهر شوند.</p>
+                        <p>بعداً از تنظیمات همگام می‌توانید حساب را عوض کنید یا اتصال را قطع کنید.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="start" data-keywords="دسترسی oauth calendar.events امنیت">
+                    <summary><span class="faq-item__q">همگام به چه دسترسی‌هایی از Google نیاز دارد؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p>فقط <strong>مدیریت رویدادهای تقویم</strong> (<code>calendar.events</code>) — برای ساخت، ویرایش و حذف رویدادهای نوبت و شنیدن تغییرات مرخصی.</p>
+                        <p>به ایمیل، Drive، Contacts یا سایر سرویس‌های گوگل دسترسی ندارد. اتصال استاندارد OAuth 2.0 است.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="appointments" data-keywords="نوبت جدید سرعت لحظه‌ای webhook">
+                    <summary><span class="faq-item__q">نوبت جدید چقدر طول می‌کشد تا در تقویم بیاید؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p><strong>معمولاً چند ثانیه.</strong> به محض ثبت نوبت، پذیرش۲۴ وب‌هوک می‌فرستد و همگام رویداد را در Google Calendar می‌سازد. نیازی به رفرش دستی نیست — تقویم گوگل خودش به‌روز می‌شود.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="appointments" data-keywords="ویرایش نوبت تغییر زمان">
+                    <summary><span class="faq-item__q">اگر زمان نوبت در پذیرش۲۴ عوض شود چه می‌شود؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p>همگام رویداد مربوطه در تقویم را <strong>به‌روزرسانی</strong> می‌کند — ساعت جدید و جزئیات تازه جایگزین می‌شود. نیازی به ساخت رویداد جدید یا حذف دستی نیست.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="appointments" data-keywords="لغو نوبت پذیرش۲۴">
+                    <summary><span class="faq-item__q">اگر نوبت از پذیرش۲۴ لغو شود، رویداد تقویم چه می‌شود؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p>رویداد مربوطه در Google Calendar <strong>حذف یا به‌روز</strong> می‌شود تا با وضعیت پذیرش۲۴ هماهنگ بماند. دیگر رویداد «شبح» در تقویم نمی‌ماند.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="appointments" data-keywords="حذف تقویم لغو">
+                    <summary><span class="faq-item__q">اگر رویداد نوبت را از Google Calendar حذف کنم؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p>اگر گزینه <strong>«لغو نوبت با حذف رویداد»</strong> روشن باشد → نوبت در پذیرش۲۴ هم <strong>لغو</strong> می‌شود.</p>
+                        <p>اگر خاموش باشد → فقط رویداد تقویم حذف می‌شود و نوبت پذیرش۲۴ سر جایش می‌ماند. این رفتار را خودتان انتخاب می‌کنید.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="appointments" data-keywords="آنلاین ویزیت آنلاین">
+                    <summary><span class="faq-item__q">ویزیت آنلاین چطور در تقویم دیده می‌شود؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p>با عنوان <strong>«ویزیت آنلاین پذیرش ۲۴»</strong> ثبت می‌شود. پیشنهاد: رنگ <strong>سبز</strong> برای آنلاین و رنگ دیگر برای حضوری — یک نگاه به تقویم، تفکیک فوری.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="appointments" data-keywords="اطلاعات بیمار نام کد ملی تلفن">
+                    <summary><span class="faq-item__q">چه اطلاعاتی از بیمار در تقویم نمایش داده می‌شود؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p>شما کنترل دارید — هر کدام جداگانه روشن/خاموش:</p>
+                        <ul>
+                            <li>نام بیمار</li>
+                            <li>تاریخ و ساعت نوبت</li>
+                            <li>کد ملی</li>
+                            <li>شماره تماس</li>
+                        </ul>
+                        <p>مثال: فقط ساعت را نشان بدهید و نام/تلفن را مخفی کنید — مناسب وقتی تقویم را با دیگران به اشتراک می‌گذارید.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="vacation" data-keywords="مرخصی خودکار چگونه">
+                    <summary><span class="faq-item__q">مرخصی خودکار دقیقاً چطور کار می‌کند؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <ol>
+                            <li>«ثبت خودکار مرخصی» را در تنظیمات فعال کنید.</li>
+                            <li>مراکز درمانی هدف را انتخاب کنید.</li>
+                            <li>رویداد شخصی در Google Calendar بسازید (مثلاً «جلسه»، «سفر»).</li>
+                            <li>همگام همان بازه را به‌عنوان <strong>مرخصی</strong> در پذیرش۲۴ ثبت می‌کند.</li>
+                            <li>ویرایش یا حذف رویداد → مرخصی هم به‌روز یا حذف می‌شود.</li>
+                        </ol>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="vacation" data-keywords="نوبت پذیرش مرخصی نمی‌شود">
+                    <summary><span class="faq-item__q">آیا نوبت‌های پذیرش۲۴ به‌عنوان مرخصی ثبت می‌شوند؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p><strong>خیر.</strong> رویدادهایی که همگام برای نوبت می‌سازد — «نوبت پذیرش ۲۴»، «ویزیت آنلاین پذیرش ۲۴» و مشابه — <strong>مرخصی حساب نمی‌شوند</strong>. فقط رویدادهای شخصی شما (بدون این عناوین) مرخصی می‌شوند.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="vacation" data-keywords="تداخل لغو نوبت مرخصی">
+                    <summary><span class="faq-item__q">مرخصی با نوبت‌های موجود تداخل دارد — چه اتفاقی می‌افتد؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p><strong>سناریو:</strong> فردا ساعت ۱۰ نوبت دارید، امروز در تقویم «جلسه ۹ تا ۱۲» می‌سازید.</p>
+                        <p><strong>پیش‌فرض:</strong> نوبت ساعت ۱۰ در مراکز انتخابی <strong>لغو</strong> می‌شود، سپس مرخصی ثبت می‌شود.</p>
+                        <p>این رفتار قابل تنظیم است. «جابجایی خودکار به اولین زمان آزاد» به‌زودی اضافه می‌شود.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="vacation" data-keywords="۳۰ روز واردسازی backfill">
+                    <summary><span class="faq-item__q">واردسازی ۳۰ روز آینده چیست و چند بار می‌شود استفاده کرد؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p>اگر از قبل رویداد شخصی در تقویم دارید، با یک کلیک همه را برای ۳۰ روز آینده به مرخصی تبدیل می‌کند.</p>
+                        <ul>
+                            <li><strong>یک‌بار</strong> برای هر پزشک (قفل دائمی بعد از استفاده)</li>
+                            <li>فقط رویدادهای <strong>شخصی</strong> — نه نوبت‌های پذیرش</li>
+                            <li>با «حذف مرخصی‌های واردشده» می‌توانید برگردانید</li>
+                        </ul>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="vacation" data-keywords="تمام روز all-day رویداد">
+                    <summary><span class="faq-item__q">رویداد تمام‌روز (All-day) در تقویم چطور؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p>رویدادهای تمام‌روز شخصی هم می‌توانند به مرخصی تبدیل شوند — مثلاً «سفر کاری» یا «تعطیل». شرط همان است: عنوان نوبت پذیرش نباشد و رویداد تأییدشده باشد.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="vacation" data-keywords="تکرار شونده recurring">
+                    <summary><span class="faq-item__q">رویداد تکرارشونده (مثلاً هر هفته جلسه) چه می‌شود؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p>هر بار که یک نمونه از رویداد تکرارشونده ایجاد یا تغییر کند، همگام آن بازه را پردازش می‌کند. برای جلسات هفتگی ثابت، مرخصی‌های متناظر در پذیرش۲۴ ثبت می‌شوند — بدون ثبت دستی هر هفته.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="centers" data-keywords="چند مطب مرکز درمانی">
+                    <summary><span class="faq-item__q">چند مرکز دارم — مرخصی کجا اعمال می‌شود؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p>در تنظیمات، لیست مراکز پذیرش۲۴ شما نمایش داده می‌شود. فقط مراکز تیک‌خورده تحت تأثیر مرخصی هستند.</p>
+                        <p><strong>مثال:</strong> فقط «مطب ونک» → مرخصی آنجا؛ «کلینیک شمال» بدون تغییر و نوبت‌گیری باز.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="centers" data-keywords="آنلاین حضوری جدا">
+                    <summary><span class="faq-item__q">می‌خواهم فقط ویزیت آنلاین بسته شود، مطب باز بماند — امکانش هست؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p><strong>بله.</strong> مرخصی فقط روی مراکزی که انتخاب کرده‌اید اعمال می‌شود. اگر «ویزیت آنلاین» را تیک بزنید و مطب را نه — فقط نوبت‌گیری آنلاین بسته می‌شود.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="privacy" data-keywords="امنیت حریم بیمار oauth">
+                    <summary><span class="faq-item__q">اطلاعات بیماران امن است؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p>همگام فقط اطلاعاتی را که <strong>شما</strong> برای نمایش در تقویم انتخاب کرده‌اید در رویداد Google قرار می‌دهد. اتصال OAuth استاندارد است؛ توکن‌ها امن ذخیره می‌شوند.</p>
+                        <p>اگر تقویم را با منشی به اشتراک می‌گذارید، فیلدهای حساس را خاموش کنید.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="privacy" data-keywords="منشی دسترسی تقویم مشترک">
+                    <summary><span class="faq-item__q">منشی به تقویم من دسترسی دارد — مشکلی پیش می‌آید؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p>همگام روی همان تقویمی کار می‌کند که وصل کرده‌اید. منشی رویدادها را می‌بیند — مثل همیشه. برای محدود کردن اطلاعات بیمار در توضیحات رویداد، فیلدهای نام/کد ملی/تلفن را در تنظیمات همگام خاموش کنید.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="issues" data-keywords="قطع اتصال google">
+                    <summary><span class="faq-item__q">اتصال Google قطع شد یا توکن منقضی شد — چه کنم؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p>وارد تنظیمات همگام شوید و دوباره <strong>حساب Google را متصل</strong> کنید. معمولاً یک کلیک OAuth کافی است. رویدادهای قبلی در تقویم باقی می‌مانند؛ فقط تا زمان اتصال مجدد، همگام‌سازی جدید انجام نمی‌شود.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="issues" data-keywords="نوبت نیامد تقویم مشکل">
+                    <summary><span class="faq-item__q">نوبت در پذیرش۲۴ ثبت شد ولی در تقویم نیامد — چک‌لیست عیب‌یابی</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <ol>
+                            <li>آیا حساب Google هنوز <strong>متصل</strong> است؟</li>
+                            <li>آیا بعد از آخرین تغییر، <strong>ذخیره</strong> زده‌اید؟</li>
+                            <li>آیا اپ همگام در هم‌دست <strong>فعال</strong> است؟</li>
+                            <li>تقویم درست را در گوگل نگاه می‌کنید؟ (همان حساب وصل‌شده)</li>
+                        </ol>
+                        <p>اگر همه درست بود و مشکل ادامه داشت، از پشتیبانی پذیرش۲۴ یا زمانک کمک بگیرید.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="issues" data-keywords="موبایل تبلت">
+                    <summary><span class="faq-item__q">روی موبایل و تبلت هم درست کار می‌کند؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p><strong>بله.</strong> تنظیمات داخل پنل پذیرش۲۴ باز می‌شود و ریسپانسیو است. تقویم گوگل هم روی همه دستگاه‌ها sync است — نوبت و مرخصی همه‌جا یکسان.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="issues" data-keywords="هزینه قیمت اشتراک">
+                    <summary><span class="faq-item__q">هزینه همگام چقدر است؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p>از فروشگاه <strong>هم‌دست</strong> در پنل پذیرش۲۴ در دسترس است. قیمت و طرح اشتراک را در همان صفحه اپلیکیشن ببینید.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item reveal" data-cat="issues" data-keywords="پشتیبانی تماس کمک">
+                    <summary><span class="faq-item__q">پشتیبانی از کجا بگیرم؟</span><svg class="faq-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+                    <div class="faq-item__body">
+                        <p>پشتیبانی <strong>پذیرش۲۴</strong> یا تیم <strong>زمانک</strong>. قبل از تماس: وضعیت اتصال Google، تنظیمات ذخیره‌شده، و در صورت مشکل مرخصی — لیست مراکز انتخابی را آماده داشته باشید.</p>
+                    </div>
+                </details>
+
+            </div>
+            <p class="faq__empty" id="faqEmpty" hidden>سوالی با این فیلتر پیدا نشد. عبارت دیگری امتحان کنید.</p>
+        </div>
+    </section>
+
+    <!-- ── Final CTA ────────────────────────────────────────── -->
+    <section class="final-cta">
+        <div class="container">
+            <div class="final-cta__card reveal">
+                <div class="final-cta__aurora" aria-hidden="true"></div>
+                <div class="final-cta__content">
+                    <h2>دیگه وقتشه<br><span class="shimmer-text">تقویم و پذیرش۲۴ همگام بشن</span></h2>
+                    <p>چند دقیقه تنظیم، سال‌ها آرامش.</p>
+                    <a href="https://www.paziresh24.com/_/hamgam/launcher/" class="btn btn--primary btn--lg btn--shine magnetic" target="_blank" rel="noopener">
+                        شروع در پذیرش۲۴
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    </a>
+                    <p class="final-cta__note">نصب از پنل · OAuth امن · بدون ثبت‌نام جدا</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container footer__inner">
+            <div class="footer__brand">
+                <span class="brand__mark brand__mark--sm" aria-hidden="true">
+                    <svg viewBox="0 0 48 48" fill="none"><rect x="6" y="10" width="36" height="32" rx="6" stroke="currentColor" stroke-width="2.5"/><path d="M6 18h36" stroke="currentColor" stroke-width="2.5"/></svg>
+                </span>
+                <div><strong>همگام</strong><span>محصول زمانک · zamanak24.ir</span></div>
+            </div>
+            <div class="footer__links">
+                <a href="#features">امکانات</a>
+                <a href="#scenarios">سناریوها</a>
+                <a href="#faq">سوالات</a>
+                <a href="https://hamgam.zamanak24.ir/" target="_blank" rel="noopener">تنظیمات</a>
+            </div>
+            <p class="footer__copy">© ۱۴۰۴ زمانک</p>
+        </div>
+    </footer>
+
+    <script src="script.js?v=7c190800" defer></script>
+</body>
+</html>

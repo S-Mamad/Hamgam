@@ -1,0 +1,332 @@
+  * {
+            -moz-font-feature-settings: "ss02";
+            -webkit-font-feature-settings: "ss02";
+            font-feature-settings: "ss02";
+            font-family: 'iran-sans-x' !important;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            direction: rtl;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 24px 12px;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 480px;
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.02), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+            padding: 15px;
+            border: 1px solid #f1f5f9;
+        }
+
+        .app-header {
+            text-align: center;
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .app-header h1 {
+            font-size: 16px;
+            color: #0f172a;
+            font-weight: 800;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #334155;
+            margin: 20px 4px 8px 0;
+        }
+
+        .color-picker-container {
+            background: #f8fafc;
+            border: 1px solid #f1f5f9;
+            border-radius: 18px;
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .color-label-badge {
+            background: #ffffff;
+            padding: 6px 14px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            border: 1px solid #e2e8f0;
+            color: #475569;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+        }
+
+        .color-circles {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .circle-opt {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+        }
+
+        .circle-opt:hover {
+            transform: scale(1.1);
+        }
+
+        .circle-opt.active {
+            border: 2px solid #ffffff;
+            outline: 2px solid #3b82f6;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+            transform: scale(1.05);
+        }
+
+        .circle-opt[data-color="11"] { background: #DA5234; }
+        .circle-opt[data-color="1"] { background: #3b82f6; }
+        .circle-opt[data-color="10"] { background: #489160; }
+        .circle-opt[data-color="9"] { background: #3f51b5; }
+        .circle-opt[data-color="5"] { background: #E7BA51; }
+
+        .calendar-preview-box {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 6px;
+            margin-bottom: 16px;
+        }
+
+        .google-calendar-badge {
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #ffffff;
+            cursor: pointer;
+            transition: opacity 0.15s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .google-calendar-badge:hover {
+            opacity: 0.95;
+        }
+
+        /* انیمیشن باز شدن دراپ‌داون پیش‌نمایش نوار */
+        .badge-details-dropdown {
+            background: #ffffff;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, padding 0.3s ease, margin-top 0.3s ease;
+            padding: 0 14px;
+            margin-top: 0;
+        }
+
+        .badge-details-dropdown.open {
+            max-height: 200px; /* حداکثر ارتفاع تقریبی برای باز شدن نرم */
+            opacity: 1;
+            padding: 12px 14px;
+            margin-top: 6px;
+            border-top: 1px dashed #e2e8f0;
+        }
+
+        /* انیمیشن ورود و خروج فیلدهای داخلی تقویم */
+        .detail-item {
+            font-size: 12px;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0;
+            transform: translateY(-5px);
+            animation: fadeInItem 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        @keyframes fadeInItem {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .detail-item .label {
+            color: #94a3b8;
+            min-width: 90px;
+            display: inline-block;
+        }
+
+        .detail-item .value {
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        .settings-card {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .field {
+            background: #ffffff;
+            border: 1px solid #f1f5f9;
+            padding: 14px 16px;
+            border-radius: 16px;
+            transition: background 0.2s ease, border-color 0.2s ease;
+            cursor: pointer; /* اضافه شدن نشانگر دست به کل ردیف */
+        }
+
+        .field:hover {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+        }
+
+        .field.row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .field-label-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding-left: 12px;
+            user-select: none; /* جلوگیری از انتخاب شدن متن هنگام کلیک سریع */
+        }
+
+        .field-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .field-subtitle {
+            font-size: 11px;
+            color: #64748b;
+            line-height: 1.6;
+        }
+
+        .switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            display: none;
+        }
+
+        .switch span {
+            position: absolute;
+            inset: 0;
+            background: #e2e8f0;
+            border-radius: 999px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .switch span::after {
+            content: "";
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            right: 3px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .switch input:checked+span {
+            background: #3b82f6;
+        }
+
+        .switch input:checked+span::after {
+            transform: translateX(-20px);
+        }
+
+        .footer-actions {
+            margin-top: 24px;
+        }
+
+        .save-btn {
+            width: 100%;
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            background: #2563eb;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+        }
+
+        .save-btn:hover {
+            background: #1d4ed8;
+            box-shadow: 0 6px 16px rgba(29, 78, 216, 0.2);
+        }
+
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            background: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .loader {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 12px;
+        }
+
+        .loader span {
+            width: 8px;
+            height: 8px;
+            background: #2563eb;
+            border-radius: 50%;
+            animation: bounce 0.5s infinite alternate;
+        }
+
+        .loader span:nth-child(2) { animation-delay: 0.15s; }
+        .loader span:nth-child(3) { animation-delay: 0.3s; }
+
+        @keyframes bounce {
+            from {
+                transform: translateY(0);
+                opacity: 0.4;
+            }
+            to {
+                transform: translateY(-6px);
+                opacity: 1;
+            }
+        }

@@ -1,0 +1,41 @@
+RewriteEngine On
+
+# HTML همیشه تازه — CSS/JS با ?v= در index به‌روز می‌شوند
+<IfModule mod_headers.c>
+    <FilesMatch "\.(html?)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+    <FilesMatch "\.(css|js)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+</IfModule>
+
+# جلوگیری از دسترسی مستقیم به فایل‌های حساس PHP
+RewriteRule ^php/(includes|storage|sql)/ - [F,L]
+RewriteRule ^php/\.env$ - [F,L]
+
+# API endpoints — hamgam (اصلی)
+RewriteRule ^hamgam/change-gmail/?$ php/hamgam/change-gmail.php [L,QSA]
+RewriteRule ^hamgam/auth/?$ php/hamgam/auth.php [L,QSA]
+RewriteRule ^hamgam/button/?$ php/hamgam/button.php [L,QSA]
+RewriteRule ^hamgam/google-oauth/?$ php/hamgam/google-oauth.php [L,QSA]
+RewriteRule ^hamgam/update/?$ php/hamgam/update.php [L,QSA]
+RewriteRule ^hamgam/updatesetting/?$ php/hamgam/updatesetting.php [L,QSA]
+RewriteRule ^hamgam/medical-centers/?$ php/hamgam/medical-centers.php [L,QSA]
+RewriteRule ^hamgam/delete-synced-backfill-vacations/?$ php/hamgam/delete-synced-backfill-vacations.php [L,QSA]
+RewriteRule ^hamgam/sync-status/?$ php/hamgam/sync-status.php [L,QSA]
+RewriteRule ^webhook/paziresh24-hamgam/?$ php/webhook/paziresh24-hamgam.php [L,QSA]
+RewriteRule ^webhook/google-calendar/?$ php/webhook/google-calendar.php [L,QSA]
+
+# سازگاری با URLهای قدیمی zamanak (تا به‌روزرسانی پنل‌ها)
+RewriteRule ^zamanak/auth/?$ php/hamgam/auth.php [L,QSA]
+RewriteRule ^zamanak/button/?$ php/hamgam/button.php [L,QSA]
+RewriteRule ^zamanak/google-oauth/?$ php/hamgam/google-oauth.php [L,QSA]
+RewriteRule ^zamanak/update/?$ php/hamgam/update.php [L,QSA]
+RewriteRule ^zamanak/updatesetting/?$ php/hamgam/updatesetting.php [L,QSA]
+RewriteRule ^webhook/paziresh24-zamanak/?$ php/webhook/paziresh24-hamgam.php [L,QSA]
+
+# صفحه پیش‌فرض
+DirectoryIndex index.html

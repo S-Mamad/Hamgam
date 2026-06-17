@@ -1,0 +1,16 @@
+# Secrets & local config
+php/.env
+php/.env.local
+deploy/
+
+# Local storage / dev artifacts
+php/storage/*.sqlite
+php/storage/dev-settings.json
+php/storage/php-errors.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (if used locally)
+node_modules/

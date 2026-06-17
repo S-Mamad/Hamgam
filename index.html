@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="fa">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>همگام | تنظیمات تقویم گوگل</title>
+    <meta name="description" content="شخصی‌سازی نحوه ثبت نوبت‌های پذیرش۲۴ در Google Calendar">
+    <link rel="dns-prefetch" href="https://accounts.google.com">
+    <link rel="preconnect" href="https://accounts.google.com" crossorigin>
+    <link rel="stylesheet" href="style.css?v=456fe614">
+    <link href="https://fonts.paziresh24.com/iran-sans-x.css" rel="stylesheet">
+    <script src="https://hamdast.paziresh24.com/sdk/hamdast.js"></script>
+    <script src="script.js?v=456fe614" defer></script>
+</head>
+
+<body>
+
+    <div id="loading-screen" class="loading-screen">
+        <div class="loader-card">
+            <div class="brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="6" y="10" width="36" height="32" rx="6" stroke="currentColor" stroke-width="2.5"/>
+                    <path d="M6 18h36" stroke="currentColor" stroke-width="2.5"/>
+                    <circle cx="16" cy="28" r="3" fill="currentColor"/>
+                    <circle cx="24" cy="28" r="3" fill="currentColor" opacity="0.5"/>
+                    <circle cx="32" cy="28" r="3" fill="currentColor" opacity="0.25"/>
+                </svg>
+            </div>
+            <h2 id="loading-title">در حال تایید حساب کاربری</h2>
+            <p class="loading-subtitle">لطفاً چند لحظه صبر کنید…</p>
+            <div class="loader" id="loading-spinner"><span></span><span></span><span></span></div>
+            <p id="loading-error" class="loading-error" hidden></p>
+        </div>
+    </div>
+
+    <div class="app-container" id="app-container" hidden>
+
+        <section class="settings-section" aria-label="محتوای رویداد نوبت">
+
+            
+
+            <section class="color-picker-container" id="colorPickerSection" data-selected-color="9" aria-label="انتخاب رنگ رویداد">
+                <div class="color-picker-label">
+                    <span class="color-label-badge" id="colorLabel">آبی ارغوانی</span>
+                </div>
+                <div class="color-circles" role="group" aria-label="پالت رنگ">
+                    <div class="circle-opt" data-color="5" role="button" tabindex="0" aria-label="زرد"></div>
+                    <div class="circle-opt" data-color="10" role="button" tabindex="0" aria-label="سبز"></div>
+                    <div class="circle-opt active" data-color="9" role="button" tabindex="0" aria-label="آبی ارغوانی"></div>
+                    <div class="circle-opt" data-color="11" role="button" tabindex="0" aria-label="قرمز"></div>
+                    <div class="circle-opt" data-color="1" role="button" tabindex="0" aria-label="آبی آسمانی"></div>
+                </div>
+            </section>
+
+            <section class="preview-section" aria-label="پیش‌نمایش رویداد تقویم">
+                <div class="section-heading section-heading--preview">
+                    <span class="section-title">پیش‌نمایش رویداد تقویم</span>
+                    <span class="section-hint-badge">روی نوار رنگی بزنید</span>
+                </div>
+                <div class="calendar-preview-box" id="previewBox">
+                    <button type="button" class="google-calendar-badge" id="calendarLiveBadge" aria-expanded="false">
+                        <span class="badge-summary" id="badgeSummaryText">نوبت پذیرش 24</span>
+                        <span class="badge-chevron" aria-hidden="true"></span>
+                    </button>
+                    <div id="badgeDetailsDropdown" class="badge-details-dropdown"></div>
+                </div>
+            </section>
+
+            <!--
+            <p class="section-hint privacy-hint">
+                <svg class="hint-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 3a1 1 0 110 2 1 1 0 010-2zm1 8H7V7h2v5z"/></svg>
+                اطلاعات زیر در توضیحات نوبت نمایش داده میشود</p>
+            -->
+
+            <main class="settings-card">
+
+                <div class="field row" data-toggle-field="fullName">
+                    <div class="field-label-group">
+                        <div class="field-title">نام بیمار</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" checked data-field="fullName">
+                        <span></span>
+                    </label>
+                </div>
+
+                <div class="field row" data-toggle-field="datetime">
+                    <div class="field-label-group">
+                        <div class="field-title">تاریخ و ساعت نوبت</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" data-field="datetime">
+                        <span></span>
+                    </label>
+                </div>
+
+                <div class="field row" data-toggle-field="nationalId">
+                    <div class="field-label-group">
+                        <div class="field-title">کد ملی بیمار</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" data-field="nationalId">
+                        <span></span>
+                    </label>
+                </div>
+
+                <div class="field row" data-toggle-field="phone">
+                    <div class="field-label-group">
+                        <div class="field-title">شماره تلفن</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" data-field="phone">
+                        <span></span>
+                    </label>
+                </div>
+
+            </main>
+
+        </section>
+
+        <section class="settings-section settings-section--vacation" aria-label="همگام‌سازی مرخصی">
+
+            <div class="section-heading section-heading--settings">
+                <span class="section-title">همگام‌سازی مرخصی</span>
+                <div id="googleAccountGroup" class="google-account-group" hidden>
+                    <span id="googleAccountEmail" class="section-hint-badge google-account-email"></span>
+                    <button type="button" id="changeGmailBtn" class="change-gmail-btn" aria-label="تغییر حساب Google" title="تغییر حساب Google">
+                        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                            <path d="M11.5 2.5l2 2M3 11.5V14h2.5L13.5 6 11 3.5 3 11.5z" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <button type="button" id="disconnectGoogleBtn" class="disconnect-google-btn" aria-label="لغو اتصال Google" title="لغو اتصال Google">
+                        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                            <path d="M5 5l6 6M11 5L5 11" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <p class="section-hint vacation-intro">با فعال‌کردن این گزینه، رویدادهایی که خودتان در Google Calendar ایجاد می‌کنید به‌صورت خودکار به‌عنوان مرخصی در پذیرش۲۴ ثبت می‌شود.</p>
+
+            <main class="settings-card settings-card--vacation">
+                <div class="field row" data-toggle-field="autoVacation">
+                    <div class="field-label-group">
+                        <div class="field-title1">ثبت خودکار مرخصی</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" data-field="autoVacation" id="autoVacationToggle" aria-controls="vacationSubPanel">
+                        <span></span>
+                    </label>
+                </div>
+
+                <div id="vacationSubPanel" class="vacation-sub-panel" aria-hidden="true">
+                    <section id="vacationCentersSection" class="vacation-centers-section" aria-labelledby="vacationCentersTitle">
+                        <div class="vacation-centers-header">
+                            <div class="vacation-centers-heading">
+                                <p id="vacationCentersTitle" class="vacation-centers-title">مراکز درمانی همگام با Google Calendar</p>
+                                <button type="button" id="vacationCentersRefresh" class="vacation-centers-refresh-btn" aria-label="بروزرسانی مراکز درمانی" title="بروزرسانی مراکز درمانی">
+                                    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                                        <path d="M13.5 2.5v3h-3M2.5 13.5v-3h3M12.5 6a4.5 4.5 0 00-7.8-3M3.5 10a4.5 4.5 0 007.8 3" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <p class="vacation-centers-hint">مرخصی Google Calendar برای مراکز انتخاب‌شده در پذیرش۲۴ ثبت می‌شود</p>
+                        </div>
+
+                        <div class="vacation-centers-body" id="vacationCentersBody">
+                            <div id="vacationCentersLoading" class="vacation-centers-status vacation-centers-status--loading" hidden>
+                                <span class="vacation-centers-spinner" aria-hidden="true"></span>
+                                <span>در حال دریافت مراکز درمانی…</span>
+                            </div>
+
+                            <div id="vacationCentersError" class="vacation-centers-status vacation-centers-status--error" hidden>
+                                <span id="vacationCentersErrorText">خطا در دریافت مراکز درمانی</span>
+                            </div>
+
+                            <div id="vacationCentersEmpty" class="vacation-centers-status vacation-centers-status--empty" hidden>مرکز درمانی یافت نشد.</div>
+
+                            <div id="vacationCentersList" class="vacation-centers-list" role="group" aria-labelledby="vacationCentersTitle" hidden></div>
+
+                            <div id="vacationCentersValidation" class="vacation-centers-validation" role="alert" hidden>
+                                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                                    <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.25"/>
+                                    <path d="M8 5v3.5M8 10.5v.5" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
+                                </svg>
+                                <span>شما مرکز درمانیتو انتخاب نکردی</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div id="vacationSubOptionsBlock" class="vacation-sub-options-block">
+                    <div class="vacation-sub-divider vacation-sub-divider--centers" aria-hidden="true"></div>
+
+                    <p id="vacationSubOptionsHint" class="vacation-sub-options-hint" hidden>ابتدا حداقل یک مرکز درمانی انتخاب کنید</p>
+
+                    <label class="vacation-sub-option" for="importFutureVacations">
+                        <input type="checkbox" class="vacation-sub-checkbox" id="importFutureVacations" data-field="importFutureVacations">
+                        <span class="vacation-check" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M20 6L9 17L4 12"/></svg>
+                        </span>
+                        <span class="vacation-sub-option-body">
+                            <span class="vacation-sub-option-title">همه رویدادهایی که قبلاً در Google Calendar برای روزهای آینده ایجاد کرده‌ام، در پذیرش۲۴ به‌عنوان مرخصی اعمال شود</span>
+                            <span class="vacation-sub-option-hint">همه رویدادهای شخصی ۳۰ روز آینده تقویم Google Calendar بررسی و به‌عنوان مرخصی ثبت می‌شوند</span>
+                        </span>
+                    </label>
+
+                    <div id="deleteSyncedBackfillWrap" class="vacation-backfill-action" hidden>
+                        <div id="deleteSyncedBackfillCard" class="vacation-backfill-action__card">
+                            <div class="vacation-backfill-action__main">
+                                <div class="vacation-backfill-action__leading" aria-hidden="true">
+                                    <svg class="vacation-backfill-action__icon" viewBox="0 0 24 24" fill="none">
+                                        <path d="M4 7h16" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"/>
+                                        <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"/>
+                                        <path d="M6 7l1.15 14.1c.08.92.86 1.65 1.8 1.65h6.1c.94 0 1.72-.73 1.8-1.65L18 7" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                                        <path d="M9 7V5.4A1.6 1.6 0 0110.6 3.8h2.8A1.6 1.6 0 0115 5.4V7" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                                    </svg>
+                                    <span id="deleteSyncedBackfillCount" class="vacation-backfill-action__count" hidden>0</span>
+                                </div>
+                                <div class="vacation-backfill-action__body">
+                                    <span id="deleteSyncedBackfillTitle" class="vacation-backfill-action__title">حذف مرخصی‌های همگام‌شده</span>
+                                    <span id="deleteSyncedBackfillHint" class="vacation-backfill-action__hint">مرخصی‌های ثبت‌شده از همگام‌سازی ۳۰ روزه در پذیرش۲۴ حذف می‌شوند.</span>
+                                </div>
+                            </div>
+                            <button type="button" id="deleteSyncedBackfillBtn" class="vacation-backfill-action__btn" aria-label="حذف مرخصی‌های همگام‌شده">
+                                <svg class="vacation-backfill-action__btn-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                                    <path d="M2.5 4.5h11" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
+                                    <path d="M6 4.5V3.4a1 1 0 011-1h2a1 1 0 011 1v1.1" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
+                                    <path d="M5.5 4.5l.55 8.4c.05.65.6 1.1 1.25 1.1h1.4c.65 0 1.2-.45 1.25-1.1l.55-8.4" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+                                </svg>
+                                <span class="vacation-backfill-action__btn-text">حذف مرخصی‌ها</span>
+                                <span class="vacation-backfill-action__btn-spinner" aria-hidden="true"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="vacation-sub-divider" aria-hidden="true"></div>
+                    <p class="vacation-sub-group-title">مدیریت نوبت‌ها</p>
+
+                    <label class="vacation-sub-option" for="cancelAppointmentOnEventDelete">
+                        <input type="checkbox" class="vacation-sub-checkbox" id="cancelAppointmentOnEventDelete" data-field="cancelAppointmentOnEventDelete" checked>
+                        <span class="vacation-check" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M20 6L9 17L4 12"/></svg>
+                        </span>
+                        <span class="vacation-sub-option-body">
+                            <span class="vacation-sub-option-title">با حذف رویداد نوبت از Google Calendar، نوبت در پذیرش۲۴ نیز لغو شود</span>
+                            <span class="vacation-sub-option-hint">اگر رویداد نوبت را از تقویم پاک کنید، همان نوبت در پذیرش۲۴ هم حذف می‌شود</span>
+                        </span>
+                    </label>
+
+                    <label class="vacation-sub-option" for="cancelConflictingAppointments">
+                        <input type="checkbox" class="vacation-sub-checkbox" id="cancelConflictingAppointments" data-field="cancelConflictingAppointments" checked>
+                        <span class="vacation-check" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M20 6L9 17L4 12"/></svg>
+                        </span>
+                        <span class="vacation-sub-option-body">
+                            <span class="vacation-sub-option-title">اگر نوبت مرکز انتخاب‌شده با بازه مرخصی تداخل داشته باشد، آن نوبت لغو و مرخصی ثبت شود</span>
+                            <span class="vacation-sub-option-hint">فقط نوبت‌های همان مرکز(های) درمانی که برای مرخصی انتخاب کرده‌اید لغو می‌شوند؛ نوبت مراکز دیگر در تقویم دست‌نخورده می‌ماند</span>
+                        </span>
+                    </label>
+
+                    <div class="vacation-sub-option vacation-sub-option--disabled" aria-disabled="true">
+                        <input type="checkbox" class="vacation-sub-checkbox" id="rescheduleConflictingAppointments" disabled aria-disabled="true" tabindex="-1">
+                        <span class="vacation-check" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M20 6L9 17L4 12"/></svg>
+                        </span>
+                        <span class="vacation-sub-option-body">
+                            <span class="vacation-sub-option-title">
+                                <span class="section-hint-badge">به‌زودی</span>
+
+                                انتقال نوبت هم‌پوشان به اولین زمان خالی پزشک
+                            </span>
+                            <span class="vacation-sub-option-hint">اگر نوبتی وسط بازه مرخصی باشد، به اولین زمان آزاد شما منتقل می‌شود</span>
+                        </span>
+                    </div>
+                    </div>
+                </div>
+
+                <button type="button" class="vacation-info-toggle" id="vacationInfoToggle" aria-expanded="false" aria-controls="vacationInfoPanel">
+                    <svg class="vacation-info-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 3a1 1 0 110 2 1 1 0 010-2zm1 8H7V7h2v5z"/></svg>
+                    <span>چگونه کار می‌کند؟</span>
+                    <span class="vacation-info-chevron" aria-hidden="true"></span>
+                </button>
+
+                <div id="vacationInfoPanel" class="vacation-info-panel" aria-hidden="true">
+                    <ol class="vacation-info-steps">
+                        <li>در Google Calendar یک رویداد با تاریخ و ساعت دلخواه ایجاد کنید.</li>
+                        <li>همان بازه زمانی به‌صورت خودکار به‌عنوان مرخصی در پذیرش۲۴ ثبت می‌شود.</li>
+                        <li>اگر چند مرکز درمانی دارید، مرخصی فقط برای مرکز(های) انتخاب‌شده ثبت می‌شود و در صورت تداخل، فقط نوبت‌های همان مرکز لغو می‌شوند.</li>
+                        <li>در صورت ویرایش یا حذف رویداد در Google Calendar، مرخصی ثبت‌شده در پذیرش۲۴ نیز به‌روزرسانی یا حذف خواهد شد.</li>
+                    </ol>
+                </div>
+            </main>
+
+        </section>
+
+        <footer class="footer-actions">
+            <button type="button" class="save-btn" id="saveSettings">
+                <span class="save-btn-content">
+                    <span class="save-btn-text">ذخیره تغییرات</span>
+                    <span class="save-btn-spinner" aria-hidden="true"></span>
+                </span>
+            </button>
+        </footer>
+
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <div id="hamgamConfirmOverlay" class="hamgam-confirm-overlay" hidden>
+        <div class="hamgam-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="hamgamConfirmTitle" aria-describedby="hamgamConfirmMessage">
+            <div class="hamgam-confirm-dialog__shell">
+                <div class="hamgam-confirm-dialog__head">
+                    <div class="hamgam-confirm-dialog__icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>
+                            <path d="M12 8v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <circle cx="12" cy="16.2" r="1" fill="currentColor"/>
+                        </svg>
+                    </div>
+                    <h3 id="hamgamConfirmTitle" class="hamgam-confirm-dialog__title"></h3>
+                </div>
+                <p id="hamgamConfirmMessage" class="hamgam-confirm-dialog__message"></p>
+                <div class="hamgam-confirm-dialog__actions">
+                    <button type="button" id="hamgamConfirmCancel" class="hamgam-confirm-dialog__btn hamgam-confirm-dialog__btn--ghost">انصراف</button>
+                    <button type="button" id="hamgamConfirmAccept" class="hamgam-confirm-dialog__btn hamgam-confirm-dialog__btn--primary">تأیید</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>
