@@ -11,10 +11,10 @@
     <meta name="description" content="شخصی‌سازی نحوه ثبت نوبت‌های پذیرش۲۴ در Google Calendar">
     <link rel="dns-prefetch" href="https://accounts.google.com">
     <link rel="preconnect" href="https://accounts.google.com" crossorigin>
-    <link rel="stylesheet" href="style.css?v=81450a06">
+    <link rel="stylesheet" href="style.css?v=b842e29b">
     <link href="https://fonts.paziresh24.com/iran-sans-x.css" rel="stylesheet">
     <script src="https://hamdast.paziresh24.com/sdk/hamdast.js"></script>
-    <script src="script.js?v=81450a06" defer></script>
+    <script src="script.js?v=b842e29b" defer></script>
 </head>
 
 <body>
@@ -39,6 +39,17 @@
 
     <div class="app-container" id="app-container" hidden>
 
+        <div class="app-main">
+        <div id="googleAccountGroup" class="google-account-bar" hidden>
+            <button type="button" id="disconnectGoogleBtn" class="google-account-disconnect-btn" aria-label="لغو اتصال Google">لغو اتصال</button>
+            <span id="googleAccountEmail" class="google-account-email"></span>
+            <button type="button" id="changeGmailBtn" class="google-account-icon-btn google-account-icon-btn--edit" aria-label="تغییر حساب Google" title="تغییر حساب">
+                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M11.5 2.5l2 2M3 11.5V14h2.5L13.5 6 11 3.5 3 11.5z" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+
         <nav class="main-tab-wrapper" id="mainTabSwitcher" role="tablist" aria-label="بخش‌های تنظیمات">
             <div class="main-tab-pill" id="mainTabPill" aria-hidden="true"></div>
             <button type="button" class="main-tab-trigger active" role="tab" data-target="tab-vacation" aria-selected="true" aria-controls="tab-vacation">مدیریت مرخصی</button>
@@ -49,30 +60,7 @@
 
         <section class="settings-section settings-section--vacation" aria-label="همگام‌سازی مرخصی">
 
-            <div class="vacation-tab-bar">
-                <p class="vacation-intro">رویدادهای شخصی Google Calendar به‌صورت خودکار مرخصی در پذیرش۲۴ ثبت می‌شوند.</p>
-            </div>
-
             <main class="settings-card settings-card--vacation">
-
-                <div id="googleAccountGroup" class="field row google-account-field" hidden>
-                    <div class="field-label-group">
-                        <div class="field-title1">حساب Google</div>
-                    </div>
-                    <div class="google-account-controls">
-                        <button type="button" id="disconnectGoogleBtn" class="google-account-icon-btn google-account-icon-btn--disconnect" aria-label="لغو اتصال Google" title="لغو اتصال">
-                            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                                <path d="M5 5l6 6M11 5L5 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            </svg>
-                        </button>
-                        <button type="button" id="changeGmailBtn" class="google-account-icon-btn google-account-icon-btn--edit" aria-label="تغییر حساب Google" title="تغییر حساب">
-                            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                                <path d="M11.5 2.5l2 2M3 11.5V14h2.5L13.5 6 11 3.5 3 11.5z" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </button>
-                        <span id="googleAccountEmail" class="google-account-email"></span>
-                    </div>
-                </div>
                 <div class="field row" data-toggle-field="autoVacation">
                     <div class="field-label-group">
                         <div class="field-title1">ثبت خودکار مرخصی</div>
@@ -213,36 +201,34 @@
 
         <section class="settings-section settings-section--personalize" aria-label="شخصی‌سازی رویداد نوبت">
 
-            <div class="personalize-compact-card">
-                <div class="personalize-compact-row">
-                    <section class="color-picker-container color-picker-container--compact" id="colorPickerSection" data-selected-color="9" aria-label="انتخاب رنگ رویداد">
-                        <div class="color-picker-label">
-                            <span class="color-section-title">رنگ رویداد</span>
-                            <span class="color-label-badge" id="colorLabel">آبی ارغوانی</span>
-                        </div>
-                        <div class="color-circles" role="group" aria-label="پالت رنگ">
-                            <div class="circle-opt" data-color="5" role="button" tabindex="0" aria-label="زرد"></div>
-                            <div class="circle-opt" data-color="10" role="button" tabindex="0" aria-label="سبز"></div>
-                            <div class="circle-opt active" data-color="9" role="button" tabindex="0" aria-label="آبی ارغوانی"></div>
-                            <div class="circle-opt" data-color="11" role="button" tabindex="0" aria-label="قرمز"></div>
-                            <div class="circle-opt" data-color="1" role="button" tabindex="0" aria-label="آبی آسمانی"></div>
-                        </div>
-                    </section>
-
-                    <section class="preview-section preview-section--compact" aria-label="پیش‌نمایش رویداد تقویم">
-                        <div class="calendar-preview-box" id="previewBox">
-                            <button type="button" class="google-calendar-badge" id="calendarLiveBadge" aria-expanded="false">
-                                <span class="badge-summary" id="badgeSummaryText">نوبت پذیرش 24</span>
-                                <span class="badge-chevron" aria-hidden="true"></span>
-                            </button>
-                            <div id="badgeDetailsDropdown" class="badge-details-dropdown"></div>
-                        </div>
-                    </section>
+            <section class="color-picker-container" id="colorPickerSection" data-selected-color="9" aria-label="انتخاب رنگ رویداد">
+                <div class="color-picker-label">
+                    <span class="color-label-badge" id="colorLabel">آبی ارغوانی</span>
                 </div>
-                <p class="personalize-compact-hint">برای دیدن جزئیات، روی نوار رنگی بزنید</p>
-            </div>
+                <div class="color-circles" role="group" aria-label="پالت رنگ">
+                    <div class="circle-opt" data-color="5" role="button" tabindex="0" aria-label="زرد"></div>
+                    <div class="circle-opt" data-color="10" role="button" tabindex="0" aria-label="سبز"></div>
+                    <div class="circle-opt active" data-color="9" role="button" tabindex="0" aria-label="آبی ارغوانی"></div>
+                    <div class="circle-opt" data-color="11" role="button" tabindex="0" aria-label="قرمز"></div>
+                    <div class="circle-opt" data-color="1" role="button" tabindex="0" aria-label="آبی آسمانی"></div>
+                </div>
+            </section>
 
-            <main class="settings-card settings-card--personalize">
+            <section class="preview-section" aria-label="پیش‌نمایش رویداد تقویم">
+                <div class="section-heading section-heading--preview">
+                    <span class="section-title">پیش‌نمایش رویداد تقویم</span>
+                    <span class="section-hint-badge">روی نوار رنگی بزنید</span>
+                </div>
+                <div class="calendar-preview-box" id="previewBox">
+                    <button type="button" class="google-calendar-badge" id="calendarLiveBadge" aria-expanded="false">
+                        <span class="badge-summary" id="badgeSummaryText">نوبت پذیرش 24</span>
+                        <span class="badge-chevron" aria-hidden="true"></span>
+                    </button>
+                    <div id="badgeDetailsDropdown" class="badge-details-dropdown"></div>
+                </div>
+            </section>
+
+            <main class="settings-card">
 
                 <div class="field row" data-toggle-field="fullName">
                     <div class="field-label-group">
@@ -290,13 +276,17 @@
 
         </div>
 
-        <footer class="footer-actions">
-            <button type="button" class="save-btn" id="saveSettings">
-                <span class="save-btn-content">
-                    <span class="save-btn-text">ذخیره تغییرات</span>
-                    <span class="save-btn-spinner" aria-hidden="true"></span>
-                </span>
-            </button>
+        </div>
+
+        <footer class="footer-dock" aria-label="ذخیره تنظیمات">
+            <div class="footer-dock__inner">
+                <button type="button" class="save-btn" id="saveSettings">
+                    <span class="save-btn-content">
+                        <span class="save-btn-text">ذخیره تغییرات</span>
+                        <span class="save-btn-spinner" aria-hidden="true"></span>
+                    </span>
+                </button>
+            </div>
         </footer>
 
     </div>

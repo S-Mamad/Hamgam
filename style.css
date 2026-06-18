@@ -14,8 +14,10 @@
     --slate-700: #334155;
     --slate-800: #1e293b;
     --slate-900: #0f172a;
-    --radius-lg: 16px;
-    --radius-xl: 20px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 12px;
     --shadow-card: 0 4px 24px rgba(15, 23, 42, 0.07), 0 1px 3px rgba(15, 23, 42, 0.04);
     --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -34,14 +36,11 @@
 
 body {
     direction: rtl;
-    background: linear-gradient(160deg, var(--slate-50) 0%, #eef2ff 45%, var(--slate-50) 100%);
-    background-attachment: fixed;
+    background: #f8fafc;
     color: var(--slate-800);
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
     min-height: 100vh;
-    padding: 24px 14px 40px;
+    min-height: 100dvh;
+    padding: 0;
 }
 
 /* ── App shell ─────────────────────────────────────────── */
@@ -49,19 +48,25 @@ body {
 .app-container {
     width: 100%;
     max-width: 440px;
-    background: #ffffff;
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-card);
-    padding: 24px 20px 20px;
-    border: 1px solid rgba(226, 232, 240, 0.9);
+    margin: 0 auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 10px 16px 0;
     opacity: 0;
-    transform: translateY(12px);
-    transition: opacity 0.45s var(--ease-out), transform 0.45s var(--ease-out);
+    transform: translateY(8px);
+    transition: opacity 0.35s var(--ease-out), transform 0.35s var(--ease-out);
 }
 
 .app-container.fade-in {
     opacity: 1;
     transform: translateY(0);
+}
+
+.app-main {
+    flex: 1 1 auto;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
 }
 
 /* ── Main tab switcher ─────────────────────────────────── */
@@ -71,26 +76,27 @@ body {
     display: flex;
     align-items: center;
     isolation: isolate;
-    margin-bottom: 20px;
-    padding: 4px;
-    border-radius: 14px;
-    background: var(--slate-100);
+    margin-bottom: 14px;
+    padding: 3px;
+    border-radius: var(--radius-md);
+    background: #fff;
     border: 1px solid var(--slate-200);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .main-tab-pill {
     position: absolute;
-    top: 4px;
-    bottom: 4px;
-    left: 4px;
+    top: 3px;
+    bottom: 3px;
+    left: 0;
+    width: 0;
     z-index: 1;
-    border-radius: 10px;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-    border: 1px solid rgba(191, 219, 254, 0.65);
-    box-shadow:
-        0 2px 10px rgba(37, 99, 235, 0.12),
-        0 1px 3px rgba(15, 23, 42, 0.05);
+    border-radius: var(--radius-sm);
+    background: var(--slate-100);
+    border: 1px solid var(--slate-200);
+    box-shadow: none;
     transition: left 0.35s var(--ease-out), width 0.35s var(--ease-out), transform 0.15s ease;
+    pointer-events: none;
 }
 
 .main-tab-wrapper:active .main-tab-pill {
@@ -101,7 +107,7 @@ body {
     flex: 1;
     position: relative;
     z-index: 2;
-    padding: 11px 14px;
+    padding: 10px 12px;
     border: none;
     outline: none;
     background: none;
@@ -115,77 +121,89 @@ body {
 }
 
 .main-tab-trigger.active {
-    color: var(--blue-700);
+    color: var(--slate-800);
 }
 
 .main-tab-trigger:focus-visible {
     outline: 2px solid var(--blue-500);
     outline-offset: 2px;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
 }
 
 .main-tab-content {
     display: none;
-    opacity: 0;
-    transform: translateY(10px);
-    transition: opacity 0.3s var(--ease-out), transform 0.3s var(--ease-out);
 }
 
 .main-tab-content.active {
     display: block;
-    opacity: 1;
-    transform: translateY(0);
+    animation: tabContentIn 0.28s var(--ease-out);
 }
 
-/* ── Vacation tab bar ──────────────────────────────────── */
-
-.vacation-tab-bar {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 14px;
+@keyframes tabContentIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.vacation-tab-bar .vacation-intro {
-    margin: 0;
-}
+/* ── Google account bar ────────────────────────────────── */
 
-/* ── Google account field ──────────────────────────────── */
-
-.google-account-field {
-    cursor: default;
-}
-
-.google-account-field:hover {
-    background: rgba(255, 255, 255, 0.65);
-    border-color: #dbeafe;
-}
-
-.google-account-controls {
+.google-account-bar {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: 2px;
+    gap: 8px;
+    margin-bottom: 12px;
     min-width: 0;
-    flex: 1 1 auto;
+}
+
+.google-account-bar[hidden] {
+    display: none !important;
+}
+
+.google-account-disconnect-btn {
+    flex-shrink: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    font-size: 11px;
+    font-weight: 700;
+    color: #dc2626;
+    cursor: pointer;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: opacity 0.15s ease;
+}
+
+.google-account-disconnect-btn:hover {
+    opacity: 0.75;
+}
+
+.google-account-disconnect-btn:disabled {
+    cursor: wait;
+    opacity: 0.45;
+}
+
+.google-account-disconnect-btn.is-loading {
+    opacity: 0.45;
 }
 
 .google-account-email {
     direction: ltr;
     unicode-bidi: plaintext;
     text-align: left;
+    flex: 1;
+    min-width: 0;
     font-size: 12px;
     font-weight: 600;
-    color: var(--slate-700);
-    max-width: min(190px, 46vw);
+    color: var(--slate-600);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    padding: 5px 10px;
-    border-radius: 9px;
-    background: rgba(255, 255, 255, 0.82);
-    border: 1px solid rgba(226, 232, 240, 0.95);
-    line-height: 1.3;
 }
 
 .google-account-icon-btn {
@@ -193,17 +211,17 @@ body {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     padding: 0;
     border: none;
-    border-radius: 7px;
+    border-radius: 6px;
     background: transparent;
     color: var(--slate-400);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
-    transition: color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+    transition: color 0.15s ease, background 0.15s ease;
 }
 
 .google-account-icon-btn svg {
@@ -214,117 +232,24 @@ body {
 
 .google-account-icon-btn--edit:hover {
     color: var(--blue-600);
-    background: rgba(255, 255, 255, 0.9);
-}
-
-.google-account-icon-btn--disconnect:hover {
-    color: #dc2626;
-    background: rgba(254, 242, 242, 0.85);
-}
-
-.google-account-icon-btn:active {
-    transform: scale(0.94);
-}
-
-.google-account-icon-btn:focus-visible {
-    outline: 2px solid var(--blue-500);
-    outline-offset: 1px;
+    background: var(--slate-100);
 }
 
 .google-account-icon-btn:disabled {
     cursor: wait;
-    opacity: 0.5;
+    opacity: 0.45;
 }
 
 .google-account-icon-btn.is-loading svg {
     opacity: 0.3;
 }
 
-.settings-card--vacation .google-account-field {
-    background: transparent;
-    border-color: transparent;
-}
-
-.settings-card--vacation .google-account-field:hover {
-    background: rgba(255, 255, 255, 0.65);
-    border-color: #dbeafe;
-}
-
-/* ── Compact personalize ───────────────────────────────── */
+/* ── Personalize section ───────────────────────────────── */
 
 .settings-section--personalize {
     margin: 0;
     padding: 0;
     border: none;
-}
-
-.personalize-compact-card {
-    margin-bottom: 14px;
-    padding: 14px;
-    border-radius: var(--radius-lg);
-    background: linear-gradient(160deg, #f8fafc 0%, var(--slate-50) 100%);
-    border: 1px solid var(--slate-200);
-}
-
-.personalize-compact-row {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
-}
-
-.personalize-compact-hint {
-    margin: 10px 2px 0;
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--slate-400);
-    text-align: center;
-}
-
-.color-picker-container--compact {
-    margin-bottom: 0;
-    padding: 12px 14px;
-    background: #fff;
-}
-
-.preview-section--compact {
-    margin: 0;
-    padding: 0;
-    border: none;
-}
-
-.preview-section--compact .calendar-preview-box {
-    padding: 10px;
-}
-
-.preview-section--compact .google-calendar-badge {
-    padding: 10px 14px;
-    font-size: 12px;
-}
-
-.settings-card--personalize {
-    margin-top: 0;
-}
-
-@media (min-width: 380px) {
-    .personalize-compact-row {
-        grid-template-columns: 1fr 1fr;
-        align-items: stretch;
-    }
-
-    .color-picker-container--compact {
-        flex-direction: column;
-        align-items: flex-start;
-        justify-content: center;
-        gap: 10px;
-        height: 100%;
-    }
-
-    .preview-section--compact .calendar-preview-box {
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
 }
 
 .google-account-line {
@@ -567,8 +492,8 @@ body {
 
     align-items: center;
     background: #fff;
-    padding: 5px 12px;
-    border-radius: 10px;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
     font-size: 11px;
     font-weight: 700;
     border: 1px solid var(--slate-200);
@@ -629,9 +554,9 @@ body {
 /* ── Calendar preview ──────────────────────────────────── */
 
 .calendar-preview-box {
-    background: var(--slate-50);
+    background: #fff;
     border: 1px solid var(--slate-200);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     padding: 12px;
     overflow: hidden;
     box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03);
@@ -639,8 +564,8 @@ body {
 
 .google-calendar-badge {
     width: 100%;
-    padding: 12px 16px;
-    border-radius: 12px;
+    padding: 11px 14px;
+    border-radius: var(--radius-sm);
     border: none;
     font-size: 13px;
     font-weight: 700;
@@ -1141,9 +1066,9 @@ body {
 
 .settings-card--vacation {
     background: linear-gradient(160deg, var(--blue-50) 0%, #f8fafc 100%);
-    border: 1px solid #bfdbfe;
-    border-radius: var(--radius-lg);
-    padding: 4px;
+    border: 1px solid #dbeafe;
+    border-radius: var(--radius-md);
+    padding: 3px;
     gap: 0;
 }
 
@@ -2063,8 +1988,8 @@ body {
 .field {
     background: #fff;
     border: 1px solid var(--slate-200);
-    padding: 14px 16px;
-    border-radius: 14px;
+    padding: 13px 14px;
+    border-radius: var(--radius-md);
     transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
@@ -2174,30 +2099,41 @@ body {
     box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
 }
 
-/* ── Save button with inline spinner ───────────────────── */
+/* ── Fixed save dock ───────────────────────────────────── */
 
-.footer-actions {
-    margin-top: 26px;
-    padding-top: 2px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
+.footer-dock {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid var(--slate-200);
+    box-shadow: 0 -6px 24px rgba(15, 23, 42, 0.06);
+}
+
+.footer-dock__inner {
+    width: 100%;
+    max-width: 440px;
+    margin: 0 auto;
 }
 
 .save-btn {
     width: 100%;
-    min-height: 50px;
-    padding: 0 20px;
-    border-radius: 14px;
-    border: none;
+    min-height: 46px;
+    padding: 0 18px;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(29, 78, 216, 0.15);
     background: linear-gradient(135deg, var(--blue-600) 0%, var(--blue-700) 100%);
     color: #fff;
     font-weight: 700;
     font-size: 14px;
     cursor: pointer;
     transition: transform 0.2s var(--ease-out), box-shadow 0.2s ease, opacity 0.2s ease;
-    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+    box-shadow: 0 2px 10px rgba(37, 99, 235, 0.28);
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
 }
@@ -2226,7 +2162,7 @@ body {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    min-height: 50px;
+    min-height: 46px;
     width: 100%;
 }
 
@@ -2282,13 +2218,13 @@ body {
 
 .toast {
     position: fixed;
-    bottom: 28px;
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
     left: 50%;
     transform: translateX(-50%) translateY(100px);
     background: var(--slate-900);
     color: #fff;
-    padding: 12px 20px;
-    border-radius: 14px;
+    padding: 11px 18px;
+    border-radius: var(--radius-md);
     font-size: 13px;
     font-weight: 600;
     opacity: 0;

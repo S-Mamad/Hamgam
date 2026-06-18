@@ -927,7 +927,7 @@ function bindUiEvents() {
         });
     });
 
-    document.querySelectorAll(".field.row:not(.google-account-field)").forEach(row => {
+    document.querySelectorAll(".field.row").forEach(row => {
         row.addEventListener("click", (e) => {
             e.stopPropagation();
             if (e.target.closest(".switch")) return;
@@ -985,6 +985,8 @@ function bindUiEvents() {
     initMainTabs();
 }
 
+let refreshMainTabPill = () => {};
+
 function initMainTabs() {
     const switcher = document.getElementById("mainTabSwitcher");
     const pill = document.getElementById("mainTabPill");
@@ -994,11 +996,18 @@ function initMainTabs() {
     const contents = document.querySelectorAll(".main-tab-content");
 
     function updatePillPosition(activeButton) {
+        if (!activeButton) return;
         const wrapperRect = switcher.getBoundingClientRect();
         const btnRect = activeButton.getBoundingClientRect();
+        if (!wrapperRect.width || !btnRect.width) return;
         pill.style.left = `${btnRect.left - wrapperRect.left}px`;
         pill.style.width = `${btnRect.width}px`;
     }
+
+    refreshMainTabPill = () => {
+        const currentActive = switcher.querySelector(".main-tab-trigger.active");
+        updatePillPosition(currentActive);
+    };
 
     function activateTab(trigger) {
         const targetId = trigger.getAttribute("data-target");
@@ -1010,18 +1019,15 @@ function initMainTabs() {
         });
 
         contents.forEach(content => {
-            const isActive = content.id === targetId;
-            content.classList.toggle("active", isActive);
-            content.toggleAttribute("hidden", !isActive);
+            content.classList.toggle("active", content.id === targetId);
         });
 
-        updatePillPosition(trigger);
+        requestAnimationFrame(() => updatePillPosition(trigger));
     }
 
     const initialActive = switcher.querySelector(".main-tab-trigger.active") || triggers[0];
     if (initialActive) {
         activateTab(initialActive);
-        requestAnimationFrame(() => updatePillPosition(initialActive));
     }
 
     triggers.forEach(trigger => {
@@ -1031,10 +1037,7 @@ function initMainTabs() {
         });
     });
 
-    window.addEventListener("resize", () => {
-        const currentActive = switcher.querySelector(".main-tab-trigger.active");
-        if (currentActive) updatePillPosition(currentActive);
-    });
+    window.addEventListener("resize", refreshMainTabPill);
 }
 
 function isVacationPanelOpen() {
@@ -1840,7 +1843,11 @@ function showApp() {
     setTimeout(() => {
         screen.hidden = true;
         app.hidden = false;
-        requestAnimationFrame(() => app.classList.add("fade-in"));
+        requestAnimationFrame(() => {
+            app.classList.add("fade-in");
+            requestAnimationFrame(() => refreshMainTabPill());
+        });
+        setTimeout(() => refreshMainTabPill(), 120);
     }, 280);
 }
 
