@@ -44,19 +44,26 @@ body {
     padding: 0;
 }
 
-.font-medium {
+.font-medium,
+.main-tab-content.font-medium,
+.main-tab-trigger.font-medium,
+.gmail-row__email.font-medium {
     font-weight: 500;
     font-variation-settings: "wght" 500;
 }
 
-.font-bold {
+.font-bold,
+.field-title.font-bold,
+.save-btn-text.font-bold {
     font-weight: 700;
     font-variation-settings: "wght" 700;
 }
-.font-extrabold {
+
+.font-extrabold,
+.save-btn-text.font-extrabold {
     font-weight: 800;
     font-variation-settings: "wght" 800;
-  }
+}
 /* ── App shell ─────────────────────────────────────────── */
 
 .app-container {
@@ -121,7 +128,6 @@ body {
     outline: none;
     background: none;
     font-size: 13px;
-    font-weight: 600;
     color: var(--slate-400);
     text-align: center;
     cursor: pointer;
@@ -132,6 +138,7 @@ body {
 .main-tab-trigger.active {
     color: var(--slate-900);
     font-weight: 700;
+    font-variation-settings: "wght" 700;
 }
 
 .main-tab-trigger:focus-visible {
@@ -192,6 +199,7 @@ body {
     padding: 0 4px;
     font-size: 11px;
     font-weight: 500;
+    font-variation-settings: "wght" 500;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.03em;
     color: var(--slate-600);
@@ -2020,12 +2028,14 @@ body {
 .field-title {
     font-size: 13px;
     font-weight: 700;
+    font-variation-settings: "wght" 700;
     color: var(--slate-900);
 }
 
 .field-title1 {
     font-size: 14px;
     font-weight: 800;
+    font-variation-settings: "wght" 800;
     color: var(--slate-900);
 }
 
@@ -2125,6 +2135,7 @@ body {
     background: linear-gradient(135deg, var(--blue-600) 0%, var(--blue-700) 100%);
     color: #fff;
     font-weight: 800;
+    font-variation-settings: "wght" 800;
     font-size: 15px;
     letter-spacing: -0.01em;
     cursor: pointer;
