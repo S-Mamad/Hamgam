@@ -162,6 +162,10 @@ final class GoogleEventParser
             return strtolower($matches[1]);
         }
 
+        if (preg_match('/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\s*$/im', $description, $matches) === 1) {
+            return strtolower($matches[1]);
+        }
+
         return null;
     }
 

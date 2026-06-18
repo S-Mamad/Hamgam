@@ -28,6 +28,30 @@ final class BookingAppointmentResolver
     }
 
     /**
+     * Prefer webhook payload timestamps on update (API may lag behind Paziresh24).
+     *
+     * @param array<string, mixed> $booking
+     * @return array{from: int, to: int}|null
+     */
+    public static function resolveForUpdate(array $booking, string $bookId, string $hamdastAccessToken): ?array
+    {
+        $fromBooking = self::extractFromBooking($booking);
+        if ($fromBooking !== null) {
+            return $fromBooking;
+        }
+
+        $appointment = GoogleCalendar::getAppointment($bookId, $hamdastAccessToken);
+        $range = GoogleCalendar::extractAppointmentRange($appointment);
+        if ($range !== null) {
+            return $range;
+        }
+
+        error_log('[paziresh24-hamgam] update resolve failed for book_id ' . $bookId);
+
+        return null;
+    }
+
+    /**
      * @param array<string, mixed> $booking
      */
     public static function extractCenterId(array $booking): ?string
@@ -133,7 +157,61 @@ final class BookingAppointmentResolver
             return ['from' => (int) $from, 'to' => (int) $to];
         }
 
+        $fromDateHour = self::parseFromDateHour($booking);
+        if ($fromDateHour !== null) {
+            return $fromDateHour;
+        }
+
         return self::parseBookDateTime($booking);
+    }
+
+    /**
+     * @param array<string, mixed> $booking
+     * @return array{from: int, to: int}|null
+     */
+    private static function parseFromDateHour(array $booking): ?array
+    {
+        $date = $booking['from_date'] ?? '';
+        $time = $booking['from_hour'] ?? '';
+
+        if (!is_string($date) || trim($date) === '' || !is_string($time) || trim($time) === '') {
+            return null;
+        }
+
+        $to = $booking['to'] ?? null;
+        if (is_numeric($to)) {
+            try {
+                $tz = new DateTimeZone('Asia/Tehran');
+                $start = new DateTimeImmutable(trim($date) . ' ' . trim($time), $tz);
+                $end = (new DateTimeImmutable('@' . (int) $to))->setTimezone($tz);
+                if ($end->getTimestamp() > $start->getTimestamp()) {
+                    return [
+                        'from' => $start->getTimestamp(),
+                        'to' => $end->getTimestamp(),
+                    ];
+                }
+            } catch (Throwable) {
+                return null;
+            }
+        }
+
+        $duration = $booking['duration'] ?? $booking['book_duration'] ?? 30;
+        if (!is_numeric($duration) || (int) $duration <= 0) {
+            $duration = 30;
+        }
+
+        try {
+            $tz = new DateTimeZone('Asia/Tehran');
+            $start = new DateTimeImmutable(trim($date) . ' ' . trim($time), $tz);
+            $end = $start->modify('+' . (int) $duration . ' minutes');
+
+            return [
+                'from' => $start->getTimestamp(),
+                'to' => $end->getTimestamp(),
+            ];
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     /**

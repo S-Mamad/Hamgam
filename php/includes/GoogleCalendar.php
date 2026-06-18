@@ -149,7 +149,9 @@ final class GoogleCalendar
             ['Authorization' => 'Bearer ' . $accessToken]
         );
 
-        return $response['status'] >= 200 && $response['status'] < 300;
+        return ($response['status'] >= 200 && $response['status'] < 300)
+            || $response['status'] === 404
+            || $response['status'] === 410;
     }
 
     /**
@@ -196,14 +198,44 @@ final class GoogleCalendar
             return [];
         }
 
-        return self::listEventsByExtendedProperty($accessToken, 'hamgam_book_id=' . $bookId);
+        try {
+            $tz = new DateTimeZone('Asia/Tehran');
+            $now = new DateTimeImmutable('now', $tz);
+            $timeMin = $now->modify('-90 days')->format('Y-m-d\TH:i:s\P');
+            $timeMax = $now->modify('+365 days')->format('Y-m-d\TH:i:s\P');
+        } catch (Throwable) {
+            $timeMin = null;
+            $timeMax = null;
+        }
+
+        $events = self::listEventsByExtendedProperty(
+            $accessToken,
+            'hamgam_book_id=' . $bookId,
+            $timeMin,
+            $timeMax
+        );
+
+        if ($events === [] && strtolower($bookId) !== $bookId) {
+            $events = self::listEventsByExtendedProperty(
+                $accessToken,
+                'hamgam_book_id=' . strtolower($bookId),
+                $timeMin,
+                $timeMax
+            );
+        }
+
+        return $events;
     }
 
     /**
      * @return array<int, array<string, mixed>>
      */
-    private static function listEventsByExtendedProperty(string $accessToken, string $propertyFilter): array
-    {
+    private static function listEventsByExtendedProperty(
+        string $accessToken,
+        string $propertyFilter,
+        ?string $timeMin = null,
+        ?string $timeMax = null
+    ): array {
         $baseUrl = Config::get(
             'GOOGLE_CALENDAR_EVENTS_LIST_URL',
             'https://www.googleapis.com/calendar/v3/calendars/primary/events'
@@ -214,10 +246,18 @@ final class GoogleCalendar
 
         do {
             $query = [
-                'maxResults' => 50,
+                'maxResults' => 250,
                 'singleEvents' => 'true',
                 'privateExtendedProperty' => $propertyFilter,
             ];
+
+            if ($timeMin !== null && $timeMin !== '') {
+                $query['timeMin'] = $timeMin;
+            }
+
+            if ($timeMax !== null && $timeMax !== '') {
+                $query['timeMax'] = $timeMax;
+            }
 
             if ($pageToken !== null) {
                 $query['pageToken'] = $pageToken;

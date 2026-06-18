@@ -66,7 +66,7 @@ final class CalendarEventBuilder
 
         $bookId = self::stringValue($booking, 'book_id');
         if ($bookId !== '') {
-            $descriptionParts[] = 'hamgam_book_id:' . $bookId;
+            $descriptionParts[] = $bookId;
         }
 
         $event = [
@@ -110,27 +110,52 @@ final class CalendarEventBuilder
 
     private static function formatPersianDateTime(DateTimeImmutable $dt): string
     {
-        if (class_exists(IntlDateFormatter::class)) {
-            $formatter = new IntlDateFormatter(
-                'fa_IR@calendar=persian',
-                IntlDateFormatter::FULL,
-                IntlDateFormatter::NONE,
-                'Asia/Tehran'
-            );
-
-            $formatted = $formatter->format($dt);
-            if (is_string($formatted) && $formatted !== '') {
-                return $formatted;
-            }
-        }
-
         [$jy, $jm, $jd] = self::gregorianToJalali(
             (int) $dt->format('Y'),
             (int) $dt->format('n'),
             (int) $dt->format('j')
         );
 
-        return sprintf('%d/%02d/%02d', $jy, $jm, $jd);
+        $monthNames = [
+            1 => 'فروردین',
+            2 => 'اردیبهشت',
+            3 => 'خرداد',
+            4 => 'تیر',
+            5 => 'مرداد',
+            6 => 'شهریور',
+            7 => 'مهر',
+            8 => 'آبان',
+            9 => 'آذر',
+            10 => 'دی',
+            11 => 'بهمن',
+            12 => 'اسفند',
+        ];
+
+        $weekdayNames = [
+            'شنبه',
+            'یکشنبه',
+            'دوشنبه',
+            'سه‌شنبه',
+            'چهارشنبه',
+            'پنجشنبه',
+            'جمعه',
+        ];
+
+        $weekdayIndex = ((int) $dt->format('w') + 1) % 7;
+        $monthName = $monthNames[$jm] ?? (string) $jm;
+
+        return self::toPersianDigits(sprintf('%d %s %d', $jd, $monthName, $jy))
+            . '، '
+            . $weekdayNames[$weekdayIndex];
+    }
+
+    private static function toPersianDigits(string $value): string
+    {
+        return str_replace(
+            ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
+            ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'],
+            $value
+        );
     }
 
     /**

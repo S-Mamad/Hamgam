@@ -83,55 +83,16 @@ final class AppointmentWebhookService
             return ['ok' => true, 'skipped' => $context['skip']];
         }
 
-        $deletedCount = 0;
         $storedEventId = GoogleCalendarBookingRepository::getGoogleEventId($doctorUserId, $bookId);
-
-        if ($storedEventId !== null) {
-            if (GoogleCalendar::deleteEvent($context['google_access_token'], $storedEventId)) {
-                $deletedCount++;
-                RequestContext::log(
-                    'paziresh24-hamgam',
-                    'calendar event deleted via stored id doctor=' . $doctorUserId
-                    . ' book_id=' . $bookId
-                    . ' google_event_id=' . $storedEventId
-                );
-            } else {
-                RequestContext::log(
-                    'paziresh24-hamgam',
-                    'stored calendar event delete failed doctor=' . $doctorUserId
-                    . ' book_id=' . $bookId
-                    . ' google_event_id=' . $storedEventId
-                );
-            }
-        }
-
-        if ($deletedCount === 0) {
-            $existingEvents = self::findCalendarEvents($context['google_access_token'], $bookId);
-
-            foreach ($existingEvents as $existingEvent) {
-                $eventId = GoogleEventParser::extractEventId($existingEvent);
-                if ($eventId === null || $eventId === '') {
-                    continue;
-                }
-
-                if (GoogleCalendar::deleteEvent($context['google_access_token'], $eventId)) {
-                    $deletedCount++;
-                    RequestContext::log(
-                        'paziresh24-hamgam',
-                        'calendar event deleted doctor=' . $doctorUserId
-                        . ' book_id=' . $bookId
-                        . ' google_event_id=' . $eventId
-                    );
-                } else {
-                    RequestContext::log(
-                        'paziresh24-hamgam',
-                        'calendar event delete failed doctor=' . $doctorUserId
-                        . ' book_id=' . $bookId
-                        . ' google_event_id=' . $eventId
-                    );
-                }
-            }
-        }
+        $existingEvents = self::findCalendarEvents($context['google_access_token'], $bookId);
+        $existingEvents = self::ensureStoredEventIncluded($existingEvents, $storedEventId);
+        $deletedCount = self::deleteCalendarEvents(
+            $context['google_access_token'],
+            $existingEvents,
+            $storedEventId,
+            $doctorUserId,
+            $bookId
+        );
 
         GoogleCalendarBookingRepository::removeProcessedBooking($doctorUserId, $bookId);
 
@@ -158,7 +119,7 @@ final class AppointmentWebhookService
             return ['ok' => true, 'skipped' => $context['skip']];
         }
 
-        $appointmentRange = BookingAppointmentResolver::resolve(
+        $appointmentRange = BookingAppointmentResolver::resolveForUpdate(
             $booking,
             $bookId,
             $context['hamdast_access_token']
@@ -176,13 +137,10 @@ final class AppointmentWebhookService
 
         $storedEventId = GoogleCalendarBookingRepository::getGoogleEventId($doctorUserId, $bookId);
         $existingEvents = self::findCalendarEvents($context['google_access_token'], $bookId);
-        $existingEvent = $existingEvents[0] ?? null;
+        $existingEvents = self::ensureStoredEventIncluded($existingEvents, $storedEventId);
+        $targetEvent = self::pickEventForUpdate($existingEvents, $storedEventId);
 
-        if ($existingEvent === null && $storedEventId !== null) {
-            $existingEvent = ['id' => $storedEventId];
-        }
-
-        if ($existingEvent === null) {
+        if ($targetEvent === null) {
             RequestContext::log(
                 'paziresh24-hamgam',
                 'update webhook: event not found, creating doctor=' . $doctorUserId . ' book_id=' . $bookId
@@ -203,7 +161,7 @@ final class AppointmentWebhookService
             ], static fn ($value) => $value !== null);
         }
 
-        $eventId = GoogleEventParser::extractEventId($existingEvent);
+        $eventId = GoogleEventParser::extractEventId($targetEvent);
         if ($eventId === null || $eventId === '') {
             throw new AppointmentWebhookException('Calendar event update failed', 502);
         }
@@ -219,6 +177,14 @@ final class AppointmentWebhookService
             throw new AppointmentWebhookException('Calendar event update failed', 502);
         }
 
+        $duplicateDeleted = self::deleteCalendarEvents(
+            $context['google_access_token'],
+            $existingEvents,
+            $eventId,
+            $doctorUserId,
+            $bookId
+        );
+
         GoogleCalendarBookingRepository::recordProcessedBooking($doctorUserId, $bookId, $eventId);
 
         RequestContext::log(
@@ -226,13 +192,104 @@ final class AppointmentWebhookService
             'calendar event updated doctor=' . $doctorUserId
             . ' book_id=' . $bookId
             . ' google_event_id=' . $eventId
+            . ' duplicate_deleted=' . $duplicateDeleted
         );
 
         return [
             'ok' => true,
             'updated' => true,
             'google_event_id' => $eventId,
+            'duplicate_deleted' => $duplicateDeleted,
         ];
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $existingEvents
+     * @return array<int, array<string, mixed>>
+     */
+    private static function ensureStoredEventIncluded(array $existingEvents, ?string $storedEventId): array
+    {
+        if ($storedEventId === null || $storedEventId === '') {
+            return $existingEvents;
+        }
+
+        foreach ($existingEvents as $existingEvent) {
+            if (GoogleEventParser::extractEventId($existingEvent) === $storedEventId) {
+                return $existingEvents;
+            }
+        }
+
+        $existingEvents[] = ['id' => $storedEventId];
+
+        return $existingEvents;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $existingEvents
+     */
+    private static function pickEventForUpdate(array $existingEvents, ?string $storedEventId): ?array
+    {
+        if ($storedEventId !== null) {
+            foreach ($existingEvents as $existingEvent) {
+                if (GoogleEventParser::extractEventId($existingEvent) === $storedEventId) {
+                    return $existingEvent;
+                }
+            }
+
+            return ['id' => $storedEventId];
+        }
+
+        return $existingEvents[0] ?? null;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $events
+     */
+    private static function deleteCalendarEvents(
+        string $googleAccessToken,
+        array $events,
+        ?string $keepEventId,
+        string $doctorUserId,
+        string $bookId
+    ): int {
+        $deletedCount = 0;
+        $seen = [];
+
+        foreach ($events as $event) {
+            $eventId = GoogleEventParser::extractEventId($event);
+            if ($eventId === null || $eventId === '') {
+                continue;
+            }
+
+            if ($keepEventId !== null && $eventId === $keepEventId) {
+                continue;
+            }
+
+            if (isset($seen[$eventId])) {
+                continue;
+            }
+
+            $seen[$eventId] = true;
+
+            if (GoogleCalendar::deleteEvent($googleAccessToken, $eventId)) {
+                $deletedCount++;
+                RequestContext::log(
+                    'paziresh24-hamgam',
+                    'calendar event deleted doctor=' . $doctorUserId
+                    . ' book_id=' . $bookId
+                    . ' google_event_id=' . $eventId
+                );
+            } else {
+                RequestContext::log(
+                    'paziresh24-hamgam',
+                    'calendar event delete failed doctor=' . $doctorUserId
+                    . ' book_id=' . $bookId
+                    . ' google_event_id=' . $eventId
+                );
+            }
+        }
+
+        return $deletedCount;
     }
 
     /**
