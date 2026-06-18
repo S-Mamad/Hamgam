@@ -89,7 +89,7 @@ final class AppointmentWebhookService
         $deletedCount = self::deleteCalendarEvents(
             $context['google_access_token'],
             $existingEvents,
-            $storedEventId,
+            null,
             $doctorUserId,
             $bookId
         );

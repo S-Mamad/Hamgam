@@ -197,6 +197,37 @@ assertTest(
     $builtDescription
 );
 
+$updateDuplicateTargets = function (array $events, ?string $keepEventId): array {
+    $targets = [];
+    foreach ($events as $event) {
+        $eventId = GoogleEventParser::extractEventId($event);
+        if ($eventId === null || $eventId === '') {
+            continue;
+        }
+        if ($keepEventId !== null && $eventId === $keepEventId) {
+            continue;
+        }
+        $targets[] = $eventId;
+    }
+
+    return $targets;
+};
+
+assertTest(
+    'cancel should delete stored event id',
+    $updateDuplicateTargets(
+        [['id' => 'stored-event-id'], ['id' => 'duplicate-event-id']],
+        null
+    ) === ['stored-event-id', 'duplicate-event-id']
+);
+assertTest(
+    'update should keep stored event id when removing duplicates',
+    $updateDuplicateTargets(
+        [['id' => 'stored-event-id'], ['id' => 'duplicate-event-id']],
+        'stored-event-id'
+    ) === ['duplicate-event-id']
+);
+
 $fromDateHourBooking = [
     'from_date' => '2026-06-20',
     'from_hour' => '08:30',
