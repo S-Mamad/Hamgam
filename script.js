@@ -37,8 +37,7 @@ const appState = {
     importFutureVacationsUsed: false,
     importFutureBackfillUndoAvailable: false,
     importFutureBackfillSlotCount: 0,
-    deletingSyncedBackfill: false,
-    lastAppliedSettings: null
+    deletingSyncedBackfill: false
 };
 
 const IMPORT_FUTURE_VACATIONS_HINT_DEFAULT =
@@ -271,8 +270,6 @@ async function checkRecentSyncStatus() {
     if (status.ok === false && status.warnings?.length) {
         showWarningsIfAny({ warnings: status.warnings });
     }
-
-    void refreshSyncStatusUi();
 }
 
 function cleanOAuthParams() {
@@ -627,7 +624,6 @@ function applyConnectionState(connected, googleEmail = undefined) {
         updateGoogleAccountBanner(googleEmail || null);
     }
     updateSaveButton();
-    updateDashboardConnectionUi();
 }
 
 function resetChangeGmailButton() {
@@ -839,8 +835,6 @@ async function initApp() {
         await applyPendingSettingsAfterOAuth();
         showApp();
         updateSaveButton();
-        updateDashboardConnectionUi();
-        void refreshSyncStatusUi();
 
         if (oauthReturn) {
             const gmailChanged = isGmailChangeReturn();
@@ -933,7 +927,7 @@ function bindUiEvents() {
         });
     });
 
-    document.querySelectorAll(".field.row").forEach(row => {
+    document.querySelectorAll(".field.row:not(.google-account-field)").forEach(row => {
         row.addEventListener("click", (e) => {
             e.stopPropagation();
             if (e.target.closest(".switch")) return;
@@ -988,16 +982,59 @@ function bindUiEvents() {
     }
 
     setupHamgamConfirmDialog();
+    initMainTabs();
+}
 
-    const patientDataAccordion = document.getElementById("patientDataAccordion");
-    if (patientDataAccordion) {
-        patientDataAccordion.addEventListener("click", togglePatientDataAccordion);
+function initMainTabs() {
+    const switcher = document.getElementById("mainTabSwitcher");
+    const pill = document.getElementById("mainTabPill");
+    if (!switcher || !pill) return;
+
+    const triggers = switcher.querySelectorAll(".main-tab-trigger");
+    const contents = document.querySelectorAll(".main-tab-content");
+
+    function updatePillPosition(activeButton) {
+        const wrapperRect = switcher.getBoundingClientRect();
+        const btnRect = activeButton.getBoundingClientRect();
+        pill.style.left = `${btnRect.left - wrapperRect.left}px`;
+        pill.style.width = `${btnRect.width}px`;
     }
 
-    const resetBtn = document.getElementById("resetSettings");
-    if (resetBtn) {
-        resetBtn.addEventListener("click", handleResetClick);
+    function activateTab(trigger) {
+        const targetId = trigger.getAttribute("data-target");
+
+        triggers.forEach(t => {
+            const isActive = t === trigger;
+            t.classList.toggle("active", isActive);
+            t.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+
+        contents.forEach(content => {
+            const isActive = content.id === targetId;
+            content.classList.toggle("active", isActive);
+            content.toggleAttribute("hidden", !isActive);
+        });
+
+        updatePillPosition(trigger);
     }
+
+    const initialActive = switcher.querySelector(".main-tab-trigger.active") || triggers[0];
+    if (initialActive) {
+        activateTab(initialActive);
+        requestAnimationFrame(() => updatePillPosition(initialActive));
+    }
+
+    triggers.forEach(trigger => {
+        trigger.addEventListener("click", () => {
+            if (trigger.classList.contains("active")) return;
+            activateTab(trigger);
+        });
+    });
+
+    window.addEventListener("resize", () => {
+        const currentActive = switcher.querySelector(".main-tab-trigger.active");
+        if (currentActive) updatePillPosition(currentActive);
+    });
 }
 
 function isVacationPanelOpen() {
@@ -2012,95 +2049,6 @@ function applySettingsToForm(settings) {
     if (settings.google_account_email !== undefined) {
         updateGoogleAccountBanner(settings.google_account_email || null);
     }
-
-    appState.lastAppliedSettings = JSON.parse(JSON.stringify(settings));
-}
-
-function updateDashboardConnectionUi() {
-    const badge = document.getElementById("connectionStatusBadge");
-    const badgeText = document.getElementById("connectionStatusText");
-    const hint = document.getElementById("googleDisconnectedHint");
-    const syncCard = document.getElementById("googleSyncCard");
-
-    if (badge) {
-        badge.classList.toggle("dash-connection-badge--connected", appState.connected);
-        badge.classList.toggle("dash-connection-badge--disconnected", !appState.connected);
-    }
-
-    if (badgeText) {
-        badgeText.textContent = appState.connected ? "Google متصل" : "متصل نیست";
-    }
-
-    if (hint) {
-        hint.hidden = appState.connected;
-    }
-
-    if (syncCard) {
-        syncCard.classList.toggle("dash-sync-card--connected", appState.connected);
-    }
-}
-
-async function refreshSyncStatusUi() {
-    const indicator = document.getElementById("syncStatusIndicator");
-    const statusText = document.getElementById("syncStatusText");
-    if (!indicator || !statusText) {
-        return;
-    }
-
-    if (!appState.connected) {
-        indicator.className = "dash-sync-status__badge dash-sync-status__badge--idle";
-        statusText.textContent = "در انتظار اتصال";
-        return;
-    }
-
-    const status = await fetchSyncStatusOnce();
-    if (!status) {
-        indicator.className = "dash-sync-status__badge dash-sync-status__badge--active";
-        statusText.textContent = "همگام‌سازی فعال";
-        return;
-    }
-
-    if (status.pending) {
-        indicator.className = "dash-sync-status__badge dash-sync-status__badge--pending";
-        statusText.textContent = "در حال همگام‌سازی…";
-        return;
-    }
-
-    if (status.ok === false) {
-        indicator.className = "dash-sync-status__badge dash-sync-status__badge--error";
-        statusText.textContent = "نیاز به بررسی";
-        return;
-    }
-
-    indicator.className = "dash-sync-status__badge dash-sync-status__badge--active";
-    statusText.textContent = "همگام‌سازی فعال";
-}
-
-function togglePatientDataAccordion() {
-    const trigger = document.getElementById("patientDataAccordion");
-    const panel = document.getElementById("patientDataPanel");
-    if (!trigger || !panel) {
-        return;
-    }
-
-    const open = !panel.classList.contains("open");
-    panel.classList.toggle("open", open);
-    trigger.setAttribute("aria-expanded", open ? "true" : "false");
-}
-
-function handleResetClick() {
-    if (appState.saving) {
-        return;
-    }
-
-    if (!appState.lastAppliedSettings) {
-        showToast("تنظیمات ذخیره‌شده‌ای برای بازنشانی وجود ندارد.", "warning");
-        return;
-    }
-
-    applySettingsToForm(appState.lastAppliedSettings);
-    updateLiveBadge();
-    showToast("تغییرات به آخرین وضعیت ذخیره‌شده بازگردانده شد.");
 }
 
 function updateGoogleAccountBanner(email) {
@@ -2115,8 +2063,6 @@ function updateGoogleAccountBanner(email) {
         emailEl.textContent = "";
         if (group) group.hidden = true;
     }
-
-    updateDashboardConnectionUi();
 }
 
 function redirectToLauncher() {
