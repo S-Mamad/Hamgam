@@ -69,8 +69,8 @@ body {
 .font-black,
 .save-btn,
 .save-btn .save-btn-text {
-    font-weight: 900;
-    font-variation-settings: "wght" 900;
+    font-weight: 750;
+    font-variation-settings: "wght" 750;
 }
 /* ── App shell ─────────────────────────────────────────── */
 
@@ -136,8 +136,8 @@ body {
     outline: none;
     background: none;
     font-size: 13px;
-    font-weight: 700;
-    font-variation-settings: "wght" 700;
+    font-weight: 550;
+    font-variation-settings: "wght" 550;
     font-feature-settings: "ss02";
     font-synthesis: none;
     color: var(--slate-400);
@@ -149,8 +149,8 @@ body {
 
 .main-tab-trigger.active {
     color: var(--slate-900);
-    font-weight: 900;
-    font-variation-settings: "wght" 900;
+    font-weight: 550;
+    font-variation-settings: "wght" 550;
 }
 
 .main-tab-trigger:focus-visible {
@@ -2147,8 +2147,8 @@ body {
     background: linear-gradient(135deg, var(--blue-600) 0%, var(--blue-700) 100%);
     color: #fff;
     font-size: 16px;
-    font-weight: 900;
-    font-variation-settings: "wght" 900;
+    font-weight: 750;
+    font-variation-settings: "wght" 750;
     font-feature-settings: "ss02";
     font-synthesis: none;
     letter-spacing: -0.01em;
@@ -2189,8 +2189,8 @@ body {
 
 .save-btn-text {
     display: block;
-    font-weight: 900;
-    font-variation-settings: "wght" 900;
+    font-weight: 750;
+    font-variation-settings: "wght" 750;
     font-feature-settings: "ss02";
     transition: opacity 0.2s ease;
 }
