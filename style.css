@@ -136,6 +136,10 @@ body {
     outline: none;
     background: none;
     font-size: 13px;
+    font-weight: 700;
+    font-variation-settings: "wght" 700;
+    font-feature-settings: "ss02";
+    font-synthesis: none;
     color: var(--slate-400);
     text-align: center;
     cursor: pointer;
@@ -145,8 +149,8 @@ body {
 
 .main-tab-trigger.active {
     color: var(--slate-900);
-    font-weight: 800;
-    font-variation-settings: "wght" 800;
+    font-weight: 900;
+    font-variation-settings: "wght" 900;
 }
 
 .main-tab-trigger:focus-visible {
@@ -2142,7 +2146,11 @@ body {
     border: none;
     background: linear-gradient(135deg, var(--blue-600) 0%, var(--blue-700) 100%);
     color: #fff;
-    font-size: 15px;
+    font-size: 16px;
+    font-weight: 900;
+    font-variation-settings: "wght" 900;
+    font-feature-settings: "ss02";
+    font-synthesis: none;
     letter-spacing: -0.01em;
     cursor: pointer;
     transition: transform 0.2s var(--ease-out), box-shadow 0.2s ease, opacity 0.2s ease;
@@ -2181,6 +2189,9 @@ body {
 
 .save-btn-text {
     display: block;
+    font-weight: 900;
+    font-variation-settings: "wght" 900;
+    font-feature-settings: "ss02";
     transition: opacity 0.2s ease;
 }
 
