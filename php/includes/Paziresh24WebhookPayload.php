@@ -37,6 +37,13 @@ final class Paziresh24WebhookPayload
     {
         $data = $payload['data'] ?? null;
         if (is_array($data)) {
+            foreach (['appointment', 'booking'] as $nestedKey) {
+                $nested = $data[$nestedKey] ?? null;
+                if (is_array($nested)) {
+                    return $nested;
+                }
+            }
+
             return $data;
         }
 
@@ -74,7 +81,7 @@ final class Paziresh24WebhookPayload
             }
         }
 
-        foreach (['doctor', 'provider', 'user'] as $nestedKey) {
+        foreach (['doctor', 'provider', 'user', 'appointment', 'booking'] as $nestedKey) {
             $nested = $booking[$nestedKey] ?? null;
             if (!is_array($nested)) {
                 continue;

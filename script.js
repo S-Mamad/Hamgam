@@ -37,8 +37,16 @@ const appState = {
     importFutureVacationsUsed: false,
     importFutureBackfillUndoAvailable: false,
     importFutureBackfillSlotCount: 0,
-    deletingSyncedBackfill: false
+    deletingSyncedBackfill: false,
+    lastAppliedSettings: null
 };
+
+const IMPORT_FUTURE_VACATIONS_HINT_DEFAULT =
+    "رویدادهای شخصی ۳۰ روز آینده تقویم Google Calendar بررسی و به‌عنوان مرخصی ثبت می‌شوند";
+const IMPORT_FUTURE_VACATIONS_HINT_USED_WITH_VACATIONS =
+    "همگام‌سازی ۳۰ روزه انجام شده است. برای حذف مرخصی‌های ثبت‌شده از بخش زیر استفاده کنید.";
+const IMPORT_FUTURE_VACATIONS_HINT_USED_EMPTY =
+    "همگام‌سازی ۳۰ روزه انجام شده است. برای استفاده مجدد، ابتدا از بخش «حذف مرخصی‌های همگام‌شده» استفاده کنید.";
 
 document.addEventListener("DOMContentLoaded", initApp);
 
@@ -263,6 +271,8 @@ async function checkRecentSyncStatus() {
     if (status.ok === false && status.warnings?.length) {
         showWarningsIfAny({ warnings: status.warnings });
     }
+
+    void refreshSyncStatusUi();
 }
 
 function cleanOAuthParams() {
@@ -617,6 +627,7 @@ function applyConnectionState(connected, googleEmail = undefined) {
         updateGoogleAccountBanner(googleEmail || null);
     }
     updateSaveButton();
+    updateDashboardConnectionUi();
 }
 
 function resetChangeGmailButton() {
@@ -828,6 +839,8 @@ async function initApp() {
         await applyPendingSettingsAfterOAuth();
         showApp();
         updateSaveButton();
+        updateDashboardConnectionUi();
+        void refreshSyncStatusUi();
 
         if (oauthReturn) {
             const gmailChanged = isGmailChangeReturn();
@@ -975,6 +988,16 @@ function bindUiEvents() {
     }
 
     setupHamgamConfirmDialog();
+
+    const patientDataAccordion = document.getElementById("patientDataAccordion");
+    if (patientDataAccordion) {
+        patientDataAccordion.addEventListener("click", togglePatientDataAccordion);
+    }
+
+    const resetBtn = document.getElementById("resetSettings");
+    if (resetBtn) {
+        resetBtn.addEventListener("click", handleResetClick);
+    }
 }
 
 function isVacationPanelOpen() {
@@ -1336,7 +1359,9 @@ async function runImportFutureBackfillCleanup(confirmOptions) {
 function applyImportFutureVacationsUiState() {
     const importFutureEl = document.querySelector('[data-field="importFutureVacations"]');
     const option = importFutureEl?.closest(".vacation-sub-option");
+    const hint = option?.querySelector(".vacation-sub-option-hint");
     const used = appState.importFutureVacationsUsed;
+    const hasTrackedVacations = appState.importFutureBackfillSlotCount > 0;
 
     if (!importFutureEl || !option) {
         return;
@@ -1349,6 +1374,11 @@ function applyImportFutureVacationsUiState() {
         option.classList.add("vacation-sub-option--disabled");
         option.classList.remove("vacation-sub-option--inactive");
         option.setAttribute("aria-disabled", "true");
+        if (hint) {
+            hint.textContent = hasTrackedVacations
+                ? IMPORT_FUTURE_VACATIONS_HINT_USED_WITH_VACATIONS
+                : IMPORT_FUTURE_VACATIONS_HINT_USED_EMPTY;
+        }
         return;
     }
 
@@ -1356,6 +1386,9 @@ function applyImportFutureVacationsUiState() {
     importFutureEl.removeAttribute("aria-disabled");
     option.classList.remove("vacation-sub-option--disabled");
     option.removeAttribute("aria-disabled");
+    if (hint) {
+        hint.textContent = IMPORT_FUTURE_VACATIONS_HINT_DEFAULT;
+    }
 }
 
 function setVacationCenterSelection(selection) {
@@ -1979,6 +2012,95 @@ function applySettingsToForm(settings) {
     if (settings.google_account_email !== undefined) {
         updateGoogleAccountBanner(settings.google_account_email || null);
     }
+
+    appState.lastAppliedSettings = JSON.parse(JSON.stringify(settings));
+}
+
+function updateDashboardConnectionUi() {
+    const badge = document.getElementById("connectionStatusBadge");
+    const badgeText = document.getElementById("connectionStatusText");
+    const hint = document.getElementById("googleDisconnectedHint");
+    const syncCard = document.getElementById("googleSyncCard");
+
+    if (badge) {
+        badge.classList.toggle("dash-connection-badge--connected", appState.connected);
+        badge.classList.toggle("dash-connection-badge--disconnected", !appState.connected);
+    }
+
+    if (badgeText) {
+        badgeText.textContent = appState.connected ? "Google متصل" : "متصل نیست";
+    }
+
+    if (hint) {
+        hint.hidden = appState.connected;
+    }
+
+    if (syncCard) {
+        syncCard.classList.toggle("dash-sync-card--connected", appState.connected);
+    }
+}
+
+async function refreshSyncStatusUi() {
+    const indicator = document.getElementById("syncStatusIndicator");
+    const statusText = document.getElementById("syncStatusText");
+    if (!indicator || !statusText) {
+        return;
+    }
+
+    if (!appState.connected) {
+        indicator.className = "dash-sync-status__badge dash-sync-status__badge--idle";
+        statusText.textContent = "در انتظار اتصال";
+        return;
+    }
+
+    const status = await fetchSyncStatusOnce();
+    if (!status) {
+        indicator.className = "dash-sync-status__badge dash-sync-status__badge--active";
+        statusText.textContent = "همگام‌سازی فعال";
+        return;
+    }
+
+    if (status.pending) {
+        indicator.className = "dash-sync-status__badge dash-sync-status__badge--pending";
+        statusText.textContent = "در حال همگام‌سازی…";
+        return;
+    }
+
+    if (status.ok === false) {
+        indicator.className = "dash-sync-status__badge dash-sync-status__badge--error";
+        statusText.textContent = "نیاز به بررسی";
+        return;
+    }
+
+    indicator.className = "dash-sync-status__badge dash-sync-status__badge--active";
+    statusText.textContent = "همگام‌سازی فعال";
+}
+
+function togglePatientDataAccordion() {
+    const trigger = document.getElementById("patientDataAccordion");
+    const panel = document.getElementById("patientDataPanel");
+    if (!trigger || !panel) {
+        return;
+    }
+
+    const open = !panel.classList.contains("open");
+    panel.classList.toggle("open", open);
+    trigger.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+function handleResetClick() {
+    if (appState.saving) {
+        return;
+    }
+
+    if (!appState.lastAppliedSettings) {
+        showToast("تنظیمات ذخیره‌شده‌ای برای بازنشانی وجود ندارد.", "warning");
+        return;
+    }
+
+    applySettingsToForm(appState.lastAppliedSettings);
+    updateLiveBadge();
+    showToast("تغییرات به آخرین وضعیت ذخیره‌شده بازگردانده شد.");
 }
 
 function updateGoogleAccountBanner(email) {
@@ -1993,6 +2115,8 @@ function updateGoogleAccountBanner(email) {
         emailEl.textContent = "";
         if (group) group.hidden = true;
     }
+
+    updateDashboardConnectionUi();
 }
 
 function redirectToLauncher() {

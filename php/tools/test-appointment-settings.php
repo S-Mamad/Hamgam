@@ -10,6 +10,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/bootstrap.php';
 require_once __DIR__ . '/../includes/vacation-bootstrap.php';
+require_once __DIR__ . '/../includes/AppointmentWebhookException.php';
+require_once __DIR__ . '/../includes/Paziresh24WebhookPayload.php';
 
 if (ob_get_level()) {
     ob_end_clean();
@@ -185,6 +187,48 @@ assertTest(
     'getSettings does not preselect legacy center_id',
     ($legacySettings['vacation_sync_centers']['mode'] ?? '') === 'selected'
         && ($legacySettings['vacation_sync_centers']['center_ids'] ?? null) === []
+);
+
+$cancelPayload = [
+    'event' => 'provider.appointment.canceled',
+    'data' => [
+        'book_id' => 'bc9437f4-67d5-11f1-8fe5-b6c09fdc72a4',
+        'doctor_user_id' => 23489442,
+    ],
+];
+$cancelBooking = Paziresh24WebhookPayload::extractBooking($cancelPayload);
+assertTest(
+    'cancel webhook extracts nested booking',
+    is_array($cancelBooking)
+        && Paziresh24WebhookPayload::extractBookId($cancelBooking) === 'bc9437f4-67d5-11f1-8fe5-b6c09fdc72a4'
+        && Paziresh24WebhookPayload::extractDoctorUserId($cancelBooking) === '23489442'
+);
+assertTest(
+    'cancel event type normalized to cancelled',
+    Paziresh24WebhookPayload::extractEventType($cancelPayload) === 'provider.appointment.cancelled'
+);
+
+$nestedCancelPayload = [
+    'event' => 'provider.appointment.cancelled',
+    'data' => [
+        'appointment' => [
+            'id' => 'nested-book-id',
+            'doctor_user_id' => '99887766',
+        ],
+    ],
+];
+$nestedCancelBooking = Paziresh24WebhookPayload::extractBooking($nestedCancelPayload);
+assertTest(
+    'cancel webhook unwraps appointment object',
+    is_array($nestedCancelBooking)
+        && Paziresh24WebhookPayload::extractBookId($nestedCancelBooking) === 'nested-book-id'
+        && Paziresh24WebhookPayload::extractDoctorUserId($nestedCancelBooking) === '99887766'
+);
+
+$webhookException = new AppointmentWebhookException('test', 502);
+assertTest(
+    'AppointmentWebhookException loads on PHP 8.1',
+    $webhookException->getMessage() === 'test' && $webhookException->getHttpStatus() === 502
 );
 
 $basePayload['vacationSyncCenters'] = ['mode' => 'all', 'centerIds' => []];
