@@ -11,10 +11,10 @@
     <meta name="description" content="شخصی‌سازی نحوه ثبت نوبت‌های پذیرش۲۴ در Google Calendar">
     <link rel="dns-prefetch" href="https://accounts.google.com">
     <link rel="preconnect" href="https://accounts.google.com" crossorigin>
-    <link rel="stylesheet" href="style.css?v=8f182dae">
+    <link rel="stylesheet" href="style.css?v=c126a00c">
     <link href="https://fonts.paziresh24.com/iran-sans-x.css" rel="stylesheet">
     <script src="https://hamdast.paziresh24.com/sdk/hamdast.js"></script>
-    <script src="script.js?v=8f182dae" defer></script>
+    <script src="script.js?v=c126a00c" defer></script>
 </head>
 
 <body>
@@ -60,13 +60,7 @@
                         </svg>
                         <span>لغو اتصال</span>
                     </button>
-                    <div class="vacation-gmail-row__account">
-                        <span class="vacation-gmail-row__badge" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none">
-                                <path d="M22 6.5v11a2.5 2.5 0 01-2.5 2.5H4.5A2.5 2.5 0 012 17.5v-11A2.5 2.5 0 014.5 5h15A2.5 2.5 0 0122 6.5z" stroke="currentColor" stroke-width="1.5"/>
-                                <path d="M2 7l10 6.5L22 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </span>
+                    <div class="vacation-gmail-row__combo">
                         <span id="googleAccountEmail" class="vacation-gmail-row__email"></span>
                         <button type="button" id="changeGmailBtn" class="vacation-gmail-row__edit" aria-label="تغییر حساب Google" title="تغییر حساب Google">
                             <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -293,18 +287,18 @@
 
         </div>
 
-        <footer class="footer-dock" aria-label="ذخیره تنظیمات">
-            <div class="footer-dock__inner">
-                <button type="button" class="save-btn" id="saveSettings">
-                    <span class="save-btn-content">
-                        <span class="save-btn-text">ذخیره تغییرات</span>
-                        <span class="save-btn-spinner" aria-hidden="true"></span>
-                    </span>
-                </button>
-            </div>
-        </footer>
-
     </div>
+
+    <footer class="footer-dock" id="footerDock" hidden aria-label="ذخیره تنظیمات">
+        <div class="footer-dock__inner">
+            <button type="button" class="save-btn" id="saveSettings">
+                <span class="save-btn-content">
+                    <span class="save-btn-text">ذخیره تغییرات</span>
+                    <span class="save-btn-spinner" aria-hidden="true"></span>
+                </span>
+            </button>
+        </div>
+    </footer>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 

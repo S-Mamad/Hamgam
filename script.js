@@ -1838,11 +1838,13 @@ function setSaveLoading(loading, label = null) {
 function showApp() {
     const screen = document.getElementById("loading-screen");
     const app = document.getElementById("app-container");
+    const footer = document.getElementById("footerDock");
 
     screen.classList.add("fade-out");
     setTimeout(() => {
         screen.hidden = true;
         app.hidden = false;
+        if (footer) footer.hidden = false;
         requestAnimationFrame(() => {
             app.classList.add("fade-in");
             requestAnimationFrame(() => refreshMainTabPill());
