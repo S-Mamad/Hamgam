@@ -225,6 +225,59 @@ assertTest(
         && Paziresh24WebhookPayload::extractDoctorUserId($nestedCancelBooking) === '99887766'
 );
 
+$hamgamUpdatePayload = [
+    'event' => 'appointment.updated',
+    'data' => [
+        'book_id' => 'd3fe846f-6b15-11f1-8fe5-b6c09fdc72a4',
+        'doctor_user_id' => 23489442,
+        'patient_name' => 'محمد',
+        'after_update_record' => [
+            'id' => 'd3fe846f-6b15-11f1-8fe5-b6c09fdc72a4',
+            'from' => '1781931600',
+            'to' => '1781932500',
+            'from_date' => '2026-06-20',
+            'from_hour' => '08:30',
+            'patient_name' => 'محمد',
+            'patient_family' => 'محمدی',
+            'center_id' => 'e5d0fa25-a8e1-40db-a957-97aa0af1c0ee',
+            'center_name' => 'توسعه دهندگان پذیرش24 - همدست',
+            'user_id' => '61d1b42a-4fa2-11f1-89cc-fa163e8a0bb8',
+        ],
+    ],
+];
+$hamgamUpdateBooking = Paziresh24WebhookPayload::extractBooking($hamgamUpdatePayload);
+assertTest(
+    'hamgam update webhook normalizes event and unwraps after_update_record',
+    Paziresh24WebhookPayload::extractEventType($hamgamUpdatePayload) === 'provider.appointment.updated'
+        && is_array($hamgamUpdateBooking)
+        && Paziresh24WebhookPayload::extractBookId($hamgamUpdateBooking) === 'd3fe846f-6b15-11f1-8fe5-b6c09fdc72a4'
+        && Paziresh24WebhookPayload::extractDoctorUserId($hamgamUpdateBooking) === '23489442'
+        && ($hamgamUpdateBooking['from'] ?? null) === '1781931600'
+        && ($hamgamUpdateBooking['to'] ?? null) === '1781932500'
+);
+
+$hamgamCancelPayload = [
+    'event' => 'appointment.cancelled',
+    'data' => [
+        'book_id' => 'd3fe846f-6b15-11f1-8fe5-b6c09fdc72a4',
+        'doctor_user_id' => 23489442,
+        'book_record' => [
+            'id' => 'd3fe846f-6b15-11f1-8fe5-b6c09fdc72a4',
+            'from' => '1781931600',
+            'to' => '1781932500',
+            'user_id' => '61d1b42a-4fa2-11f1-89cc-fa163e8a0bb8',
+        ],
+    ],
+];
+$hamgamCancelBooking = Paziresh24WebhookPayload::extractBooking($hamgamCancelPayload);
+assertTest(
+    'hamgam cancel webhook normalizes event and unwraps book_record',
+    Paziresh24WebhookPayload::extractEventType($hamgamCancelPayload) === 'provider.appointment.cancelled'
+        && is_array($hamgamCancelBooking)
+        && Paziresh24WebhookPayload::extractBookId($hamgamCancelBooking) === 'd3fe846f-6b15-11f1-8fe5-b6c09fdc72a4'
+        && Paziresh24WebhookPayload::extractDoctorUserId($hamgamCancelBooking) === '23489442'
+);
+
 $webhookException = new AppointmentWebhookException('test', 502);
 assertTest(
     'AppointmentWebhookException loads on PHP 8.1',

@@ -24,7 +24,11 @@ final class Paziresh24WebhookPayload
         return match ($eventType) {
             'provider.appointment.canceled',
             'provider.appointment.deleted',
-            'provider.appointment.delete' => 'provider.appointment.cancelled',
+            'provider.appointment.delete',
+            'appointment.canceled',
+            'appointment.cancelled' => 'provider.appointment.cancelled',
+            'appointment.updated' => 'provider.appointment.updated',
+            'appointment' => 'provider.appointment',
             default => $eventType,
         };
     }
@@ -42,6 +46,11 @@ final class Paziresh24WebhookPayload
                 if (is_array($nested)) {
                     return $nested;
                 }
+            }
+
+            $record = $data['after_update_record'] ?? $data['book_record'] ?? null;
+            if (is_array($record)) {
+                return self::mergeBookingRecord($data, $record);
             }
 
             return $data;
@@ -96,5 +105,45 @@ final class Paziresh24WebhookPayload
         }
 
         return null;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @param array<string, mixed> $record
+     * @return array<string, mixed>
+     */
+    private static function mergeBookingRecord(array $data, array $record): array
+    {
+        $merged = $record;
+
+        foreach (
+            [
+                'book_id',
+                'doctor_user_id',
+                'doctor_id',
+                'center_id',
+                'center_name',
+                'center_address',
+                'center_tell',
+                'patient_name',
+                'patient_cell',
+                'ref_id',
+                'time',
+            ] as $key
+        ) {
+            $value = $data[$key] ?? null;
+            if (is_scalar($value) && trim((string) $value) !== '') {
+                $merged[$key] = $value;
+            }
+        }
+
+        if (!isset($merged['book_id'])) {
+            $bookId = self::extractBookId($record);
+            if ($bookId !== null) {
+                $merged['book_id'] = $bookId;
+            }
+        }
+
+        return $merged;
     }
 }

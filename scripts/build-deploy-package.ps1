@@ -33,6 +33,11 @@ foreach ($f in @("index.html", "script.js", "style.css", ".htaccess")) {
     if (Test-Path $src) { Copy-Item $src (Join-Path $out $f) -Force }
 }
 
+# Re-stamp deploy HTML so ?v= always matches copied CSS/JS bytes.
+if (Test-Path $stampScript) {
+    & $stampScript -Root $root -DeployDir $out
+}
+
 # PHP backend (exclude secrets and local-only)
 Copy-Tree (Join-Path $root "php") (Join-Path $out "php")
 

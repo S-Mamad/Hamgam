@@ -1,6 +1,7 @@
 # Stamps style.css and script.js URLs in HTML with a content hash for cache busting.
 param(
-    [string]$Root = (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path))
+    [string]$Root = (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)),
+    [string]$DeployDir = ""
 )
 
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
@@ -18,7 +19,7 @@ function Get-AssetVersion([string]$CssPath, [string]$JsPath) {
 }
 
 function Stamp-HtmlFile([string]$HtmlPath, [string]$CssPath, [string]$JsPath) {
-    if (-not (Test-Path $HtmlPath)) { return }
+    if (-not (Test-Path $HtmlPath)) { return $null }
 
     $version = Get-AssetVersion $CssPath $JsPath
     $html = [System.IO.File]::ReadAllText($HtmlPath)
@@ -28,6 +29,7 @@ function Stamp-HtmlFile([string]$HtmlPath, [string]$CssPath, [string]$JsPath) {
 
     [System.IO.File]::WriteAllText($HtmlPath, $html, $utf8NoBom)
     Write-Host "Asset version v=$version -> $HtmlPath"
+    return $version
 }
 
 $targets = @(
@@ -40,14 +42,17 @@ $targets = @(
         Html = Join-Path $Root "landing\index.html"
         Css  = Join-Path $Root "landing\style.css"
         Js   = Join-Path $Root "landing\script.js"
-    },
-    @{
-        Html = Join-Path $Root "deploy\index.html"
-        Css  = Join-Path $Root "deploy\style.css"
-        Js   = Join-Path $Root "deploy\script.js"
     }
 )
 
 foreach ($t in $targets) {
-    Stamp-HtmlFile $t.Html $t.Css $t.Js
+    Stamp-HtmlFile $t.Html $t.Css $t.Js | Out-Null
+}
+
+# deploy/ is build output — only stamp when explicitly requested after files are copied.
+if ($DeployDir -and (Test-Path $DeployDir)) {
+    Stamp-HtmlFile `
+        (Join-Path $DeployDir "index.html") `
+        (Join-Path $DeployDir "style.css") `
+        (Join-Path $DeployDir "script.js") | Out-Null
 }

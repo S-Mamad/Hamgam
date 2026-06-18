@@ -104,6 +104,9 @@ for f in index.html script.js style.css .htaccess; do
     fi
 done
 
+# Re-stamp deploy HTML so ?v= always matches copied CSS/JS bytes.
+stamp_html_file "$OUT/index.html" "$OUT/style.css" "$OUT/script.js"
+
 # PHP backend (exclude secrets and local-only)
 copy_tree "$ROOT/php" "$OUT/php"
 
