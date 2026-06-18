@@ -150,9 +150,6 @@ body {
 /* ── Gmail row (inside vacation tab) ───────────────────── */
 
 .vacation-gmail-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
     margin: 3px 3px 6px;
 }
 
@@ -160,51 +157,12 @@ body {
     display: none !important;
 }
 
-.vacation-gmail-row__disconnect {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    flex-shrink: 0;
-    height: 38px;
-    padding: 0 10px;
-    border: 1px solid #fecaca;
-    border-radius: var(--radius);
-    background: linear-gradient(135deg, #fff8f8 0%, #fee2e2 100%);
-    color: #dc2626;
-    font-size: 10.5px;
-    font-weight: 700;
-    line-height: 1;
-    cursor: pointer;
-    white-space: nowrap;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    transition: background 0.15s ease;
-}
-
-.vacation-gmail-row__disconnect svg {
-    width: 10px;
-    height: 10px;
-    flex-shrink: 0;
-    pointer-events: none;
-}
-
-.vacation-gmail-row__disconnect:hover {
-    background: #fee2e2;
-}
-
-.vacation-gmail-row__disconnect:disabled,
-.vacation-gmail-row__disconnect.is-loading {
-    opacity: 0.5;
-    cursor: wait;
-}
-
 .vacation-gmail-row__combo {
     display: flex;
     align-items: stretch;
-    flex: 1;
+    width: 100%;
     min-width: 0;
-    height: 38px;
+    height: 40px;
     border-radius: var(--radius);
     border: 1px solid var(--slate-200);
     background: #ffffff;
@@ -219,15 +177,48 @@ body {
     align-items: center;
     min-width: 0;
     flex: 1;
-    padding: 0 11px;
-    font-size: 11.5px;
+    padding: 0 12px;
+    font-size: 12px;
     font-weight: 600;
-    color: var(--slate-700);
+    color: var(--slate-800);
+    letter-spacing: 0.01em;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    line-height: 1.2;
+    background: #f8fafc;
+}
+
+.vacation-gmail-row__disconnect {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    height: 100%;
+    padding: 0 11px;
+    border: none;
+    border-inline-start: 1px solid var(--slate-200);
+    background: #fff;
+    color: #ef4444;
+    font-size: 10.5px;
+    font-weight: 700;
     line-height: 1;
-    background: var(--slate-50);
+    cursor: pointer;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.vacation-gmail-row__disconnect:hover {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.vacation-gmail-row__disconnect:disabled,
+.vacation-gmail-row__disconnect.is-loading {
+    opacity: 0.5;
+    cursor: wait;
 }
 
 .vacation-gmail-row__edit {
@@ -235,8 +226,8 @@ body {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 100%;
     padding: 0;
     border: none;
     border-inline-start: 1px solid #ddd6fe;
@@ -2140,15 +2131,15 @@ body {
     width: 100%;
     max-width: 440px;
     margin: 0 auto;
-    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
     pointer-events: auto;
 }
 
 .save-btn {
     width: 100%;
     min-height: 50px;
-    padding: 0 20px;
-    border-radius: var(--radius);
+    padding: 0 14px;
+    border-radius: 9px;
     border: none;
     background: linear-gradient(135deg, var(--blue-600) 0%, var(--blue-700) 100%);
     color: #fff;
