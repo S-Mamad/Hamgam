@@ -9,7 +9,7 @@ declare(strict_types=1);
  * 1. پارس state و code از query
  * 2. تبدیل code به refresh_token
  * 3. ذخیره/بروزرسانی google_tokens
- * 4. ثبت ویجت در Hamdast
+ * 4. ثبت ویجت در Hamdast (پس از redirect، در پس‌زمینه)
  * 5. هدایت به لانچر پذیرش۲۴ با direct=true (باز شدن تنظیمات داخل iframe)
  */
 
@@ -82,15 +82,6 @@ try {
 
     // Set pending=true before redirect so the frontend can reliably wait.
     GoogleTokensRepository::markSyncPending($userId, 'sync');
-
-    // Register widget before redirect so Paziresh24 launcher sees the user as connected.
-    try {
-        if (!Paziresh24Api::upsertWidget($userId)) {
-            RequestContext::log('hamgam/google-oauth', 'upsertWidget returned false before redirect for user ' . $userId);
-        }
-    } catch (Throwable $widgetError) {
-        RequestContext::log('hamgam/google-oauth', 'upsertWidget before redirect failed: ' . $widgetError->getMessage());
-    }
 
     RequestContext::log('hamgam/google-oauth', 'OAuth success for user ' . $userId);
 

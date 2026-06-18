@@ -57,6 +57,7 @@ function parseSettingsBody(array $body): ?array
 $basePayload = [
     'colorId' => '9',
     'fullName' => true,
+    'centerName' => false,
     'datetime' => false,
     'nationalId' => false,
     'phone' => false,

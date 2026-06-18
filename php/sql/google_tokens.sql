@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS google_tokens (
     Patient_date_time INTEGER NOT NULL DEFAULT 0,
     Patient_national INTEGER NOT NULL DEFAULT 0,
     Patient_phone INTEGER NOT NULL DEFAULT 0,
+    Patient_center INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

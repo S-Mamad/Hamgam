@@ -80,6 +80,7 @@ echo PHP_EOL . '=== Settings parse / save validation ===' . PHP_EOL;
 $validBody = [
     'colorId' => '9',
     'fullName' => true,
+    'centerName' => false,
     'datetime' => false,
     'nationalId' => false,
     'phone' => false,

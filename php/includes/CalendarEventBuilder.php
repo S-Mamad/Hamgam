@@ -32,6 +32,7 @@ final class CalendarEventBuilder
         $patientNationalCode = self::stringValue($booking, 'patient_national_code');
 
         $showPatientName = GoogleTokensRepository::toBoolPublic($settings['Patient_name'] ?? false);
+        $showCenter = GoogleTokensRepository::toBoolPublic($settings['Patient_center'] ?? false);
         $showDateTime = GoogleTokensRepository::toBoolPublic($settings['Patient_date_time'] ?? false);
         $showPhone = GoogleTokensRepository::toBoolPublic($settings['Patient_phone'] ?? false);
         $showNational = GoogleTokensRepository::toBoolPublic($settings['Patient_national'] ?? false);
@@ -49,6 +50,10 @@ final class CalendarEventBuilder
 
         if ($showPatientName) {
             $descriptionParts[] = 'بیمار : ' . trim($patientName . ' ' . $patientFamily);
+        }
+
+        if ($showCenter && $centerName !== '') {
+            $descriptionParts[] = 'مرکز : ' . $centerName;
         }
 
         if ($showDateTime) {

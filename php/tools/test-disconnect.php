@@ -31,6 +31,7 @@ GoogleTokensRepository::upsertHamdastAccessToken($doctorId, 'hamdast-token-test'
 assertTrue(GoogleTokensRepository::updateSettings($doctorId, [
     'colorId' => '5',
     'fullName' => true,
+    'centerName' => false,
     'datetime' => true,
     'nationalId' => false,
     'phone' => false,

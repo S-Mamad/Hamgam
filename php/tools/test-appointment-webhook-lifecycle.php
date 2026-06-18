@@ -197,6 +197,42 @@ assertTest(
     $builtDescription
 );
 
+$builtWithCenter = CalendarEventBuilder::build(
+    ['from' => 1781931600, 'to' => 1781932500],
+    [
+        'color_id' => '9',
+        'Patient_name' => true,
+        'Patient_center' => true,
+        'Patient_date_time' => true,
+    ],
+    [
+        'book_id' => $bookId,
+        'patient_name' => 'علی',
+        'patient_family' => 'احمدی',
+        'center_name' => 'کلینیک ونک',
+    ]
+);
+$centerDescription = is_array($builtWithCenter) ? (string) ($builtWithCenter['description'] ?? '') : '';
+$centerLines = array_values(array_filter(explode("\n", $centerDescription), static fn (string $line): bool => trim($line) !== ''));
+assertTest(
+    'CalendarEventBuilder puts center name on second description line',
+    is_array($builtWithCenter)
+        && count($centerLines) >= 2
+        && str_starts_with($centerLines[0], 'بیمار :')
+        && str_starts_with($centerLines[1], 'مرکز : کلینیک ونک'),
+    $centerDescription
+);
+$withoutCenter = CalendarEventBuilder::build(
+    ['from' => 1781931600, 'to' => 1781932500],
+    ['Patient_center' => false],
+    ['center_name' => 'کلینیک ونک']
+);
+assertTest(
+    'CalendarEventBuilder omits center line when setting disabled',
+    is_array($withoutCenter)
+        && !str_contains((string) ($withoutCenter['description'] ?? ''), 'مرکز :')
+);
+
 $updateDuplicateTargets = function (array $events, ?string $keepEventId): array {
     $targets = [];
     foreach ($events as $event) {

@@ -131,6 +131,7 @@ try {
     $payload = [
         'colorId' => '9',
         'fullName' => true,
+        'centerName' => false,
         'datetime' => false,
         'nationalId' => false,
         'phone' => false,

@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS google_tokens (
     Patient_date_time TINYINT(1) NOT NULL DEFAULT 0,
     Patient_national TINYINT(1) NOT NULL DEFAULT 0,
     Patient_phone TINYINT(1) NOT NULL DEFAULT 0,
+    Patient_center TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_google_tokens_user (paziresh24_user_id),

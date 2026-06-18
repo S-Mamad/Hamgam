@@ -13,6 +13,7 @@ function updateLiveBadge() {
     const detailsBox = document.getElementById("badgeDetailsDropdown");
 
     const nameCheck = document.querySelector('[data-field="fullName"]').checked;
+    const centerCheck = document.querySelector('[data-field="centerName"]').checked;
     const dateCheck = document.querySelector('[data-field="datetime"]').checked;
     const nationalCheck = document.querySelector('[data-field="nationalId"]').checked;
     const phoneCheck = document.querySelector('[data-field="phone"]').checked;
@@ -31,6 +32,7 @@ function updateLiveBadge() {
     }
 
     let detailsHTML = "";
+    if (centerCheck) detailsHTML += `<div class="detail-item"><span class="label">مرکز درمانی:</span><span class="value">کلینیک ونک</span></div>`;
     if (dateCheck) detailsHTML += `<div class="detail-item"><span class="label">زمان نوبت:</span><span class="value">شنبه - ۱۴:۳۰</span></div>`;
     if (nationalCheck) detailsHTML += `<div class="detail-item"><span class="label">کد ملی:</span><span class="value">4423456789</span></div>`;
     if (phoneCheck) detailsHTML += `<div class="detail-item"><span class="label">شماره تلفن:</span><span class="value">۰۹۱۲۳۴۵۶۷۸۹</span></div>`;
@@ -79,6 +81,7 @@ async function openSettings() {
         document.getElementById("colorPickerSection").dataset.selectedColor = targetColorId;
 
         document.querySelector('[data-field="fullName"]').checked = settings.Patient_name;
+        document.querySelector('[data-field="centerName"]').checked = settings.Patient_center;
         document.querySelector('[data-field="datetime"]').checked = settings.Patient_date_time;
         document.querySelector('[data-field="nationalId"]').checked = settings.Patient_national;
         document.querySelector('[data-field="phone"]').checked = settings.Patient_phone;
@@ -101,6 +104,7 @@ async function update() {
     const settings = {
         colorId,
         fullName: document.querySelector('[data-field="fullName"]').checked,
+        centerName: document.querySelector('[data-field="centerName"]').checked,
         datetime: document.querySelector('[data-field="datetime"]').checked,
         nationalId: document.querySelector('[data-field="nationalId"]').checked,
         phone: document.querySelector('[data-field="phone"]').checked

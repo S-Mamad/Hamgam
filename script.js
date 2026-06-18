@@ -17,6 +17,7 @@ const googleColors = {
 
 const PREVIEW_SAMPLES = {
     patientName: "محمد محمدی",
+    centerName: "کلینیک ونک",
     datetime: "شنبه - ۱۴:۳۰",
     nationalId: "4423456789",
     phone: "۰۹۱۲۳۴۵۶۷۸۹"
@@ -1739,6 +1740,7 @@ function collectSettingsPayload() {
     return {
         colorId: colorSection.dataset.selectedColor || DEFAULT_COLOR_ID,
         fullName: fields.fullName,
+        centerName: fields.centerName,
         datetime: fields.datetime,
         nationalId: fields.nationalId,
         phone: fields.phone,
@@ -1999,6 +2001,7 @@ function getFieldState() {
     const cancelConflictEl = document.querySelector('[data-field="cancelConflictingAppointments"]');
     return {
         fullName: document.querySelector('[data-field="fullName"]').checked,
+        centerName: document.querySelector('[data-field="centerName"]').checked,
         datetime: document.querySelector('[data-field="datetime"]').checked,
         nationalId: document.querySelector('[data-field="nationalId"]').checked,
         phone: document.querySelector('[data-field="phone"]').checked,
@@ -2017,6 +2020,7 @@ function applySettingsToForm(settings) {
     });
 
     document.querySelector('[data-field="fullName"]').checked = !!settings.Patient_name;
+    document.querySelector('[data-field="centerName"]').checked = !!settings.Patient_center;
     document.querySelector('[data-field="datetime"]').checked = !!settings.Patient_date_time;
     document.querySelector('[data-field="nationalId"]').checked = !!settings.Patient_national;
     document.querySelector('[data-field="phone"]').checked = !!settings.Patient_phone;
@@ -2364,6 +2368,7 @@ function updateLiveBadge() {
         : "نوبت پذیرش 24";
 
     const items = [];
+    if (fields.centerName) items.push({ label: "مرکز درمانی", value: PREVIEW_SAMPLES.centerName });
     if (fields.datetime) items.push({ label: "زمان نوبت", value: PREVIEW_SAMPLES.datetime });
     if (fields.nationalId) items.push({ label: "کد ملی", value: PREVIEW_SAMPLES.nationalId });
     if (fields.phone) items.push({ label: "شماره تلفن", value: PREVIEW_SAMPLES.phone });

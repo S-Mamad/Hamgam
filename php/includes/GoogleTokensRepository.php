@@ -366,7 +366,8 @@ final class GoogleTokensRepository
                     Patient_name,
                     Patient_date_time,
                     Patient_national,
-                    Patient_phone
+                    Patient_phone,
+                    Patient_center
                 ) VALUES (
                     :user_id,
                     :hamdast_access_token,
@@ -376,7 +377,8 @@ final class GoogleTokensRepository
                     :patient_name,
                     :patient_date_time,
                     :patient_national,
-                    :patient_phone
+                    :patient_phone,
+                    :patient_center
                 )
                 ON DUPLICATE KEY UPDATE
                     hamdast_access_token = VALUES(hamdast_access_token),
@@ -396,6 +398,7 @@ final class GoogleTokensRepository
                     Patient_date_time,
                     Patient_national,
                     Patient_phone,
+                    Patient_center,
                     updated_at
                 ) VALUES (
                     :user_id,
@@ -407,6 +410,7 @@ final class GoogleTokensRepository
                     :patient_date_time,
                     :patient_national,
                     :patient_phone,
+                    :patient_center,
                     CURRENT_TIMESTAMP
                 )
                 ON CONFLICT(paziresh24_user_id) DO UPDATE SET
@@ -427,6 +431,7 @@ final class GoogleTokensRepository
             'patient_date_time' => $prefs['Patient_date_time'] ? 1 : 0,
             'patient_national' => $prefs['Patient_national'] ? 1 : 0,
             'patient_phone' => $prefs['Patient_phone'] ? 1 : 0,
+            'patient_center' => $prefs['Patient_center'] ? 1 : 0,
         ]);
     }
 
@@ -437,6 +442,7 @@ final class GoogleTokensRepository
      *   Patient_date_time: bool,
      *   Patient_national: bool,
      *   Patient_phone: bool,
+     *   Patient_center: bool,
      *   auto_vacation: bool,
      *   import_future_vacations: bool,
      *   import_future_vacations_used: bool,
@@ -456,6 +462,7 @@ final class GoogleTokensRepository
                 'Patient_date_time' => false,
                 'Patient_national' => false,
                 'Patient_phone' => false,
+                'Patient_center' => false,
                 'auto_vacation' => false,
                 'import_future_vacations' => false,
                 'import_future_vacations_used' => false,
@@ -486,6 +493,7 @@ final class GoogleTokensRepository
             'Patient_date_time' => self::toBool($row['Patient_date_time'] ?? false),
             'Patient_national' => self::toBool($row['Patient_national'] ?? false),
             'Patient_phone' => self::toBool($row['Patient_phone'] ?? false),
+            'Patient_center' => self::toBool($row['Patient_center'] ?? false),
             'auto_vacation' => self::toBool($row['auto_vacation'] ?? false),
             'import_future_vacations' => self::toBool($row['import_future_vacations'] ?? false),
             'import_future_vacations_used' => $importUsed,
@@ -531,6 +539,7 @@ final class GoogleTokensRepository
                 Patient_date_time = :patient_date_time,
                 Patient_national = :patient_national,
                 Patient_phone = :patient_phone,
+                Patient_center = :patient_center,
                 auto_vacation = :auto_vacation,
                 import_future_vacations = :import_future_vacations,
                 cancel_appointment_on_event_delete = :cancel_appointment_on_event_delete,
@@ -547,6 +556,7 @@ final class GoogleTokensRepository
             'patient_date_time' => $settings['Patient_date_time'] ? 1 : 0,
             'patient_national' => $settings['Patient_national'] ? 1 : 0,
             'patient_phone' => $settings['Patient_phone'] ? 1 : 0,
+            'patient_center' => $settings['Patient_center'] ? 1 : 0,
             'auto_vacation' => $settings['auto_vacation'] ? 1 : 0,
             'import_future_vacations' => $settings['import_future_vacations'] ? 1 : 0,
             'cancel_appointment_on_event_delete' => $settings['cancel_appointment_on_event_delete'] ? 1 : 0,
@@ -564,6 +574,7 @@ final class GoogleTokensRepository
      *   Patient_date_time: bool,
      *   Patient_national: bool,
      *   Patient_phone: bool,
+     *   Patient_center: bool,
      *   auto_vacation: bool,
      *   import_future_vacations: bool,
      *   cancel_appointment_on_event_delete: bool,
@@ -582,6 +593,7 @@ final class GoogleTokensRepository
                 Patient_date_time,
                 Patient_national,
                 Patient_phone,
+                Patient_center,
                 auto_vacation,
                 import_future_vacations,
                 cancel_appointment_on_event_delete,
@@ -594,6 +606,7 @@ final class GoogleTokensRepository
                 :patient_date_time,
                 :patient_national,
                 :patient_phone,
+                :patient_center,
                 :auto_vacation,
                 :import_future_vacations,
                 :cancel_appointment_on_event_delete,
@@ -609,6 +622,7 @@ final class GoogleTokensRepository
             'patient_date_time' => $settings['Patient_date_time'] ? 1 : 0,
             'patient_national' => $settings['Patient_national'] ? 1 : 0,
             'patient_phone' => $settings['Patient_phone'] ? 1 : 0,
+            'patient_center' => $settings['Patient_center'] ? 1 : 0,
             'auto_vacation' => $settings['auto_vacation'] ? 1 : 0,
             'import_future_vacations' => $settings['import_future_vacations'] ? 1 : 0,
             'cancel_appointment_on_event_delete' => $settings['cancel_appointment_on_event_delete'] ? 1 : 0,
@@ -625,6 +639,7 @@ final class GoogleTokensRepository
      *   Patient_date_time: bool,
      *   Patient_national: bool,
      *   Patient_phone: bool,
+     *   Patient_center: bool,
      *   auto_vacation: bool,
      *   import_future_vacations: bool,
      *   cancel_appointment_on_event_delete: bool,
@@ -645,7 +660,7 @@ final class GoogleTokensRepository
             return null;
         }
 
-        $boolFields = ['fullName', 'datetime', 'nationalId', 'phone'];
+        $boolFields = ['fullName', 'centerName', 'datetime', 'nationalId', 'phone'];
         $parsedBools = [];
         foreach ($boolFields as $field) {
             if (!array_key_exists($field, $body)) {
@@ -717,6 +732,7 @@ final class GoogleTokensRepository
         return [
             'color_id' => $colorId,
             'Patient_name' => $parsedBools['fullName'],
+            'Patient_center' => $parsedBools['centerName'],
             'Patient_date_time' => $parsedBools['datetime'],
             'Patient_national' => $parsedBools['nationalId'],
             'Patient_phone' => $parsedBools['phone'],
@@ -797,6 +813,7 @@ final class GoogleTokensRepository
      *   Patient_date_time: bool,
      *   Patient_national: bool,
      *   Patient_phone: bool,
+     *   Patient_center: bool,
      *   auto_vacation: bool,
      *   import_future_vacations: bool,
      *   cancel_appointment_on_event_delete: bool,
@@ -809,6 +826,7 @@ final class GoogleTokensRepository
      *   Patient_date_time: bool,
      *   Patient_national: bool,
      *   Patient_phone: bool,
+     *   Patient_center: bool,
      *   auto_vacation: bool,
      *   import_future_vacations: bool,
      *   cancel_appointment_on_event_delete: bool,

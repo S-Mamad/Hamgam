@@ -50,8 +50,9 @@ assertTrue(
 $oauthSource = (string) file_get_contents(dirname(__DIR__) . '/hamgam/google-oauth.php');
 
 assertTrue(
-    str_contains($oauthSource, 'upsertWidget($userId)'),
-    'google-oauth registers widget before redirect'
+    str_contains($oauthSource, 'function runOAuthSuccessBackgroundWork')
+    && str_contains($oauthSource, 'Paziresh24Api::upsertWidget($userId)'),
+    'google-oauth registers widget in background after redirect'
 );
 assertTrue(
     str_contains($oauthSource, 'launcherAppOpenUrl()'),
