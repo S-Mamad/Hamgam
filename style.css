@@ -147,201 +147,113 @@ body {
     }
 }
 
-/* ── Google account card (vacation tab) ────────────────── */
+/* ── Gmail row (inside vacation tab) ───────────────────── */
 
-.google-account-card {
-    margin: 4px 3px 10px;
+.vacation-gmail-row {
+    margin: 3px 3px 6px;
 }
 
-.google-account-card[hidden] {
+.vacation-gmail-row[hidden] {
     display: none !important;
 }
 
-.google-account-card__shell {
-    position: relative;
-    overflow: hidden;
-    border-radius: calc(var(--radius) - 1px);
-    border: 1px solid rgba(37, 99, 235, 0.14);
-    background:
-        linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(239, 246, 255, 0.92) 100%);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.9),
-        0 1px 2px rgba(37, 99, 235, 0.06);
-}
-
-.google-account-card__shell::before {
-    content: "";
-    position: absolute;
-    inset: 0 auto 0 0;
-    width: 3px;
-    background: linear-gradient(180deg, #4285f4 0%, #34a853 52%, #ea4335 100%);
-    opacity: 0.85;
-}
-
-.google-account-card__identity {
+.vacation-gmail-row__combo {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    align-items: stretch;
+    width: 100%;
     min-width: 0;
-    padding: 11px 12px 10px 14px;
-}
-
-.google-account-card__avatar {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    width: 36px;
-    height: 36px;
-    border-radius: 11px;
+    height: 40px;
+    border-radius: var(--radius);
+    border: 1px solid var(--slate-200);
     background: #ffffff;
-    border: 1px solid rgba(226, 232, 240, 0.95);
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
 }
 
-.google-account-card__avatar svg {
-    width: 20px;
-    height: 20px;
-}
-
-.google-account-card__meta {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    flex: 1;
-}
-
-.google-account-card__label {
-    font-size: 10.5px;
-    font-weight: 700;
-    color: var(--slate-500);
-    letter-spacing: 0.01em;
-}
-
-.google-account-card__email {
+.vacation-gmail-row__email {
     direction: ltr;
     unicode-bidi: plaintext;
     text-align: left;
-    font-size: 12.5px;
-    font-weight: 700;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    flex: 1;
+    padding: 0 12px;
+    font-size: 12px;
+    font-weight: 600;
     color: var(--slate-800);
     letter-spacing: 0.01em;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    line-height: 1.35;
+    line-height: 1.2;
+    background: #f8fafc;
 }
 
-.google-account-card__live {
+.vacation-gmail-row__disconnect {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    width: 22px;
-    height: 22px;
-}
-
-.google-account-card__live-dot {
-    position: relative;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #22c55e;
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.16);
-}
-
-.google-account-card__live-dot::after {
-    content: "";
-    position: absolute;
-    inset: -4px;
-    border-radius: inherit;
-    border: 1.5px solid rgba(34, 197, 94, 0.45);
-    animation: googleAccountPulse 2.4s ease-out infinite;
-}
-
-@keyframes googleAccountPulse {
-    0% {
-        transform: scale(0.75);
-        opacity: 0.9;
-    }
-    70% {
-        transform: scale(1.45);
-        opacity: 0;
-    }
-    100% {
-        transform: scale(1.45);
-        opacity: 0;
-    }
-}
-
-.google-account-card__actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 8px 8px 14px;
-}
-
-.google-account-card__btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    min-height: 32px;
+    height: 100%;
     padding: 0 11px;
-    border-radius: 999px;
-    border: 1px solid transparent;
-    font-size: 11px;
+    border: none;
+    border-inline-start: 1px solid var(--slate-200);
+    background: #fff;
+    color: #ef4444;
+    font-size: 10.5px;
     font-weight: 700;
     line-height: 1;
     cursor: pointer;
     white-space: nowrap;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
-    transition:
-        background 0.15s ease,
-        border-color 0.15s ease,
-        color 0.15s ease,
-        transform 0.15s var(--ease-out);
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
-.google-account-card__btn svg {
-    width: 11px;
-    height: 11px;
-    pointer-events: none;
-    flex-shrink: 0;
-}
-
-.google-account-card__btn--edit {
-    flex: 1;
-    color: var(--blue-700);
-    background: rgba(255, 255, 255, 0.92);
-    border-color: rgba(37, 99, 235, 0.18);
-}
-
-.google-account-card__btn--edit:hover {
-    background: #ffffff;
-    border-color: rgba(37, 99, 235, 0.3);
-    transform: translateY(-1px);
-}
-
-.google-account-card__btn--disconnect {
-    color: #dc2626;
-    background: rgba(254, 242, 242, 0.75);
-    border-color: rgba(239, 68, 68, 0.16);
-}
-
-.google-account-card__btn--disconnect:hover {
+.vacation-gmail-row__disconnect:hover {
     background: #fef2f2;
-    border-color: rgba(239, 68, 68, 0.28);
-    transform: translateY(-1px);
+    color: #dc2626;
 }
 
-.google-account-card__btn:disabled,
-.google-account-card__btn.is-loading {
+.vacation-gmail-row__disconnect:disabled,
+.vacation-gmail-row__disconnect.is-loading {
     opacity: 0.5;
     cursor: wait;
-    transform: none;
+}
+
+.vacation-gmail-row__edit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 100%;
+    padding: 0;
+    border: none;
+    border-inline-start: 1px solid #ddd6fe;
+    border-radius: 0;
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    color: #7c3aed;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: background 0.15s ease;
+}
+
+.vacation-gmail-row__edit svg {
+    width: 12px;
+    height: 12px;
+    pointer-events: none;
+}
+
+.vacation-gmail-row__edit:hover {
+    background: #ede9fe;
+}
+
+.vacation-gmail-row__edit:disabled,
+.vacation-gmail-row__edit.is-loading {
+    opacity: 0.5;
+    cursor: wait;
 }
 
 /* ── Personalize section ───────────────────────────────── */
@@ -1191,23 +1103,23 @@ body {
 }
 
 .vacation-sub-panel {
-    margin: 0;
-    padding: 0 4px;
+    margin: 6px 2px 2px;
+    padding: 0 8px;
     max-height: 0;
     opacity: 0;
     overflow: hidden;
     transition:
         max-height 0.35s var(--ease-out),
         opacity 0.3s ease,
-        padding 0.35s ease;
+        padding 0.35s ease,
+        margin 0.35s ease;
 }
 
 .vacation-sub-panel.open {
     max-height: 2400px;
     opacity: 1;
-    padding: 10px 4px 4px;
-    margin: 0;
-    border-top: 1px solid rgba(191, 219, 254, 0.5);
+    padding: 10px 8px 6px;
+    margin: 8px 2px 4px;
 }
 
 .vacation-sub-panel:not(.open) .vacation-sub-option,
@@ -1218,22 +1130,22 @@ body {
 }
 
 .vacation-centers-section {
-    margin-bottom: 10px;
-    padding: 0;
-    border: none;
-    border-radius: 0;
-    background: transparent;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid var(--slate-200);
 }
 
 .vacation-centers-header {
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 .vacation-centers-heading {
     display: flex;
     align-items: center;
-    gap: 4px;
-    margin-bottom: 2px;
+    gap: 6px;
+    margin-bottom: 4px;
 }
 
 .vacation-centers-title {
@@ -1241,9 +1153,9 @@ body {
     flex: 1;
     min-width: 0;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 800;
     color: var(--slate-800);
-    line-height: 1.45;
+    line-height: 1.5;
 }
 
 .vacation-centers-refresh-btn {
@@ -1251,15 +1163,15 @@ body {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     padding: 0;
-    border: none;
-    border-radius: 6px;
-    background: transparent;
-    color: var(--slate-400);
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    color: var(--blue-600);
     cursor: pointer;
-    transition: color 0.15s ease, background 0.15s ease;
+    transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .vacation-centers-refresh-btn svg {
@@ -1268,19 +1180,18 @@ body {
 }
 
 .vacation-centers-refresh-btn:hover {
-    color: var(--blue-600);
-    background: rgba(255, 255, 255, 0.8);
-    transform: none;
-    box-shadow: none;
+    background: #dbeafe;
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.14);
 }
 
 .vacation-centers-refresh-btn:active {
-    transform: scale(0.94);
+    transform: scale(0.96);
 }
 
 .vacation-centers-refresh-btn:focus-visible {
     outline: 2px solid #93c5fd;
-    outline-offset: 1px;
+    outline-offset: 2px;
 }
 
 .vacation-centers-refresh-btn.is-loading svg {
@@ -1288,15 +1199,19 @@ body {
 }
 
 .vacation-centers-refresh-btn:disabled {
-    opacity: 0.5;
+    opacity: 0.65;
     cursor: wait;
+    transform: none;
+    box-shadow: none;
 }
 
 .vacation-centers-hint {
-    margin: 0 0 8px;
+    margin: 0;
     font-size: 10px;
-    line-height: 1.55;
-    color: var(--slate-400);
+    line-height: 1.65;
+    color: var(--slate-500);
+    text-align: justify;
+    text-align-last: right;
 }
 
 .vacation-centers-body {
@@ -1319,11 +1234,7 @@ body {
 .vacation-centers-list:not([hidden]) {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 6px;
-    border-radius: 9px;
-    background: rgba(255, 255, 255, 0.72);
-    border: 1px solid rgba(226, 232, 240, 0.85);
+    gap: 6px;
 }
 
 .vacation-centers-detail {
@@ -1430,10 +1341,6 @@ body {
 }
 
 .vacation-sub-options-block {
-    padding: 2px 8px 4px;
-    border-radius: 9px;
-    background: rgba(255, 255, 255, 0.55);
-    border: 1px solid rgba(226, 232, 240, 0.75);
     transition:
         opacity 0.32s ease,
         transform 0.35s var(--ease-out),
@@ -1472,10 +1379,10 @@ body {
     display: flex;
     align-items: flex-start;
     gap: 10px;
-    padding: 9px 10px;
-    border-radius: 8px;
-    border: 1px solid transparent;
-    background: transparent;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--slate-200);
+    background: var(--slate-50);
     cursor: pointer;
     transition:
         border-color 0.2s ease,
@@ -1484,13 +1391,13 @@ body {
 }
 
 .vacation-center-item:hover {
-    border-color: #dbeafe;
+    border-color: #bfdbfe;
     background: #fff;
 }
 
 .vacation-center-item.is-selected {
-    border-color: #bfdbfe;
-    background: #fff;
+    border-color: #93c5fd;
+    background: linear-gradient(135deg, #eff6ff 0%, #fff 100%);
 }
 
 .vacation-center-item--all {
@@ -1578,24 +1485,25 @@ body {
 .vacation-sub-divider {
     height: 1px;
     margin: 10px 0 8px;
-    background: rgba(226, 232, 240, 0.9);
+    background: linear-gradient(90deg, transparent, rgba(191, 219, 254, 0.9), transparent);
 }
 
 .vacation-sub-group-title {
     font-size: 10px;
-    font-weight: 700;
-    color: var(--slate-500);
-    margin: 0 0 6px;
-    padding: 0 2px;
-    letter-spacing: 0;
+    font-weight: 800;
+    color: var(--blue-700);
+    margin: 0 0 8px;
+    letter-spacing: 0.02em;
 }
 
 .vacation-sub-panel .vacation-sub-option + .vacation-sub-option {
-    margin-top: 0;
+    margin-top: 8px;
 }
 
 .vacation-sub-option--disabled {
-    display: none;
+    opacity: 0.55;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .vacation-sub-option-title .section-hint-badge {
@@ -1606,23 +1514,22 @@ body {
 .vacation-sub-option {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    padding: 10px 2px;
-    border-radius: 0;
-    border: none;
-    border-bottom: 1px solid var(--slate-100);
-    background: transparent;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--slate-200);
+    background: #fff;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    transition: background 0.2s ease;
-}
-
-.vacation-sub-option:last-of-type {
-    border-bottom: none;
+    transition:
+        border-color 0.2s ease,
+        background 0.2s ease,
+        box-shadow 0.2s ease;
 }
 
 .vacation-sub-option:hover:not(.vacation-sub-option--disabled) {
-    background: rgba(248, 250, 252, 0.7);
+    border-color: #bfdbfe;
+    background: #fafbff;
 }
 
 .vacation-sub-checkbox {
@@ -1695,16 +1602,20 @@ body {
 }
 
 .vacation-sub-option-title {
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 600;
-    color: var(--slate-800);
-    line-height: 1.55;
+    color: var(--slate-700);
+    line-height: 1.7;
+    text-align: justify;
+    text-align-last: right;
 }
 
 .vacation-sub-option-hint {
     font-size: 10px;
     color: var(--slate-400);
-    line-height: 1.55;
+    line-height: 1.65;
+    text-align: justify;
+    text-align-last: right;
 }
 
 .vacation-sub-options-block--inactive .vacation-backfill-action {
@@ -1983,23 +1894,22 @@ body {
     align-items: center;
     gap: 6px;
     width: calc(100% - 8px);
-    margin: 8px 4px 2px;
-    padding: 9px 10px;
+    margin: 2px 4px 4px;
+    padding: 10px 12px;
     border: none;
-    border-radius: 9px;
-    background: transparent;
-    color: var(--slate-500);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.72);
+    color: var(--blue-700);
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
-    transition: background 0.2s ease, color 0.2s ease;
+    transition: background 0.2s ease;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
 }
 
 .vacation-info-toggle:hover {
-    background: rgba(255, 255, 255, 0.65);
-    color: var(--blue-700);
+    background: rgba(255, 255, 255, 0.95);
 }
 
 .vacation-info-icon {
