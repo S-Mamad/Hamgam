@@ -11,10 +11,10 @@
     <meta name="description" content="شخصی‌سازی نحوه ثبت نوبت‌های پذیرش۲۴ در Google Calendar">
     <link rel="dns-prefetch" href="https://accounts.google.com">
     <link rel="preconnect" href="https://accounts.google.com" crossorigin>
-    <link rel="stylesheet" href="style.css?v=9f77c411">
+    <link rel="stylesheet" href="style.css?v=8f182dae">
     <link href="https://fonts.paziresh24.com/iran-sans-x.css" rel="stylesheet">
     <script src="https://hamdast.paziresh24.com/sdk/hamdast.js"></script>
-    <script src="script.js?v=9f77c411" defer></script>
+    <script src="script.js?v=8f182dae" defer></script>
 </head>
 
 <body>
@@ -54,15 +54,26 @@
             <main class="settings-card settings-card--vacation">
 
                 <div id="googleAccountGroup" class="vacation-gmail-row" hidden>
-                    <div class="vacation-gmail-row__info">
+                    <button type="button" id="disconnectGoogleBtn" class="vacation-gmail-row__disconnect" aria-label="لغو اتصال Google">
+                        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                            <path d="M5 5l6 6M11 5L5 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                        </svg>
+                        <span>لغو اتصال</span>
+                    </button>
+                    <div class="vacation-gmail-row__account">
+                        <span class="vacation-gmail-row__badge" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M22 6.5v11a2.5 2.5 0 01-2.5 2.5H4.5A2.5 2.5 0 012 17.5v-11A2.5 2.5 0 014.5 5h15A2.5 2.5 0 0122 6.5z" stroke="currentColor" stroke-width="1.5"/>
+                                <path d="M2 7l10 6.5L22 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </span>
                         <span id="googleAccountEmail" class="vacation-gmail-row__email"></span>
-                        <button type="button" id="changeGmailBtn" class="vacation-gmail-row__edit" aria-label="تغییر حساب Google" title="تغییر حساب">
+                        <button type="button" id="changeGmailBtn" class="vacation-gmail-row__edit" aria-label="تغییر حساب Google" title="تغییر حساب Google">
                             <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
                                 <path d="M11.5 2.5l2 2M3 11.5V14h2.5L13.5 6 11 3.5 3 11.5z" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
                         </button>
                     </div>
-                    <button type="button" id="disconnectGoogleBtn" class="vacation-gmail-row__disconnect" aria-label="لغو اتصال Google">لغو اتصال</button>
                 </div>
 
                 <div class="field row" data-toggle-field="autoVacation">

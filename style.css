@@ -67,7 +67,7 @@ body {
 
 .app-main {
     flex: 1 1 auto;
-    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
 }
 
 /* ── Main tab switcher ─────────────────────────────────── */
@@ -78,22 +78,24 @@ body {
     align-items: center;
     isolation: isolate;
     margin-bottom: 10px;
-    padding: 4px;
+    padding: 5px;
     border-radius: var(--radius);
-    background: var(--slate-100);
+    background: #eceff3;
     border: none;
 }
 
 .main-tab-pill {
     position: absolute;
-    top: 4px;
-    bottom: 4px;
+    top: 5px;
+    bottom: 5px;
     left: 0;
     width: 0;
     z-index: 1;
-    border-radius: calc(var(--radius) - 3px);
+    border-radius: calc(var(--radius) - 2px);
     background: #ffffff;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    box-shadow:
+        0 1px 2px rgba(15, 23, 42, 0.05),
+        0 2px 6px rgba(15, 23, 42, 0.07);
     transition: left 0.32s var(--ease-out), width 0.32s var(--ease-out);
     pointer-events: none;
 }
@@ -106,21 +108,22 @@ body {
     flex: 1;
     position: relative;
     z-index: 2;
-    padding: 9px 10px;
+    padding: 10px 12px;
     border: none;
     outline: none;
     background: none;
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 600;
-    color: var(--slate-500);
+    color: var(--slate-400);
     text-align: center;
     cursor: pointer;
-    transition: color 0.2s ease;
+    transition: color 0.22s ease;
     -webkit-tap-highlight-color: transparent;
 }
 
 .main-tab-trigger.active {
     color: var(--slate-900);
+    font-weight: 700;
 }
 
 .main-tab-trigger:focus-visible {
@@ -154,24 +157,84 @@ body {
 .vacation-gmail-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 10px;
-    margin: 3px 3px 5px;
-    padding: 9px 11px;
+    margin: 3px 3px 6px;
+    padding: 10px 11px;
     border-radius: var(--radius);
-    background: rgba(255, 255, 255, 0.72);
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(191, 219, 254, 0.55);
 }
 
 .vacation-gmail-row[hidden] {
     display: none !important;
 }
 
-.vacation-gmail-row__info {
+.vacation-gmail-row__disconnect {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex-shrink: 0;
+    padding: 6px 10px;
+    border: 1px solid #fecaca;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #fff8f8 0%, #fee2e2 100%);
+    color: #dc2626;
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.vacation-gmail-row__disconnect svg {
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
+    pointer-events: none;
+}
+
+.vacation-gmail-row__disconnect:hover {
+    background: #fee2e2;
+    box-shadow: 0 1px 4px rgba(220, 38, 38, 0.12);
+}
+
+.vacation-gmail-row__disconnect:active {
+    transform: scale(0.97);
+}
+
+.vacation-gmail-row__disconnect:disabled,
+.vacation-gmail-row__disconnect.is-loading {
+    opacity: 0.5;
+    cursor: wait;
+}
+
+.vacation-gmail-row__account {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 7px;
     min-width: 0;
     flex: 1;
+}
+
+.vacation-gmail-row__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    color: var(--blue-600);
+}
+
+.vacation-gmail-row__badge svg {
+    width: 14px;
+    height: 14px;
 }
 
 .vacation-gmail-row__email {
@@ -180,12 +243,13 @@ body {
     text-align: left;
     min-width: 0;
     flex: 1;
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 600;
-    color: var(--slate-700);
+    color: var(--slate-800);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    line-height: 1.3;
 }
 
 .vacation-gmail-row__edit {
@@ -193,16 +257,17 @@ body {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    width: 20px;
-    height: 20px;
+    width: 30px;
+    height: 30px;
     padding: 0;
-    border: none;
-    border-radius: 6px;
-    background: transparent;
-    color: var(--slate-400);
+    border: 1px solid #ddd6fe;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    color: #7c3aed;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    transition: color 0.15s ease;
+    touch-action: manipulation;
+    transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .vacation-gmail-row__edit svg {
@@ -212,37 +277,21 @@ body {
 }
 
 .vacation-gmail-row__edit:hover {
-    color: var(--blue-600);
+    background: #ede9fe;
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.16);
+}
+
+.vacation-gmail-row__edit:active {
+    transform: scale(0.96);
 }
 
 .vacation-gmail-row__edit:disabled,
 .vacation-gmail-row__edit.is-loading {
-    opacity: 0.4;
+    opacity: 0.5;
     cursor: wait;
-}
-
-.vacation-gmail-row__disconnect {
-    flex-shrink: 0;
-    padding: 0;
-    border: none;
-    background: none;
-    font-size: 10.5px;
-    font-weight: 600;
-    color: #ef4444;
-    cursor: pointer;
-    white-space: nowrap;
-    -webkit-tap-highlight-color: transparent;
-    transition: opacity 0.15s ease;
-}
-
-.vacation-gmail-row__disconnect:hover {
-    opacity: 0.8;
-}
-
-.vacation-gmail-row__disconnect:disabled,
-.vacation-gmail-row__disconnect.is-loading {
-    opacity: 0.45;
-    cursor: wait;
+    transform: none;
+    box-shadow: none;
 }
 
 /* ── Personalize section ───────────────────────────────── */
@@ -2109,9 +2158,9 @@ body {
     z-index: 40;
     width: 100%;
     max-width: 440px;
-    padding: 6px 12px calc(6px + env(safe-area-inset-bottom, 0px));
-    background: transparent;
-    border: none;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: #ffffff;
+    border-top: 1px solid #eef1f4;
     box-shadow: none;
     pointer-events: none;
 }
@@ -2123,39 +2172,40 @@ body {
 
 .save-btn {
     width: 100%;
-    min-height: 44px;
-    padding: 0 16px;
+    min-height: 50px;
+    padding: 0 20px;
     border-radius: var(--radius);
     border: none;
-    background: var(--blue-600);
+    background: #2f80ff;
     color: #fff;
     font-weight: 700;
-    font-size: 13.5px;
+    font-size: 14px;
+    letter-spacing: -0.01em;
     cursor: pointer;
-    transition: background 0.2s ease, opacity 0.2s ease;
+    transition: background 0.2s ease, transform 0.15s ease;
     box-shadow: none;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
 }
 
 .save-btn:hover:not(:disabled):not(.is-loading) {
-    background: var(--blue-700);
+    background: #2573f0;
     transform: none;
     box-shadow: none;
 }
 
 .save-btn:active:not(:disabled):not(.is-loading) {
-    transform: scale(0.99);
-    opacity: 0.95;
+    transform: scale(0.985);
+    background: #1f6ae8;
 }
 
 .save-btn:disabled {
     cursor: wait;
-    opacity: 0.7;
+    opacity: 0.72;
 }
 
 .save-btn.is-loading {
-    opacity: 0.85;
+    opacity: 0.88;
     pointer-events: none;
 }
 
@@ -2164,7 +2214,7 @@ body {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    min-height: 44px;
+    min-height: 50px;
     width: 100%;
 }
 
@@ -2220,7 +2270,7 @@ body {
 
 .toast {
     position: fixed;
-    bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
     left: 50%;
     transform: translateX(-50%) translateY(100px);
     background: var(--slate-900);
