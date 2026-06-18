@@ -53,7 +53,10 @@ body {
     font-weight: 700;
     font-variation-settings: "wght" 700;
 }
-
+.font-extrabold {
+    font-weight: 800;
+    font-variation-settings: "wght" 800;
+  }
 /* ── App shell ─────────────────────────────────────────── */
 
 .app-container {
