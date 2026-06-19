@@ -83,6 +83,7 @@ body {
     padding: 6px 12px 0;
     opacity: 0;
     transition: opacity 0.35s var(--ease-out);
+    touch-action: pan-y;
 }
 
 .app-container.fade-in {
@@ -91,7 +92,7 @@ body {
 
 .app-main {
     padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
-    touch-action: pan-y;
+    min-height: calc(100dvh - 6px - env(safe-area-inset-top, 0px));
 }
 
 /* ── Main tab switcher ─────────────────────────────────── */
@@ -201,6 +202,41 @@ body {
     border-radius: 8px;
     border: 1px solid var(--slate-200);
     background: #ffffff;
+    font: inherit;
+    color: inherit;
+    text-align: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.12s var(--ease-out);
+}
+
+.gmail-row__track:hover {
+    background: var(--slate-50);
+    border-color: #cbd5e1;
+}
+
+.gmail-row__track:active:not(:disabled):not(.is-loading) {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    box-shadow: inset 0 1px 2px rgba(37, 99, 235, 0.08);
+    transform: scale(0.985);
+}
+
+.gmail-row__track:focus-visible {
+    outline: 2px solid var(--blue-500);
+    outline-offset: 2px;
+}
+
+.gmail-row__track:disabled,
+.gmail-row__track.is-loading {
+    opacity: 0.55;
+    cursor: wait;
+    transform: none;
 }
 
 .gmail-row__email {
@@ -222,39 +258,30 @@ body {
     line-height: 1;
 }
 
-.gmail-row__edit {
+.gmail-row__edit-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
     width: 22px;
     height: 22px;
-    padding: 0;
-    border: none;
     border-radius: 5px;
-    background: transparent;
     color: var(--slate-400);
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    transition: background 0.15s ease, color 0.15s ease;
+    pointer-events: none;
+    transition: color 0.15s ease;
 }
 
-.gmail-row__edit svg {
+.gmail-row__edit-icon svg {
     width: 10px;
     height: 10px;
-    pointer-events: none;
 }
 
-.gmail-row__edit:hover {
-    background: var(--slate-100);
+.gmail-row__track:hover .gmail-row__edit-icon {
     color: var(--slate-600);
 }
 
-.gmail-row__edit:disabled,
-.gmail-row__edit.is-loading {
-    opacity: 0.45;
-    cursor: wait;
+.gmail-row__track:active:not(:disabled):not(.is-loading) .gmail-row__edit-icon {
+    color: var(--blue-600);
 }
 
 /* ── Personalize section ───────────────────────────────── */
@@ -934,9 +961,39 @@ body {
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
 
+.settings-card--vacation:has(.vacation-sub-panel.open) .vacation-sync-undo__btn {
+    min-width: 92px;
+    height: 34px;
+    padding: 0 14px;
+    font-size: 10.5px;
+    letter-spacing: 0.01em;
+    border: 1px solid rgba(252, 165, 165, 0.75);
+    background: linear-gradient(180deg, #ffffff 0%, #fff5f5 100%);
+    color: #b91c1c;
+    box-shadow:
+        0 1px 2px rgba(185, 28, 28, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    transition:
+        transform 0.2s var(--ease-out),
+        background 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        color 0.2s ease,
+        opacity 0.15s ease;
+}
+
 .vacation-sync-undo--reset .vacation-sync-undo__btn {
     border-color: #c4b5fd;
     color: #6d28d9;
+}
+
+.settings-card--vacation:has(.vacation-sub-panel.open) .vacation-sync-undo--reset .vacation-sync-undo__btn {
+    border-color: rgba(167, 139, 250, 0.8);
+    background: linear-gradient(180deg, #ffffff 0%, #f5f3ff 100%);
+    color: #6d28d9;
+    box-shadow:
+        0 1px 2px rgba(109, 40, 217, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 .vacation-sync-undo__btn:hover:not(:disabled) {
@@ -944,9 +1001,33 @@ body {
     border-color: #fca5a5;
 }
 
+.settings-card--vacation:has(.vacation-sub-panel.open) .vacation-sync-undo__btn:hover:not(:disabled) {
+    background: linear-gradient(180deg, #fff5f5 0%, #fee2e2 100%);
+    border-color: #f87171;
+    color: #991b1b;
+    transform: translateY(-1px);
+    box-shadow:
+        0 4px 14px rgba(220, 38, 38, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
 .vacation-sync-undo--reset .vacation-sync-undo__btn:hover:not(:disabled) {
     background: #f5f3ff;
     border-color: #a78bfa;
+}
+
+.settings-card--vacation:has(.vacation-sub-panel.open) .vacation-sync-undo--reset .vacation-sync-undo__btn:hover:not(:disabled) {
+    background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%);
+    border-color: #8b5cf6;
+    color: #5b21b6;
+    box-shadow:
+        0 4px 14px rgba(124, 58, 237, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.settings-card--vacation:has(.vacation-sub-panel.open) .vacation-sync-undo__btn:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 .vacation-sync-undo__btn:disabled,
@@ -1175,9 +1256,32 @@ body {
     transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
+.vacation-sub-panel.open .vacation-centers-refresh-btn {
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(147, 197, 253, 0.85);
+    background: linear-gradient(145deg, #ffffff 0%, #eff6ff 48%, #dbeafe 100%);
+    color: var(--blue-700);
+    box-shadow:
+        0 1px 2px rgba(37, 99, 235, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    transition:
+        transform 0.22s var(--ease-spring),
+        background 0.2s ease,
+        box-shadow 0.22s ease,
+        border-color 0.2s ease,
+        color 0.2s ease;
+}
+
 .vacation-centers-refresh-btn svg {
     width: 12px;
     height: 12px;
+}
+
+.vacation-sub-panel.open .vacation-centers-refresh-btn svg {
+    width: 13px;
+    height: 13px;
+    transition: transform 0.35s var(--ease-out);
 }
 
 .vacation-centers-refresh-btn:hover {
@@ -1186,13 +1290,39 @@ body {
     box-shadow: 0 2px 8px rgba(37, 99, 235, 0.14);
 }
 
+.vacation-sub-panel.open .vacation-centers-refresh-btn:hover:not(:disabled) {
+    background: linear-gradient(145deg, #ffffff 0%, #dbeafe 100%);
+    border-color: #93c5fd;
+    color: var(--blue-800);
+    transform: translateY(-1px) scale(1.04);
+    box-shadow:
+        0 4px 14px rgba(37, 99, 235, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.vacation-sub-panel.open .vacation-centers-refresh-btn:hover:not(:disabled) svg {
+    transform: rotate(-28deg);
+}
+
 .vacation-centers-refresh-btn:active {
     transform: scale(0.96);
+}
+
+.vacation-sub-panel.open .vacation-centers-refresh-btn:active:not(:disabled) {
+    transform: translateY(0) scale(0.97);
+    box-shadow:
+        0 1px 4px rgba(37, 99, 235, 0.1),
+        inset 0 1px 2px rgba(37, 99, 235, 0.08);
 }
 
 .vacation-centers-refresh-btn:focus-visible {
     outline: 2px solid #93c5fd;
     outline-offset: 2px;
+}
+
+.vacation-sub-panel.open .vacation-centers-refresh-btn:focus-visible {
+    outline: 2px solid var(--blue-500);
+    outline-offset: 3px;
 }
 
 .vacation-centers-refresh-btn.is-loading svg {
@@ -1391,9 +1521,41 @@ body {
     -webkit-tap-highlight-color: transparent;
 }
 
+.vacation-sub-panel.open .vacation-center-item {
+    position: relative;
+    padding: 11px 13px 11px 14px;
+    border-radius: 11px;
+    background: linear-gradient(160deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    transition:
+        border-color 0.22s ease,
+        background 0.22s ease,
+        box-shadow 0.22s ease,
+        transform 0.2s var(--ease-out);
+}
+
+.vacation-sub-panel.open .vacation-center-item::before {
+    content: "";
+    position: absolute;
+    top: 10px;
+    bottom: 10px;
+    right: 0;
+    width: 3px;
+    border-radius: 999px 0 0 999px;
+    background: transparent;
+    transition: background 0.22s ease, box-shadow 0.22s ease;
+}
+
 .vacation-center-item:hover {
     border-color: #bfdbfe;
     background: #fff;
+}
+
+.vacation-sub-panel.open .vacation-center-item:hover {
+    border-color: #93c5fd;
+    background: linear-gradient(160deg, #ffffff 0%, #f0f7ff 100%);
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.08);
+    transform: translateY(-1px);
 }
 
 .vacation-center-item.is-selected {
@@ -1401,9 +1563,33 @@ body {
     background: linear-gradient(135deg, #eff6ff 0%, #fff 100%);
 }
 
+.vacation-sub-panel.open .vacation-center-item.is-selected {
+    border-color: #60a5fa;
+    background: linear-gradient(145deg, #eff6ff 0%, #ffffff 62%, #f8fbff 100%);
+    box-shadow:
+        0 0 0 1px rgba(59, 130, 246, 0.1),
+        0 6px 18px rgba(37, 99, 235, 0.1);
+}
+
+.vacation-sub-panel.open .vacation-center-item.is-selected::before {
+    background: linear-gradient(180deg, var(--blue-500) 0%, var(--blue-700) 100%);
+    box-shadow: 0 0 8px rgba(37, 99, 235, 0.35);
+}
+
 .vacation-center-item--all {
     border-style: dashed;
     border-color: #93c5fd;
+}
+
+.vacation-sub-panel.open .vacation-center-item--all {
+    border-style: dashed;
+    border-color: #93c5fd;
+    background: linear-gradient(160deg, #f8fbff 0%, #ffffff 100%);
+}
+
+.vacation-sub-panel.open .vacation-center-item--all.is-selected {
+    border-color: #60a5fa;
+    background: linear-gradient(145deg, #eff6ff 0%, #ffffff 70%, #f0f7ff 100%);
 }
 
 .vacation-center-item-body {
@@ -1528,9 +1714,36 @@ body {
         box-shadow 0.2s ease;
 }
 
+.vacation-sub-panel.open .vacation-sub-option:not(.vacation-sub-option--disabled) {
+    padding: 13px 15px;
+    border-radius: 13px;
+    background: linear-gradient(160deg, #ffffff 0%, #fafcff 100%);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    transition:
+        border-color 0.22s ease,
+        background 0.22s ease,
+        box-shadow 0.22s ease,
+        transform 0.2s var(--ease-out);
+}
+
+.vacation-sub-panel.open .vacation-sub-option:has(.vacation-sub-checkbox:checked):not(.vacation-sub-option--disabled) {
+    border-color: #93c5fd;
+    background: linear-gradient(145deg, #eff6ff 0%, #ffffff 58%, #f8fbff 100%);
+    box-shadow:
+        0 0 0 1px rgba(59, 130, 246, 0.08),
+        0 5px 16px rgba(37, 99, 235, 0.09);
+}
+
 .vacation-sub-option:hover:not(.vacation-sub-option--disabled) {
     border-color: #bfdbfe;
     background: #fafbff;
+}
+
+.vacation-sub-panel.open .vacation-sub-option:hover:not(.vacation-sub-option--disabled):not(.vacation-sub-option--inactive) {
+    border-color: #93c5fd;
+    background: linear-gradient(160deg, #ffffff 0%, #f0f7ff 100%);
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.08);
+    transform: translateY(-1px);
 }
 
 .vacation-sub-checkbox {
@@ -1550,6 +1763,22 @@ body {
         border-color 0.2s ease,
         background 0.25s ease,
         box-shadow 0.2s ease;
+}
+
+.vacation-sub-panel.open .vacation-check {
+    width: 20px;
+    height: 20px;
+    margin-top: 0;
+    border-radius: 7px;
+    border-width: 1.75px;
+    border-color: #d1d5db;
+    background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
+    box-shadow: inset 0 1px 1px rgba(15, 23, 42, 0.04);
+    transition:
+        border-color 0.22s ease,
+        background 0.25s ease,
+        box-shadow 0.22s ease,
+        transform 0.2s var(--ease-spring);
 }
 
 .vacation-check svg {
@@ -1573,11 +1802,28 @@ body {
     border-color: #93c5fd;
 }
 
+.vacation-sub-panel.open .vacation-sub-option:hover:not(.vacation-sub-option--disabled):not(.vacation-sub-option--inactive) .vacation-check,
+.vacation-sub-panel.open .vacation-center-item:hover .vacation-check {
+    border-color: #60a5fa;
+    box-shadow:
+        0 0 0 3px rgba(59, 130, 246, 0.1),
+        inset 0 1px 1px rgba(15, 23, 42, 0.04);
+}
+
 .vacation-sub-checkbox:checked + .vacation-check,
 .vacation-center-input:checked + .vacation-check {
     background: linear-gradient(135deg, #2563EB, #1D4ED8);
     border-color: transparent;
     box-shadow: 0 2px 6px rgba(37, 99, 235, 0.22);
+}
+
+.vacation-sub-panel.open .vacation-sub-checkbox:checked + .vacation-check,
+.vacation-sub-panel.open .vacation-center-input:checked + .vacation-check {
+    background: linear-gradient(145deg, #3b82f6 0%, #2563eb 52%, #1d4ed8 100%);
+    box-shadow:
+        0 2px 8px rgba(37, 99, 235, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    transform: scale(1.02);
 }
 
 .vacation-sub-checkbox:checked + .vacation-check svg,

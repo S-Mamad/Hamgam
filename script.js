@@ -971,6 +971,12 @@ function bindUiEvents() {
             e.stopPropagation();
             void handleChangeGmailClick();
         });
+        changeGmailBtn.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                void handleChangeGmailClick();
+            }
+        });
     }
 
     const disconnectGoogleBtn = document.getElementById("disconnectGoogleBtn");
@@ -1043,7 +1049,7 @@ function initMainTabs() {
 }
 
 function setupMainTabSwipe(triggers, activateTab) {
-    const swipeArea = document.querySelector(".app-main");
+    const swipeArea = document.getElementById("app-container");
     if (!swipeArea || triggers.length < 2) return;
 
     const SWIPE_MIN_DISTANCE = 56;
@@ -1062,8 +1068,19 @@ function setupMainTabSwipe(triggers, activateTab) {
         if (!(target instanceof Element)) return true;
         if (isSwipeBlocked()) return true;
         return !!target.closest(
-            "input, textarea, select, button, a, .switch, .circle-opt, .main-tab-wrapper, .hamgam-confirm-overlay"
+            "input, textarea, select, button, a, .switch, .circle-opt, .main-tab-wrapper, .hamgam-confirm-overlay, .footer-dock"
         );
+    }
+
+    function isPointInSwipeZone(clientX, clientY) {
+        if (swipeArea.hidden) return false;
+        const rect = swipeArea.getBoundingClientRect();
+        return clientX >= rect.left && clientX <= rect.right
+            && clientY >= rect.top && clientY <= rect.bottom;
+    }
+
+    function getTouchTarget(clientX, clientY) {
+        return document.elementFromPoint(clientX, clientY);
     }
 
     function getActiveIndex() {
@@ -1078,28 +1095,34 @@ function setupMainTabSwipe(triggers, activateTab) {
         activateTab(nextTrigger);
     }
 
-    swipeArea.addEventListener("touchstart", (event) => {
+    document.addEventListener("touchstart", (event) => {
         if (event.touches.length !== 1) {
             tracking = false;
             return;
         }
 
-        if (isSwipeBlockedTarget(event.target)) {
+        const touch = event.touches[0];
+        if (!isPointInSwipeZone(touch.clientX, touch.clientY)) {
             tracking = false;
             return;
         }
 
-        const touch = event.touches[0];
+        const target = getTouchTarget(touch.clientX, touch.clientY);
+        if (isSwipeBlockedTarget(target)) {
+            tracking = false;
+            return;
+        }
+
         startX = touch.clientX;
         startY = touch.clientY;
         tracking = true;
     }, { passive: true });
 
-    swipeArea.addEventListener("touchcancel", () => {
+    document.addEventListener("touchcancel", () => {
         tracking = false;
     }, { passive: true });
 
-    swipeArea.addEventListener("touchend", (event) => {
+    document.addEventListener("touchend", (event) => {
         if (!tracking) return;
         tracking = false;
 
@@ -1113,9 +1136,9 @@ function setupMainTabSwipe(triggers, activateTab) {
         if (Math.abs(deltaX) < Math.abs(deltaY) * SWIPE_AXIS_RATIO) return;
 
         if (deltaX < 0) {
-            switchBySwipe(1);
-        } else {
             switchBySwipe(-1);
+        } else {
+            switchBySwipe(1);
         }
     }, { passive: true });
 }
