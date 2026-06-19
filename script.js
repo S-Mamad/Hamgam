@@ -1038,7 +1038,86 @@ function initMainTabs() {
         });
     });
 
+    setupMainTabSwipe(triggers, activateTab);
     window.addEventListener("resize", refreshMainTabPill);
+}
+
+function setupMainTabSwipe(triggers, activateTab) {
+    const swipeArea = document.querySelector(".app-main");
+    if (!swipeArea || triggers.length < 2) return;
+
+    const SWIPE_MIN_DISTANCE = 56;
+    const SWIPE_AXIS_RATIO = 1.25;
+
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+
+    function isSwipeBlocked() {
+        const overlay = document.getElementById("hamgamConfirmOverlay");
+        return overlay && !overlay.hidden;
+    }
+
+    function isSwipeBlockedTarget(target) {
+        if (!(target instanceof Element)) return true;
+        if (isSwipeBlocked()) return true;
+        return !!target.closest(
+            "input, textarea, select, button, a, .switch, .circle-opt, .main-tab-wrapper, .hamgam-confirm-overlay"
+        );
+    }
+
+    function getActiveIndex() {
+        return Array.from(triggers).findIndex(trigger => trigger.classList.contains("active"));
+    }
+
+    function switchBySwipe(direction) {
+        const nextIndex = getActiveIndex() + direction;
+        if (nextIndex < 0 || nextIndex >= triggers.length) return;
+        const nextTrigger = triggers[nextIndex];
+        if (nextTrigger.classList.contains("active")) return;
+        activateTab(nextTrigger);
+    }
+
+    swipeArea.addEventListener("touchstart", (event) => {
+        if (event.touches.length !== 1) {
+            tracking = false;
+            return;
+        }
+
+        if (isSwipeBlockedTarget(event.target)) {
+            tracking = false;
+            return;
+        }
+
+        const touch = event.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+        tracking = true;
+    }, { passive: true });
+
+    swipeArea.addEventListener("touchcancel", () => {
+        tracking = false;
+    }, { passive: true });
+
+    swipeArea.addEventListener("touchend", (event) => {
+        if (!tracking) return;
+        tracking = false;
+
+        const touch = event.changedTouches[0];
+        if (!touch) return;
+
+        const deltaX = touch.clientX - startX;
+        const deltaY = touch.clientY - startY;
+
+        if (Math.abs(deltaX) < SWIPE_MIN_DISTANCE) return;
+        if (Math.abs(deltaX) < Math.abs(deltaY) * SWIPE_AXIS_RATIO) return;
+
+        if (deltaX < 0) {
+            switchBySwipe(1);
+        } else {
+            switchBySwipe(-1);
+        }
+    }, { passive: true });
 }
 
 function isVacationPanelOpen() {
@@ -2368,6 +2447,7 @@ function updateLiveBadge() {
         : "نوبت پذیرش 24";
 
     const items = [];
+    if (fields.fullName) items.push({ label: "بیمار", value: PREVIEW_SAMPLES.patientName });
     if (fields.centerName) items.push({ label: "مرکز درمانی", value: PREVIEW_SAMPLES.centerName });
     if (fields.datetime) items.push({ label: "زمان نوبت", value: PREVIEW_SAMPLES.datetime });
     if (fields.nationalId) items.push({ label: "کد ملی", value: PREVIEW_SAMPLES.nationalId });

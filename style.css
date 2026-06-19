@@ -91,6 +91,7 @@ body {
 
 .app-main {
     padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    touch-action: pan-y;
 }
 
 /* ── Main tab switcher ─────────────────────────────────── */

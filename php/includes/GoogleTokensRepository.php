@@ -462,7 +462,7 @@ final class GoogleTokensRepository
                 'Patient_date_time' => false,
                 'Patient_national' => false,
                 'Patient_phone' => false,
-                'Patient_center' => false,
+                'Patient_center' => true,
                 'auto_vacation' => false,
                 'import_future_vacations' => false,
                 'import_future_vacations_used' => false,

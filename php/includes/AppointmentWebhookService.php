@@ -41,6 +41,12 @@ final class AppointmentWebhookService
             throw new AppointmentWebhookException('Appointment fetch failed', 502);
         }
 
+        $booking = BookingAppointmentResolver::enrichBookingDetails(
+            $booking,
+            $bookId,
+            $context['hamdast_access_token']
+        );
+
         $event = CalendarEventBuilder::build($appointmentRange, $context['settings'], $booking);
         if ($event === null) {
             RequestContext::log('paziresh24-hamgam', 'Invalid appointment time range doctor=' . $doctorUserId . ' book_id=' . $bookId);
@@ -128,6 +134,12 @@ final class AppointmentWebhookService
             RequestContext::log('paziresh24-hamgam', 'Update resolve failed doctor=' . $doctorUserId . ' book_id=' . $bookId);
             throw new AppointmentWebhookException('Appointment fetch failed', 502);
         }
+
+        $booking = BookingAppointmentResolver::enrichBookingDetails(
+            $booking,
+            $bookId,
+            $context['hamdast_access_token']
+        );
 
         $event = CalendarEventBuilder::build($appointmentRange, $context['settings'], $booking);
         if ($event === null) {

@@ -71,7 +71,7 @@ final class Database
                     Patient_date_time TINYINT(1) NOT NULL DEFAULT 0,
                     Patient_national TINYINT(1) NOT NULL DEFAULT 0,
                     Patient_phone TINYINT(1) NOT NULL DEFAULT 0,
-                    Patient_center TINYINT(1) NOT NULL DEFAULT 0,
+                    Patient_center TINYINT(1) NOT NULL DEFAULT 1,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     INDEX idx_google_tokens_user_id (paziresh24_user_id)
@@ -83,7 +83,7 @@ final class Database
             self::ensureColumn($pdo, 'google_tokens', 'Patient_date_time', 'TINYINT(1) NOT NULL DEFAULT 0');
             self::ensureColumn($pdo, 'google_tokens', 'Patient_national', 'TINYINT(1) NOT NULL DEFAULT 0');
             self::ensureColumn($pdo, 'google_tokens', 'Patient_phone', 'TINYINT(1) NOT NULL DEFAULT 0');
-            self::ensureColumn($pdo, 'google_tokens', 'Patient_center', 'TINYINT(1) NOT NULL DEFAULT 0');
+            self::ensureColumn($pdo, 'google_tokens', 'Patient_center', 'TINYINT(1) NOT NULL DEFAULT 1');
             self::migrateVacationSchema($pdo, 'mysql');
             self::migrateBookingSchema($pdo, 'mysql');
             self::migrateImportFutureVacationsSchema($pdo, 'mysql');
@@ -105,7 +105,7 @@ final class Database
         self::ensureColumn($pdo, 'google_tokens', 'Patient_date_time', 'INTEGER NOT NULL DEFAULT 0');
         self::ensureColumn($pdo, 'google_tokens', 'Patient_national', 'INTEGER NOT NULL DEFAULT 0');
         self::ensureColumn($pdo, 'google_tokens', 'Patient_phone', 'INTEGER NOT NULL DEFAULT 0');
-        self::ensureColumn($pdo, 'google_tokens', 'Patient_center', 'INTEGER NOT NULL DEFAULT 0');
+        self::ensureColumn($pdo, 'google_tokens', 'Patient_center', 'INTEGER NOT NULL DEFAULT 1');
         self::migrateVacationSchema($pdo, 'sqlite');
         self::migrateBookingSchema($pdo, 'sqlite');
         self::migrateImportFutureVacationsSchema($pdo, 'sqlite');

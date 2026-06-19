@@ -13,10 +13,15 @@ SET @has_patient_center := (
 
 SET @sql := IF(
     @has_patient_center = 0,
-    'ALTER TABLE google_tokens ADD COLUMN Patient_center TINYINT(1) NOT NULL DEFAULT 0 AFTER Patient_phone',
+    'ALTER TABLE google_tokens ADD COLUMN Patient_center TINYINT(1) NOT NULL DEFAULT 1 AFTER Patient_phone',
     'SELECT 1'
 );
 
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+
+-- Enable center name in event descriptions for existing users (feature default is ON).
+UPDATE google_tokens SET Patient_center = 1 WHERE Patient_center = 0;
+
+ALTER TABLE google_tokens MODIFY COLUMN Patient_center TINYINT(1) NOT NULL DEFAULT 1;

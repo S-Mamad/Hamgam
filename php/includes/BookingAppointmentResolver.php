@@ -75,6 +75,58 @@ final class BookingAppointmentResolver
     }
 
     /**
+     * @param array<string, mixed> $booking
+     */
+    public static function extractCenterName(array $booking): string
+    {
+        foreach (['center_name', 'medical_center_name', 'center_title'] as $key) {
+            $value = $booking[$key] ?? null;
+            if (is_scalar($value) && trim((string) $value) !== '') {
+                return trim((string) $value);
+            }
+        }
+
+        foreach (['center', 'medical_center'] as $nestedKey) {
+            $nested = $booking[$nestedKey] ?? null;
+            if (!is_array($nested)) {
+                continue;
+            }
+
+            foreach (['name', 'title', 'center_name', 'display_name', 'local_name', 'fa_name'] as $key) {
+                $value = $nested[$key] ?? null;
+                if (is_scalar($value) && trim((string) $value) !== '') {
+                    return trim((string) $value);
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @param array<string, mixed> $booking
+     * @return array<string, mixed>
+     */
+    public static function enrichBookingDetails(array $booking, string $bookId, string $hamdastAccessToken): array
+    {
+        if (self::extractCenterName($booking) !== '') {
+            return $booking;
+        }
+
+        $appointment = GoogleCalendar::getAppointment($bookId, $hamdastAccessToken);
+        if (!is_array($appointment)) {
+            return $booking;
+        }
+
+        $centerName = self::extractCenterName($appointment);
+        if ($centerName !== '') {
+            $booking['center_name'] = $centerName;
+        }
+
+        return $booking;
+    }
+
+    /**
      * @param ?array<string, mixed> $googleEvent
      */
     public static function resolveAppointmentMedicalCenterId(

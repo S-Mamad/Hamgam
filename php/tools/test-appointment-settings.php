@@ -88,6 +88,7 @@ assertTest('conflict flag forced false when autoVacation off', ($parsedOff['canc
 $defaults = GoogleTokensRepository::getSettings(null);
 assertTest('default cancel on delete is true', $defaults['cancel_appointment_on_event_delete'] === true);
 assertTest('default cancel conflict is true', $defaults['cancel_conflicting_appointments'] === true);
+assertTest('default Patient_center is true', $defaults['Patient_center'] === true);
 
 $rowEnabled = [
     'cancel_appointment_on_event_delete' => 1,

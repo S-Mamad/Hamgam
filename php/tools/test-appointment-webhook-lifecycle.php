@@ -233,6 +233,32 @@ assertTest(
         && !str_contains((string) ($withoutCenter['description'] ?? ''), 'مرکز :')
 );
 
+$nestedCenterBooking = [
+    'book_id' => $bookId,
+    'patient_name' => 'علی',
+    'patient_family' => 'احمدی',
+    'center' => ['name' => 'کلینیک ونک'],
+];
+$builtNestedCenter = CalendarEventBuilder::build(
+    ['from' => 1781931600, 'to' => 1781932500],
+    ['Patient_center' => true],
+    $nestedCenterBooking
+);
+$nestedCenterDescription = is_array($builtNestedCenter) ? (string) ($builtNestedCenter['description'] ?? '') : '';
+assertTest(
+    'CalendarEventBuilder reads nested center.name',
+    is_array($builtNestedCenter)
+        && str_contains($nestedCenterDescription, 'مرکز : کلینیک ونک'),
+    $nestedCenterDescription
+);
+
+assertTest(
+    'extractCenterName reads nested medical_center.name',
+    BookingAppointmentResolver::extractCenterName([
+        'medical_center' => ['name' => 'مطب شمال'],
+    ]) === 'مطب شمال'
+);
+
 $updateDuplicateTargets = function (array $events, ?string $keepEventId): array {
     $targets = [];
     foreach ($events as $event) {

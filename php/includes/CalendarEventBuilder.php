@@ -27,7 +27,7 @@ final class CalendarEventBuilder
 
         $patientName = self::stringValue($booking, 'patient_name');
         $patientFamily = self::stringValue($booking, 'patient_family');
-        $centerName = self::stringValue($booking, 'center_name');
+        $centerName = BookingAppointmentResolver::extractCenterName($booking);
         $patientCell = self::stringValue($booking, 'patient_cell');
         $patientNationalCode = self::stringValue($booking, 'patient_national_code');
 
