@@ -881,12 +881,13 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    margin: 0 10px 12px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.92);
-    border: 1px solid #e2e8f0;
+    gap: 14px;
+    margin: 4px 8px 14px;
+    padding: 12px 14px;
+    border-radius: 13px;
+    background: linear-gradient(160deg, #ffffff 0%, #fff8f8 100%);
+    border: 1px solid #fecaca;
+    box-shadow: 0 1px 3px rgba(185, 28, 28, 0.05);
 }
 
 .vacation-sync-undo[hidden] {
@@ -895,7 +896,8 @@ body {
 
 .vacation-sync-undo--reset {
     border-color: #ddd6fe;
-    background: rgba(255, 255, 255, 0.96);
+    background: linear-gradient(160deg, #ffffff 0%, #faf8ff 100%);
+    box-shadow: 0 1px 3px rgba(109, 40, 217, 0.05);
 }
 
 .vacation-sync-undo__copy {
@@ -903,14 +905,15 @@ body {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
+    padding: 1px 0;
 }
 
 .vacation-sync-undo__title {
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 700;
-    line-height: 1.55;
-    color: #334155;
+    line-height: 1.6;
+    color: #7f1d1d;
 }
 
 .vacation-sync-undo--reset .vacation-sync-undo__title {
@@ -919,8 +922,13 @@ body {
 
 .vacation-sync-undo__meta {
     font-size: 10px;
-    line-height: 1.5;
-    color: #64748b;
+    line-height: 1.55;
+    color: #9f1239;
+    font-weight: 600;
+}
+
+.vacation-sync-undo--reset .vacation-sync-undo__meta {
+    color: #6d28d9;
 }
 
 .vacation-sync-undo__meta[hidden] {
@@ -947,29 +955,19 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    min-width: 88px;
-    height: 32px;
-    padding: 0 12px;
-    border: 1px solid #fecaca;
-    border-radius: 999px;
-    background: #fff;
+    gap: 7px;
+    min-width: 96px;
+    min-height: 36px;
+    padding: 8px 16px;
+    border: 1px solid rgba(252, 165, 165, 0.8);
+    border-radius: 10px;
+    background: linear-gradient(180deg, #ffffff 0%, #fff1f2 100%);
     color: #b91c1c;
-    font-size: 10px;
-    font-weight: 800;
-    cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
-}
-
-.settings-card--vacation:has(.vacation-sub-panel.open) .vacation-sync-undo__btn {
-    min-width: 92px;
-    height: 34px;
-    padding: 0 14px;
-    font-size: 10.5px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.35;
     letter-spacing: 0.01em;
-    border: 1px solid rgba(252, 165, 165, 0.75);
-    background: linear-gradient(180deg, #ffffff 0%, #fff5f5 100%);
-    color: #b91c1c;
+    cursor: pointer;
     box-shadow:
         0 1px 2px rgba(185, 28, 28, 0.06),
         inset 0 1px 0 rgba(255, 255, 255, 0.95);
@@ -980,15 +978,13 @@ body {
         box-shadow 0.2s ease,
         color 0.2s ease,
         opacity 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 .vacation-sync-undo--reset .vacation-sync-undo__btn {
-    border-color: #c4b5fd;
-    color: #6d28d9;
-}
-
-.settings-card--vacation:has(.vacation-sub-panel.open) .vacation-sync-undo--reset .vacation-sync-undo__btn {
-    border-color: rgba(167, 139, 250, 0.8);
+    min-width: 108px;
+    border-color: rgba(167, 139, 250, 0.85);
     background: linear-gradient(180deg, #ffffff 0%, #f5f3ff 100%);
     color: #6d28d9;
     box-shadow:
@@ -997,11 +993,6 @@ body {
 }
 
 .vacation-sync-undo__btn:hover:not(:disabled) {
-    background: #fff5f5;
-    border-color: #fca5a5;
-}
-
-.settings-card--vacation:has(.vacation-sub-panel.open) .vacation-sync-undo__btn:hover:not(:disabled) {
     background: linear-gradient(180deg, #fff5f5 0%, #fee2e2 100%);
     border-color: #f87171;
     color: #991b1b;
@@ -1012,11 +1003,6 @@ body {
 }
 
 .vacation-sync-undo--reset .vacation-sync-undo__btn:hover:not(:disabled) {
-    background: #f5f3ff;
-    border-color: #a78bfa;
-}
-
-.settings-card--vacation:has(.vacation-sub-panel.open) .vacation-sync-undo--reset .vacation-sync-undo__btn:hover:not(:disabled) {
     background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%);
     border-color: #8b5cf6;
     color: #5b21b6;
@@ -1025,41 +1011,77 @@ body {
         inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-.settings-card--vacation:has(.vacation-sub-panel.open) .vacation-sync-undo__btn:active:not(:disabled) {
+.vacation-sync-undo__btn:active:not(:disabled) {
     transform: translateY(0);
     box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
-.vacation-sync-undo__btn:disabled,
-.vacation-sync-undo__btn.is-loading,
-.vacation-sync-undo__btn[aria-busy="true"] {
+.vacation-sync-undo__btn:focus-visible {
+    outline: 2px solid #fca5a5;
+    outline-offset: 2px;
+}
+
+.vacation-sync-undo--reset .vacation-sync-undo__btn:focus-visible {
+    outline-color: #c4b5fd;
+}
+
+.vacation-sync-undo__btn:disabled:not(.is-loading):not([aria-busy="true"]) {
     opacity: 0.68;
     cursor: wait;
+    transform: none;
+}
+
+.vacation-sync-undo__btn.is-loading,
+.vacation-sync-undo__btn[aria-busy="true"] {
+    opacity: 0.92;
+    cursor: wait;
+    transform: none;
+    pointer-events: none;
+}
+
+.vacation-sync-undo__btn-text {
+    white-space: nowrap;
 }
 
 .vacation-sync-undo__btn-spinner {
     display: none;
-    width: 12px;
-    height: 12px;
-    border: 2px solid rgba(185, 28, 28, 0.25);
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    border: 2px solid rgba(185, 28, 28, 0.22);
     border-top-color: #b91c1c;
     border-radius: 50%;
-    animation: spin 0.7s linear infinite;
+    animation: btnSpin 0.7s linear infinite;
 }
 
 .vacation-sync-undo--reset .vacation-sync-undo__btn-spinner {
-    border-color: rgba(109, 40, 217, 0.25);
+    border-color: rgba(109, 40, 217, 0.22);
     border-top-color: #6d28d9;
 }
 
 .vacation-sync-undo__btn.is-loading .vacation-sync-undo__btn-text,
 .vacation-sync-undo__btn[aria-busy="true"] .vacation-sync-undo__btn-text {
-    opacity: 0.75;
+    display: none;
 }
 
 .vacation-sync-undo__btn.is-loading .vacation-sync-undo__btn-spinner,
 .vacation-sync-undo__btn[aria-busy="true"] .vacation-sync-undo__btn-spinner {
-    display: inline-block;
+    display: block;
+}
+
+@media (max-width: 380px) {
+    .vacation-sync-undo {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .vacation-sync-undo__btn {
+        width: 100%;
+        min-height: 38px;
+        padding: 9px 16px;
+    }
 }
 
 .vacation-sub-options-block--inactive .vacation-sync-undo {
