@@ -59,6 +59,8 @@ final class DrDrAuthService
             throw new IntegrationException('rate_limited', 'تعداد درخواست کد زیاد است. چند دقیقه بعد دوباره تلاش کنید.');
         }
 
+        DrDrPendingLoginRepository::clear($doctorId);
+
         $response = HttpClient::request(
             'POST',
             $config['send_otp_url'],
@@ -74,14 +76,6 @@ final class DrDrAuthService
         }
 
         DrDrPendingLoginRepository::save($doctorId, $mobile, is_array($response['body']) ? $response['body'] : null);
-        if (is_array($response['body'])) {
-            ProviderIntegrationService::logIntegrationEvent(
-                $doctorId,
-                'drdr',
-                true,
-                'send_otp_keys:' . implode(',', self::collectPayloadKeys($response['body']))
-            );
-        }
         ProviderIntegrationService::logIntegrationEvent($doctorId, 'drdr', true, 'send_otp_success');
 
         return [
@@ -107,13 +101,7 @@ final class DrDrAuthService
         }
 
         $config = self::apiConfig();
-        $response = self::requestVerify(
-            $config,
-            $doctorId,
-            $mobile,
-            $code,
-            $pending['init_payload'] ?? null
-        );
+        $response = self::requestVerify($config, $doctorId, $mobile, $code);
 
         if ($response['status'] < 200 || $response['status'] >= 300) {
             ProviderIntegrationService::logIntegrationEvent($doctorId, 'drdr', false, 'verify_otp_rejected');
@@ -123,7 +111,7 @@ final class DrDrAuthService
         $accessToken = self::extractAccessToken($response['body']);
         if ($accessToken === null) {
             ProviderIntegrationService::logIntegrationEvent($doctorId, 'drdr', false, 'verify_no_token');
-            throw new IntegrationException('verify_otp_failed', 'DrDr توکن دسترسی برنگرداند. endpoint verify را بررسی کنید.');
+            throw new IntegrationException('verify_otp_failed', 'DrDr توکن دسترسی برنگرداند. لطفاً دوباره «ارسال کد» بزنید و کد جدید را وارد کنید.');
         }
 
         $refreshToken = self::extractRefreshToken($response['body']);
@@ -147,7 +135,13 @@ final class DrDrAuthService
     }
 
     /**
-     * @return array{api_client_id: string, send_otp_url: string, verify_otp_urls: list<string>}
+     * @return array{
+     *   api_client_id: string,
+     *   api_client_secret: string,
+     *   send_otp_url: string,
+     *   oauth_token_url: string,
+     *   oauth_scope: string
+     * }
      */
     private static function apiConfig(): array
     {
@@ -157,33 +151,12 @@ final class DrDrAuthService
             $file = [];
         }
 
-        $verifyUrls = $file['verify_otp_urls'] ?? [];
-        if (!is_array($verifyUrls)) {
-            $verifyUrls = [];
-        }
-
-        $primaryVerify = trim((string) ($file['verify_otp_url'] ?? $file['send_otp_url'] ?? 'https://drdr.ir/api/v3/auth/login/mobile/init'));
-        $sendUrl = trim((string) ($file['send_otp_url'] ?? 'https://drdr.ir/api/v3/auth/login/mobile/init'));
-        if ($sendUrl !== '') {
-            array_unshift($verifyUrls, $sendUrl);
-        }
-        if ($primaryVerify !== '') {
-            array_unshift($verifyUrls, $primaryVerify);
-        }
-
-        $verifyUrls = array_values(array_unique(array_filter(array_map(
-            static fn ($url) => is_string($url) ? trim($url) : '',
-            $verifyUrls
-        ))));
-
-        if ($verifyUrls === []) {
-            $verifyUrls = ['https://drdr.ir/api/v3/auth/login/mobile/init'];
-        }
-
         return [
             'api_client_id' => trim((string) ($file['api_client_id'] ?? 'f60d5037-b7ac-404a-9e3a-a263fd9f8054')),
+            'api_client_secret' => trim((string) ($file['api_client_secret'] ?? 'vZHXE1Wx15g0RMVacaTN4KbKJ1mCk3jjkx3ZoKDj')),
             'send_otp_url' => trim((string) ($file['send_otp_url'] ?? 'https://drdr.ir/api/v3/auth/login/mobile/init')),
-            'verify_otp_urls' => $verifyUrls,
+            'oauth_token_url' => trim((string) ($file['oauth_token_url'] ?? 'https://drdr.ir/api/v3/oauth/token/')),
+            'oauth_scope' => trim((string) ($file['oauth_scope'] ?? '*')),
         ];
     }
 
@@ -213,8 +186,12 @@ final class DrDrAuthService
         foreach (['message', 'error', 'detail'] as $key) {
             $value = $body[$key] ?? null;
             if (is_string($value) && trim($value) !== '') {
-                return trim($value);
+                return self::translateDrDrError(trim($value));
             }
+        }
+
+        if (isset($body['meta']['message']['body']) && is_string($body['meta']['message']['body'])) {
+            return self::translateDrDrError(trim($body['meta']['message']['body']));
         }
 
         if (isset($body['data']) && is_array($body['data'])) {
@@ -222,6 +199,21 @@ final class DrDrAuthService
         }
 
         return $fallback;
+    }
+
+    private static function translateDrDrError(string $message): string
+    {
+        $normalized = strtolower($message);
+
+        if (str_contains($normalized, 'user credentials were incorrect')) {
+            return 'کد تأیید DrDr اشتباه است.';
+        }
+
+        if (str_contains($normalized, 'too many attempts')) {
+            return 'تعداد تلاش زیاد است. چند دقیقه بعد دوباره امتحان کنید.';
+        }
+
+        return $message;
     }
 
     /**
@@ -238,6 +230,10 @@ final class DrDrAuthService
             if (is_string($value) && trim($value) !== '') {
                 return trim($value);
             }
+        }
+
+        if (isset($body['payload']) && is_array($body['payload'])) {
+            return self::extractAccessToken($body['payload']);
         }
 
         if (isset($body['data']) && is_array($body['data'])) {
@@ -263,6 +259,10 @@ final class DrDrAuthService
             }
         }
 
+        if (isset($body['payload']) && is_array($body['payload'])) {
+            return self::extractRefreshToken($body['payload']);
+        }
+
         if (isset($body['data']) && is_array($body['data'])) {
             return self::extractRefreshToken($body['data']);
         }
@@ -284,6 +284,10 @@ final class DrDrAuthService
             return time() + max(0, (int) $expiresIn);
         }
 
+        if (isset($body['payload']) && is_array($body['payload'])) {
+            return self::extractExpiresAt($body['payload']);
+        }
+
         if (isset($body['data']) && is_array($body['data'])) {
             return self::extractExpiresAt($body['data']);
         }
@@ -292,175 +296,32 @@ final class DrDrAuthService
     }
 
     /**
-     * @param array<string, mixed>|null $initPayload
-     * @return array<string, mixed>
-     */
-    private static function buildVerifyPayload(string $mobile, string $code, ?array $initPayload): array
-    {
-        $payload = array_merge(
-            ['mobile' => $mobile, 'code' => $code],
-            self::extractInitSessionFields($initPayload)
-        );
-
-        if (!isset($payload['verificationCode'])) {
-            $payload['verificationCode'] = $code;
-        }
-
-        return $payload;
-    }
-
-    /**
-     * @param array<string, mixed>|null $initPayload
-     * @return array<string, string>
-     */
-    private static function extractInitSessionFields(?array $initPayload): array
-    {
-        if (!is_array($initPayload)) {
-            return [];
-        }
-
-        $skipKeys = [
-            'mobile', 'message', 'messages', 'status', 'success', 'ok', 'error', 'errors', 'meta', 'code',
-        ];
-        $fields = [];
-
-        foreach (self::flattenScalarFields($initPayload) as $key => $value) {
-            if (in_array(strtolower($key), $skipKeys, true)) {
-                continue;
-            }
-            if (stripos($key, 'message') !== false) {
-                continue;
-            }
-            $fields[$key] = $value;
-        }
-
-        return $fields;
-    }
-
-    /**
-     * @param array<string, mixed>|null $initPayload
-     */
-    private static function extractInitHeaderToken(?array $initPayload): ?string
-    {
-        if (!is_array($initPayload)) {
-            return null;
-        }
-
-        foreach (['token', 'accessToken', 'access_token', 'verificationToken', 'verification_token', 'sessionToken', 'session_token'] as $key) {
-            $value = self::findScalarField($initPayload, $key);
-            if ($value !== null && strlen($value) > 8) {
-                return $value;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     * @return array<string, string>
-     */
-    private static function flattenScalarFields(array $payload, string $prefix = ''): array
-    {
-        $fields = [];
-
-        foreach ($payload as $key => $value) {
-            if (!is_string($key)) {
-                continue;
-            }
-
-            $path = $prefix === '' ? $key : $prefix . '.' . $key;
-
-            if (is_string($value) || is_numeric($value)) {
-                $stringValue = trim((string) $value);
-                if ($stringValue !== '') {
-                    $fields[$key] = $stringValue;
-                    $fields[$path] = $stringValue;
-                }
-                continue;
-            }
-
-            if (is_array($value)) {
-                $fields = array_merge($fields, self::flattenScalarFields($value, $path));
-            }
-        }
-
-        return $fields;
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    private static function findScalarField(array $payload, string $targetKey): ?string
-    {
-        foreach ($payload as $key => $value) {
-            if ($key === $targetKey && (is_string($value) || is_numeric($value))) {
-                $stringValue = trim((string) $value);
-
-                return $stringValue !== '' ? $stringValue : null;
-            }
-
-            if (is_array($value)) {
-                $nested = self::findScalarField($value, $targetKey);
-                if ($nested !== null) {
-                    return $nested;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     * @return list<string>
-     */
-    private static function collectPayloadKeys(array $payload, string $prefix = ''): array
-    {
-        $keys = [];
-        foreach ($payload as $key => $value) {
-            if (!is_string($key)) {
-                continue;
-            }
-            $path = $prefix === '' ? $key : $prefix . '.' . $key;
-            $keys[] = $path;
-            if (is_array($value)) {
-                $keys = array_merge($keys, self::collectPayloadKeys($value, $path));
-            }
-        }
-
-        return $keys;
-    }
-
-    /**
-     * @param array{api_client_id: string, send_otp_url: string, verify_otp_urls: list<string>} $config
-     * @param array<string, mixed>|null $initPayload
+     * @param array{
+     *   api_client_id: string,
+     *   api_client_secret: string,
+     *   oauth_token_url: string,
+     *   oauth_scope: string
+     * } $config
      * @return array{status: int, body: ?array<string, mixed>, raw: string}
      */
-    private static function requestVerify(
-        array $config,
-        string $doctorId,
-        string $mobile,
-        string $code,
-        ?array $initPayload
-    ): array {
-        $payload = self::buildVerifyPayload($mobile, $code, $initPayload);
-        $headers = self::apiHeaders($config['api_client_id']);
-        $headerToken = self::extractInitHeaderToken($initPayload);
-        if ($headerToken !== null) {
-            $headers['Authorization'] = 'Bearer ' . $headerToken;
-        }
-
-        $cookieJar = DrDrPendingLoginRepository::cookiePathForDoctor($doctorId);
-        $verifyUrl = $config['verify_otp_urls'][0] ?? $config['send_otp_url'];
+    private static function requestVerify(array $config, string $doctorId, string $mobile, string $code): array
+    {
+        $payload = [
+            'grant_type' => 'otp',
+            'client_id' => $config['api_client_id'],
+            'client_secret' => $config['api_client_secret'],
+            'mobile' => $mobile,
+            'otp_code' => $code,
+            'scope' => $config['oauth_scope'] !== '' ? $config['oauth_scope'] : '*',
+        ];
 
         return HttpClient::request(
             'POST',
-            $verifyUrl,
-            $headers,
+            $config['oauth_token_url'],
+            self::apiHeaders($config['api_client_id']),
             $payload,
             'json',
-            $cookieJar
+            DrDrPendingLoginRepository::cookiePathForDoctor($doctorId)
         );
     }
 }

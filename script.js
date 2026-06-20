@@ -551,8 +551,8 @@ function updateDrdrIntegrationUi() {
         if (appState.drdrOtpSent && appState.drdrOtpMobile) {
             otpHint.textContent =
                 appState.drdrOtpRetryAfter > 0
-                    ? `کد به ${appState.drdrOtpMobile} ارسال شد. ارسال مجدد تا ${appState.drdrOtpRetryAfter} ثانیه`
-                    : `کد به ${appState.drdrOtpMobile} ارسال شد.`;
+                    ? `کد به ${appState.drdrOtpMobile} ارسال شد. تا ${appState.drdrOtpRetryAfter} ثانیه دوباره ارسال نکنید.`
+                    : `کد به ${appState.drdrOtpMobile} ارسال شد. همان کد پیامکی را وارد کنید.`;
         } else {
             otpHint.textContent = "";
         }
