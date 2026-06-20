@@ -13,6 +13,7 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/../includes/bootstrap.php';
+require_once __DIR__ . '/../includes/HamgamSyncMessages.php';
 
 Request::applyCors();
 
@@ -36,9 +37,37 @@ try {
     $tokenRow = GoogleTokensRepository::findByUserId($userId);
     $settings = GoogleTokensRepository::getSettings($tokenRow);
     $settings['connected'] = GoogleTokensRepository::hasRefreshToken($tokenRow);
+    $settings['warnings'] = buildConnectionWarnings($tokenRow);
 
     Response::json($settings);
 } catch (Throwable $e) {
     RequestContext::log('hamgam/update', $e->getMessage());
     Response::jsonError('Internal server error', 500);
+}
+
+/**
+ * Warn when mandatory calendar sync credentials are missing for connected users.
+ *
+ * @param array<string, mixed>|null $tokenRow
+ * @return list<array{code: string, message: string}>
+ */
+function buildConnectionWarnings(?array $tokenRow): array
+{
+    if (!GoogleTokensRepository::hasRefreshToken($tokenRow) || $tokenRow === null) {
+        return [];
+    }
+
+    $warnings = [];
+    $channelId = trim((string) ($tokenRow['google_channel_id'] ?? ''));
+    $resourceId = trim((string) ($tokenRow['google_resource_id'] ?? ''));
+
+    if ($channelId === '') {
+        $warnings[] = HamgamSyncMessages::warning('calendar_channel_missing');
+    }
+
+    if ($resourceId === '') {
+        $warnings[] = HamgamSyncMessages::warning('calendar_resource_missing');
+    }
+
+    return $warnings;
 }

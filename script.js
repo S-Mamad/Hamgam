@@ -3879,6 +3879,8 @@ async function openSettings() {
     } else if (data.google_account_email) {
         updateGoogleAccountBanner(data.google_account_email);
     }
+
+    showWarningsIfAny(data);
 }
 
 async function applyPendingSettingsAfterOAuth() {
