@@ -88,6 +88,7 @@ final class Database
             self::migrateBookingSchema($pdo, 'mysql');
             self::migrateImportFutureVacationsSchema($pdo, 'mysql');
             self::migrateExternalConnectionsSchema($pdo, 'mysql');
+            self::migrateDrdrPendingOtpSchema($pdo, 'mysql');
             self::migrateLegacyDefaultColorId($pdo);
             return;
         }
@@ -111,6 +112,7 @@ final class Database
         self::migrateBookingSchema($pdo, 'sqlite');
         self::migrateImportFutureVacationsSchema($pdo, 'sqlite');
         self::migrateExternalConnectionsSchema($pdo, 'sqlite');
+        self::migrateDrdrPendingOtpSchema($pdo, 'sqlite');
         self::migrateLegacyDefaultColorId($pdo);
     }
 
@@ -201,6 +203,39 @@ final class Database
             }
         } catch (Throwable $e) {
             error_log('[Database] doctor_external_connections migration failed: ' . $e->getMessage());
+        }
+    }
+
+    private static function migrateDrdrPendingOtpSchema(PDO $pdo, string $driver): void
+    {
+        try {
+            if ($driver === 'mysql') {
+                $pdo->exec(
+                    'CREATE TABLE IF NOT EXISTS drdr_pending_otp (
+                        doctor_id VARCHAR(64) NOT NULL PRIMARY KEY,
+                        mobile VARCHAR(16) NOT NULL,
+                        init_payload TEXT NULL,
+                        sent_at INT NOT NULL,
+                        expires_at INT NOT NULL,
+                        INDEX idx_drdr_pending_otp_expires (expires_at)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+                );
+
+                return;
+            }
+
+            $pdo->exec(
+                'CREATE TABLE IF NOT EXISTS drdr_pending_otp (
+                    doctor_id TEXT NOT NULL PRIMARY KEY,
+                    mobile TEXT NOT NULL,
+                    init_payload TEXT NULL,
+                    sent_at INTEGER NOT NULL,
+                    expires_at INTEGER NOT NULL
+                )'
+            );
+            $pdo->exec('CREATE INDEX IF NOT EXISTS idx_drdr_pending_otp_expires ON drdr_pending_otp (expires_at)');
+        } catch (Throwable $e) {
+            error_log('[Database] drdr_pending_otp migration failed: ' . $e->getMessage());
         }
     }
 

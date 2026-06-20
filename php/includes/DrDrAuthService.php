@@ -78,8 +78,6 @@ final class DrDrAuthService
 
         DrDrPendingLoginRepository::clear($doctorId);
 
-        DrDrPendingLoginRepository::ensureStorageReady();
-
         $response = HttpClient::request(
             'POST',
             $config['send_otp_url'],
@@ -165,22 +163,18 @@ final class DrDrAuthService
             throw new IntegrationException('rate_limited', 'تعداد تلاش تأیید زیاد است. یک دقیقه صبر کنید.');
         }
 
-        $pending = DrDrPendingLoginRepository::get($doctorId, $mobile);
-        if ($pending === null) {
-            throw new IntegrationException('otp_expired', 'کد منقضی شده. دوباره «ارسال کد» را بزنید.');
+        $pending = DrDrPendingLoginRepository::getActiveForDoctor($doctorId);
+        if ($pending !== null) {
+            $sentAt = (int) ($pending['sent_at'] ?? 0);
+            if ($sentAt > 0 && (time() - $sentAt) > DrDrPendingLoginRepository::VERIFY_MAX_AGE_SECONDS) {
+                DrDrPendingLoginRepository::clear($doctorId);
+            } else {
+                $storedMobile = self::normalizeMobile($pending['mobile']);
+                if ($storedMobile !== null) {
+                    $mobile = $storedMobile;
+                }
+            }
         }
-
-        $sentAt = (int) ($pending['sent_at'] ?? 0);
-        $otpAge = $sentAt > 0 ? time() - $sentAt : DrDrPendingLoginRepository::VERIFY_MAX_AGE_SECONDS + 1;
-        if ($otpAge > DrDrPendingLoginRepository::VERIFY_MAX_AGE_SECONDS) {
-            DrDrPendingLoginRepository::clear($doctorId);
-            throw new IntegrationException(
-                'otp_expired',
-                'کد پیامکی منقضی شده (بیش از ۳ دقیقه). دوباره «ارسال کد» بزنید و کد جدید را وارد کنید.'
-            );
-        }
-
-        $mobile = $pending['mobile'];
 
         $config = self::apiConfig();
         $response = self::requestVerify($config, $doctorId, $mobile, $code);
@@ -194,9 +188,6 @@ final class DrDrAuthService
                 false,
                 'verify_otp_rejected:http' . $response['status'] . ':' . self::summarizeDrDrBody($response['body'])
             );
-            if (self::isDrDrSystemError($response['body'])) {
-                DrDrPendingLoginRepository::clear($doctorId);
-            }
             throw new IntegrationException('verify_otp_failed', self::humanizeDrDrError($response['body'], 'کد تأیید DrDr نامعتبر است یا منقضی شده.'));
         }
 
@@ -207,9 +198,6 @@ final class DrDrAuthService
                 false,
                 'verify_otp_rejected:body:' . self::summarizeDrDrBody($response['body'])
             );
-            if (self::isDrDrSystemError($response['body'])) {
-                DrDrPendingLoginRepository::clear($doctorId);
-            }
             throw new IntegrationException('verify_otp_failed', self::humanizeDrDrError($response['body'], 'کد تأیید DrDr نامعتبر است یا منقضی شده.'));
         }
 
@@ -272,6 +260,7 @@ final class DrDrAuthService
         return [
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
             'client-id' => $clientId,
             'Origin' => 'https://drdr.ir',
             'Referer' => 'https://drdr.ir/login/?f=true',

@@ -52,14 +52,15 @@ try {
         'deduped' => ($result['deduped'] ?? false) === true,
     ]);
 } catch (IntegrationException $e) {
-    Response::jsonError(
-        $e->getMessage(),
-        match ($e->reasonCode()) {
-            'auth_required', 'auth_failed' => 401,
-            'rate_limited', 'otp_cooldown' => 429,
-            default => 400,
-        }
-    );
+    Response::json([
+        'ok' => false,
+        'error' => $e->getMessage(),
+        'reason' => $e->reasonCode(),
+    ], match ($e->reasonCode()) {
+        'auth_required', 'auth_failed' => 401,
+        'rate_limited', 'otp_cooldown' => 429,
+        default => 400,
+    });
 } catch (Throwable $e) {
     RequestContext::log('integrations/send-otp', $e->getMessage());
     Response::jsonError('Internal server error', 500);

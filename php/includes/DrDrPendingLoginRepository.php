@@ -13,46 +13,60 @@ final class DrDrPendingLoginRepository
     public static function save(string $doctorId, string $mobile, ?array $initPayload): void
     {
         $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
-        self::ensureStorageReady();
-        $path = self::pathForDoctor($doctorId);
         $now = time();
-
-        $data = [
-            'mobile' => $mobile,
-            'init_payload' => $initPayload,
-            'sent_at' => $now,
-            'expires_at' => $now + self::TTL_SECONDS,
-        ];
-
-        $written = file_put_contents(
-            $path,
-            json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-            LOCK_EX
-        );
-        if ($written === false) {
-            throw new IntegrationException(
-                'storage_unavailable',
-                'ذخیره‌سازی نشست DrDr روی سرور ممکن نیست. با پشتیبانی تماس بگیرید.'
-            );
+        $payloadJson = null;
+        if ($initPayload !== null) {
+            $encoded = json_encode($initPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $payloadJson = $encoded === false ? null : $encoded;
         }
+
+        try {
+            self::upsertRow($doctorId, $mobile, $payloadJson, $now);
+        } catch (Throwable $e) {
+            RequestContext::log('drdr_pending_db_save', $e->getMessage());
+        }
+
+        self::saveToFile($doctorId, $mobile, $initPayload, $now);
     }
 
-    public static function ensureStorageReady(): void
+    private static function upsertRow(string $doctorId, string $mobile, ?string $payloadJson, int $now): void
     {
-        foreach ([
-            __DIR__ . '/../storage/drdr_pending_login',
-            __DIR__ . '/../storage/drdr_cookies',
-        ] as $dir) {
-            if (is_dir($dir)) {
-                continue;
-            }
-            if (!@mkdir($dir, 0750, true) && !is_dir($dir)) {
-                throw new IntegrationException(
-                    'storage_unavailable',
-                    'پوشه storage روی سرور قابل نوشتن نیست. با پشتیبانی تماس بگیرید.'
-                );
-            }
+        $pdo = Database::connection();
+        $expiresAt = $now + self::TTL_SECONDS;
+        $driver = Config::get('DB_DRIVER', 'sqlite');
+
+        if ($driver === 'mysql') {
+            $stmt = $pdo->prepare(
+                'INSERT INTO drdr_pending_otp (doctor_id, mobile, init_payload, sent_at, expires_at)
+                 VALUES (:doctor_id, :mobile, :init_payload, :sent_at, :expires_at)
+                 ON DUPLICATE KEY UPDATE
+                    mobile = VALUES(mobile),
+                    init_payload = VALUES(init_payload),
+                    sent_at = VALUES(sent_at),
+                    expires_at = VALUES(expires_at)'
+            );
+            $stmt->execute([
+                'doctor_id' => $doctorId,
+                'mobile' => $mobile,
+                'init_payload' => $payloadJson,
+                'sent_at' => $now,
+                'expires_at' => $expiresAt,
+            ]);
+
+            return;
         }
+
+        $stmt = $pdo->prepare(
+            'INSERT OR REPLACE INTO drdr_pending_otp (doctor_id, mobile, init_payload, sent_at, expires_at)
+             VALUES (:doctor_id, :mobile, :init_payload, :sent_at, :expires_at)'
+        );
+        $stmt->execute([
+            'doctor_id' => $doctorId,
+            'mobile' => $mobile,
+            'init_payload' => $payloadJson,
+            'sent_at' => $now,
+            'expires_at' => $expiresAt,
+        ]);
     }
 
     /**
@@ -60,74 +74,30 @@ final class DrDrPendingLoginRepository
      */
     public static function recentSendForMobile(string $doctorId, string $mobile): ?array
     {
-        $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
-        $path = self::pathForDoctor($doctorId);
-
-        if (!is_file($path)) {
+        $row = self::readRow($doctorId, $mobile, false);
+        if ($row === null) {
             return null;
         }
 
-        $raw = file_get_contents($path);
-        if ($raw === false || trim($raw) === '') {
-            return null;
-        }
-
-        $decoded = json_decode($raw, true);
-        if (!is_array($decoded)) {
-            return null;
-        }
-
-        $storedMobile = (string) ($decoded['mobile'] ?? '');
-        if ($storedMobile !== $mobile) {
-            return null;
-        }
-
-        $sentAt = (int) ($decoded['sent_at'] ?? 0);
-        $expiresAt = (int) ($decoded['expires_at'] ?? 0);
-        if ($sentAt <= 0 || $expiresAt <= time()) {
-            return null;
-        }
-
-        $elapsed = time() - $sentAt;
+        $elapsed = time() - $row['sent_at'];
         if ($elapsed >= self::DUPLICATE_SEND_GUARD_SECONDS) {
             return null;
         }
 
         return [
-            'mobile' => $storedMobile,
+            'mobile' => $row['mobile'],
             'retry_after' => max(1, self::RESEND_COOLDOWN_SECONDS - $elapsed),
         ];
     }
 
     public static function resendCooldownRemaining(string $doctorId, string $mobile): int
     {
-        $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
-        $path = self::pathForDoctor($doctorId);
-
-        if (!is_file($path)) {
+        $row = self::readRow($doctorId, $mobile, false);
+        if ($row === null) {
             return 0;
         }
 
-        $raw = file_get_contents($path);
-        if ($raw === false || trim($raw) === '') {
-            return 0;
-        }
-
-        $decoded = json_decode($raw, true);
-        if (!is_array($decoded)) {
-            return 0;
-        }
-
-        if ((string) ($decoded['mobile'] ?? '') !== $mobile) {
-            return 0;
-        }
-
-        $sentAt = (int) ($decoded['sent_at'] ?? 0);
-        if ($sentAt <= 0) {
-            return 0;
-        }
-
-        return max(0, self::RESEND_COOLDOWN_SECONDS - (time() - $sentAt));
+        return max(0, self::RESEND_COOLDOWN_SECONDS - (time() - $row['sent_at']));
     }
 
     /**
@@ -135,21 +105,148 @@ final class DrDrPendingLoginRepository
      */
     public static function get(string $doctorId, string $mobile): ?array
     {
-        return self::read($doctorId, $mobile, false);
+        return self::readRow($doctorId, $mobile, false);
     }
 
     /**
-     * @return array{mobile: string, init_payload: ?array}|null
+     * Latest non-expired OTP session for a doctor (ignores mobile filter).
+     *
+     * @return array{mobile: string, init_payload: ?array, sent_at: int}|null
      */
-    public static function consume(string $doctorId, string $mobile): ?array
+    public static function getActiveForDoctor(string $doctorId): ?array
     {
-        return self::read($doctorId, $mobile, true);
+        return self::readRow($doctorId, null, false);
+    }
+
+    public static function clear(string $doctorId): void
+    {
+        $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
+
+        try {
+            $stmt = Database::connection()->prepare(
+                'DELETE FROM drdr_pending_otp WHERE doctor_id = :doctor_id'
+            );
+            $stmt->execute(['doctor_id' => $doctorId]);
+        } catch (Throwable) {
+            // Best effort.
+        }
+
+        $path = self::pathForDoctor($doctorId);
+        if (is_file($path)) {
+            @unlink($path);
+        }
+
+        $cookiePath = self::cookiePathForDoctor($doctorId);
+        if (is_file($cookiePath)) {
+            @unlink($cookiePath);
+        }
+    }
+
+    public static function cookiePathForDoctor(string $doctorId): string
+    {
+        $safe = preg_replace('/[^a-zA-Z0-9._-]/', '_', GoogleTokensRepository::normalizeUserId($doctorId)) ?? 'unknown';
+        $dir = __DIR__ . '/../storage/drdr_cookies';
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0750, true);
+        }
+
+        return $dir . '/' . $safe . '.txt';
     }
 
     /**
      * @return array{mobile: string, init_payload: ?array, sent_at: int}|null
      */
-    private static function read(string $doctorId, string $mobile, bool $deleteAfterRead): ?array
+    private static function readRow(string $doctorId, ?string $mobile, bool $deleteAfterRead): ?array
+    {
+        $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
+
+        try {
+            $stmt = Database::connection()->prepare(
+                'SELECT mobile, init_payload, sent_at, expires_at
+                 FROM drdr_pending_otp
+                 WHERE doctor_id = :doctor_id
+                 LIMIT 1'
+            );
+            $stmt->execute(['doctor_id' => $doctorId]);
+            $row = $stmt->fetch();
+            if ($row !== false) {
+                $parsed = self::parseRow($row, $mobile);
+                if ($parsed !== null) {
+                    if ($deleteAfterRead) {
+                        self::clear($doctorId);
+                    }
+
+                    return $parsed;
+                }
+
+                if ($deleteAfterRead) {
+                    self::clear($doctorId);
+                }
+            }
+        } catch (Throwable) {
+            // Fall back to file storage.
+        }
+
+        return self::readFromFile($doctorId, $mobile, $deleteAfterRead);
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @return array{mobile: string, init_payload: ?array, sent_at: int}|null
+     */
+    private static function parseRow(array $row, ?string $mobile): ?array
+    {
+        $expiresAt = (int) ($row['expires_at'] ?? 0);
+        if ($expiresAt <= time()) {
+            return null;
+        }
+
+        $storedMobile = (string) ($row['mobile'] ?? '');
+        if ($mobile !== null && $storedMobile !== $mobile) {
+            return null;
+        }
+
+        $initPayload = null;
+        $rawPayload = $row['init_payload'] ?? null;
+        if (is_string($rawPayload) && trim($rawPayload) !== '') {
+            $decoded = json_decode($rawPayload, true);
+            $initPayload = is_array($decoded) ? $decoded : null;
+        }
+
+        return [
+            'mobile' => $storedMobile,
+            'init_payload' => $initPayload,
+            'sent_at' => (int) ($row['sent_at'] ?? 0),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed>|null $initPayload
+     */
+    private static function saveToFile(string $doctorId, string $mobile, ?array $initPayload, int $now): void
+    {
+        $path = self::pathForDoctor($doctorId);
+        $dir = dirname($path);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0750, true);
+        }
+
+        @file_put_contents(
+            $path,
+            json_encode([
+                'mobile' => $mobile,
+                'init_payload' => $initPayload,
+                'sent_at' => $now,
+                'expires_at' => $now + self::TTL_SECONDS,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            LOCK_EX
+        );
+    }
+
+    /**
+     * @return array{mobile: string, init_payload: ?array, sent_at: int}|null
+     */
+    private static function readFromFile(string $doctorId, ?string $mobile, bool $deleteAfterRead): ?array
     {
         $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
         $path = self::pathForDoctor($doctorId);
@@ -174,16 +271,11 @@ final class DrDrPendingLoginRepository
 
         $expiresAt = (int) ($decoded['expires_at'] ?? 0);
         if ($expiresAt <= time()) {
-            if ($deleteAfterRead) {
-                return null;
-            }
-            @unlink($path);
-
             return null;
         }
 
         $storedMobile = (string) ($decoded['mobile'] ?? '');
-        if ($storedMobile !== $mobile) {
+        if ($mobile !== null && $storedMobile !== $mobile) {
             return null;
         }
 
@@ -194,27 +286,6 @@ final class DrDrPendingLoginRepository
             'init_payload' => is_array($initPayload) ? $initPayload : null,
             'sent_at' => (int) ($decoded['sent_at'] ?? 0),
         ];
-    }
-
-    public static function clear(string $doctorId): void
-    {
-        $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
-        $path = self::pathForDoctor($doctorId);
-        if (is_file($path)) {
-            @unlink($path);
-        }
-
-        $cookiePath = self::cookiePathForDoctor($doctorId);
-        if (is_file($cookiePath)) {
-            @unlink($cookiePath);
-        }
-    }
-
-    public static function cookiePathForDoctor(string $doctorId): string
-    {
-        $safe = preg_replace('/[^a-zA-Z0-9._-]/', '_', GoogleTokensRepository::normalizeUserId($doctorId)) ?? 'unknown';
-
-        return __DIR__ . '/../storage/drdr_cookies/' . $safe . '.txt';
     }
 
     private static function pathForDoctor(string $doctorId): string
