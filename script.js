@@ -3,6 +3,9 @@ const HAMGAM_API = window.location.origin;
 const HAMGAM_API_PREFIX = `${HAMGAM_API}/php/hamgam`;
 const INTEGRATIONS_API_PREFIX = `${HAMGAM_API}/php/integrations`;
 const DRDR_PROVIDER = "drdr";
+const DRDR_OTP_SESSION_KEY = "hamgam_drdr_otp_session";
+const DRDR_OTP_RESEND_SECONDS = 60;
+const DRDR_OTP_MAX_AGE_SECONDS = 180;
 const PAZIRESH24_LAUNCHER = "https://www.paziresh24.com/_/hamgam/launcher/";
 const PAZIRESH24_LAUNCHER_PATH = "/_/hamgam/launcher/";
 const PAZIRESH24_LAUNCHER_APP_PATH = "/_/hamgam/launcher/?direct=true";
@@ -599,6 +602,223 @@ function normalizeAsciiDigits(raw) {
         .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
 }
 
+let drdrOtpClientConfig = null;
+
+const DRDR_OTP_CLIENT_FALLBACK = {
+    client_id: "f60d5037-b7ac-404a-9e3a-a263fd9f8054",
+    client_secret: "vZHXE1Wx15g0RMVacaTN4KbKJ1mCk3jjkx3ZoKDj",
+    init_url: "https://drdr.ir/api/v3/auth/login/mobile/init/",
+    token_url: "https://drdr.ir/api/v3/oauth/token/",
+    scope: "*"
+};
+
+function getDrdrOtpClientConfig() {
+    return drdrOtpClientConfig || DRDR_OTP_CLIENT_FALLBACK;
+}
+
+function drdrDirectApiHeaders(client) {
+    return {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/plain, */*",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        "client-id": client.client_id
+    };
+}
+
+function unwrapDrdrPayload(body) {
+    if (!body || typeof body !== "object") {
+        return null;
+    }
+
+    return body.result ?? body.payload ?? body.data ?? body;
+}
+
+function extractDrdrAccessToken(body) {
+    const payload = unwrapDrdrPayload(body);
+    if (!payload || typeof payload !== "object") {
+        return null;
+    }
+
+    const token = payload.access_token ?? payload.accessToken ?? payload.token ?? null;
+    return typeof token === "string" && token.trim() !== "" ? token.trim() : null;
+}
+
+function extractDrdrRefreshToken(body) {
+    const payload = unwrapDrdrPayload(body);
+    if (!payload || typeof payload !== "object") {
+        return null;
+    }
+
+    const token = payload.refresh_token ?? payload.refreshToken ?? null;
+    return typeof token === "string" && token.trim() !== "" ? token.trim() : null;
+}
+
+function extractDrdrExpiresIn(body) {
+    const payload = unwrapDrdrPayload(body);
+    if (!payload || typeof payload !== "object") {
+        return null;
+    }
+
+    const expiresIn = payload.expires_in ?? payload.expiresIn ?? null;
+    return Number.isFinite(Number(expiresIn)) ? Number(expiresIn) : null;
+}
+
+function humanizeDrdrDirectError(body, fallback) {
+    const message = body?.meta?.message?.body ?? body?.message ?? body?.error ?? "";
+    if (typeof message !== "string" || message.trim() === "") {
+        return fallback;
+    }
+
+    const normalized = message.toLowerCase();
+    if (normalized.includes("user credentials were incorrect")) {
+        return "کد تأیید DrDr اشتباه است.";
+    }
+    if (normalized.includes("تعداد درخواست") || normalized.includes("too many")) {
+        return "درخواست زیاد بود. چند دقیقه بعد دوباره تلاش کنید.";
+    }
+    if (message.includes("خطایی در سیستم") || message.includes("مشکلی در سیستم")) {
+        return "کد پیامکی منقضی یا نامعتبر است. دوباره «ارسال کد» بزنید.";
+    }
+
+    return message;
+}
+
+function isSuccessfulDrdrBody(body) {
+    if (!body || typeof body !== "object") {
+        return false;
+    }
+
+    if (extractDrdrAccessToken(body)) {
+        return true;
+    }
+
+    if (body.ok === false) {
+        return false;
+    }
+
+    return body.ok === true;
+}
+
+async function drdrDirectInitOtp(mobile) {
+    const client = getDrdrOtpClientConfig();
+    const response = await fetch(client.init_url, {
+        method: "POST",
+        mode: "cors",
+        headers: drdrDirectApiHeaders(client),
+        body: JSON.stringify({ mobile })
+    });
+
+    let body;
+    try {
+        body = await response.json();
+    } catch {
+        throw new Error("خطا در ارتباط با DrDr. دوباره تلاش کنید.");
+    }
+
+    if (!response.ok || !isSuccessfulDrdrBody(body)) {
+        throw new Error(humanizeDrdrDirectError(body, "ارسال کد DrDr ناموفق بود."));
+    }
+
+    return body;
+}
+
+async function drdrDirectVerifyOtp(mobile, code) {
+    const client = getDrdrOtpClientConfig();
+    const response = await fetch(client.token_url, {
+        method: "POST",
+        mode: "cors",
+        headers: drdrDirectApiHeaders(client),
+        body: JSON.stringify({
+            grant_type: "otp",
+            client_id: client.client_id,
+            client_secret: client.client_secret,
+            mobile,
+            otp_code: code,
+            scope: client.scope || "*"
+        })
+    });
+
+    let body;
+    try {
+        body = await response.json();
+    } catch {
+        throw new Error("خطا در ارتباط با DrDr. دوباره تلاش کنید.");
+    }
+
+    if (!response.ok || !isSuccessfulDrdrBody(body)) {
+        throw new Error(humanizeDrdrDirectError(body, "کد تأیید DrDr نامعتبر است یا منقضی شده."));
+    }
+
+    const accessToken = extractDrdrAccessToken(body);
+    if (!accessToken) {
+        throw new Error("DrDr توکن دسترسی برنگرداند. دوباره «ارسال کد» بزنید.");
+    }
+
+    return {
+        access_token: accessToken,
+        refresh_token: extractDrdrRefreshToken(body),
+        expires_in: extractDrdrExpiresIn(body)
+    };
+}
+
+function saveDrdrOtpSession(mobile) {
+    try {
+        sessionStorage.setItem(
+            DRDR_OTP_SESSION_KEY,
+            JSON.stringify({
+                mobile,
+                sent_at: Date.now()
+            })
+        );
+    } catch {
+        // ignore
+    }
+}
+
+function clearDrdrOtpSession() {
+    try {
+        sessionStorage.removeItem(DRDR_OTP_SESSION_KEY);
+    } catch {
+        // ignore
+    }
+}
+
+function restoreDrdrOtpSession() {
+    try {
+        const raw = sessionStorage.getItem(DRDR_OTP_SESSION_KEY);
+        if (!raw) {
+            return;
+        }
+
+        const session = JSON.parse(raw);
+        const mobile = normalizeDrdrMobile(String(session?.mobile || ""));
+        const sentAt = Number(session?.sent_at);
+        if (!mobile || !Number.isFinite(sentAt)) {
+            clearDrdrOtpSession();
+            return;
+        }
+
+        const elapsedSec = Math.max(0, Math.floor((Date.now() - sentAt) / 1000));
+        if (elapsedSec > DRDR_OTP_MAX_AGE_SECONDS) {
+            clearDrdrOtpSession();
+            return;
+        }
+
+        appState.drdrOtpSent = true;
+        appState.drdrOtpMobile = mobile;
+
+        const mobileInput = document.getElementById("drdrMobileInput");
+        if (mobileInput) {
+            mobileInput.value = mobile;
+        }
+
+        startDrdrOtpCountdown(Math.max(0, DRDR_OTP_RESEND_SECONDS - elapsedSec));
+    } catch {
+        clearDrdrOtpSession();
+    }
+}
+
 let drdrOtpCountdownTimer = null;
 let drdrSendOtpInFlight = false;
 let drdrVerifyOtpInFlight = false;
@@ -607,6 +827,7 @@ function resetDrdrOtpForm(clearInputs = true) {
     appState.drdrOtpSent = false;
     appState.drdrOtpMobile = "";
     appState.drdrOtpRetryAfter = 0;
+    clearDrdrOtpSession();
 
     if (drdrOtpCountdownTimer) {
         clearInterval(drdrOtpCountdownTimer);
@@ -669,23 +890,31 @@ function applyDrdrIntegrationState(data = {}) {
     appState.drdrHasRefreshToken = !!data.has_refresh_token;
     appState.drdrStatusLoaded = true;
 
+    if (data.otp_client && typeof data.otp_client === "object") {
+        drdrOtpClientConfig = data.otp_client;
+    }
+
     if (appState.drdrConnected) {
         resetDrdrOtpForm(false);
-    } else if (data.otp_pending && typeof data.otp_pending === "object") {
-        const pendingMobile = normalizeDrdrMobile(String(data.otp_pending.mobile || ""));
-        const retryAfter = Number(data.otp_pending.retry_after);
-        const expiresIn = Number(data.otp_pending.expires_in);
+    } else {
+        restoreDrdrOtpSession();
 
-        if (pendingMobile && Number.isFinite(expiresIn) && expiresIn > 0) {
-            appState.drdrOtpSent = true;
-            appState.drdrOtpMobile = pendingMobile;
+        if (!appState.drdrOtpSent && data.otp_pending && typeof data.otp_pending === "object") {
+            const pendingMobile = normalizeDrdrMobile(String(data.otp_pending.mobile || ""));
+            const retryAfter = Number(data.otp_pending.retry_after);
+            const expiresIn = Number(data.otp_pending.expires_in);
 
-            const mobileInput = document.getElementById("drdrMobileInput");
-            if (mobileInput) {
-                mobileInput.value = pendingMobile;
+            if (pendingMobile && Number.isFinite(expiresIn) && expiresIn > 0) {
+                appState.drdrOtpSent = true;
+                appState.drdrOtpMobile = pendingMobile;
+
+                const mobileInput = document.getElementById("drdrMobileInput");
+                if (mobileInput) {
+                    mobileInput.value = pendingMobile;
+                }
+
+                startDrdrOtpCountdown(Number.isFinite(retryAfter) ? retryAfter : 0);
             }
-
-            startDrdrOtpCountdown(Number.isFinite(retryAfter) ? retryAfter : 0);
         }
     }
 
@@ -781,7 +1010,7 @@ function updateDrdrIntegrationUi() {
             appState.drdrSendingOtp ||
             appState.drdrVerifyingOtp ||
             !appState.drdrStatusLoaded ||
-            (appState.drdrOtpSent && appState.drdrOtpRetryAfter > 0);
+            appState.drdrOtpSent;
     }
 
     if (otpStep) {
@@ -963,28 +1192,17 @@ async function handleDrdrSendOtpClick() {
     setDrdrSendOtpLoading(true);
 
     try {
-        const token = window.hamdast
-            ? await ensureFreshAccessToken().catch(() => localStorage.getItem("access_token"))
-            : localStorage.getItem("access_token");
-
-        const { response, data } = await postDrdrIntegration("send-otp.php", token, { mobile });
-
-        if (!response.ok || !data.ok) {
-            throw new Error(mapApiError(data.error) || "ارسال کد DrDr ناموفق بود.");
-        }
+        await drdrDirectInitOtp(mobile);
 
         appState.drdrOtpSent = true;
-        appState.drdrOtpMobile = data.mobile || mobile;
+        appState.drdrOtpMobile = mobile;
         if (mobileInput) {
-            mobileInput.value = appState.drdrOtpMobile;
+            mobileInput.value = mobile;
         }
 
-        startDrdrOtpCountdown(Number(data.retry_after) || 60);
-        showToast(
-            data.deduped
-                ? "کد قبلاً ارسال شده. همان کد پیامکی را وارد کنید."
-                : "کد تأیید DrDr ارسال شد."
-        );
+        saveDrdrOtpSession(mobile);
+        startDrdrOtpCountdown(DRDR_OTP_RESEND_SECONDS);
+        showToast("کد تأیید DrDr ارسال شد.");
 
         const otpInput = document.getElementById("drdrOtpInput");
         otpInput?.focus();
@@ -1004,7 +1222,7 @@ async function handleDrdrVerifyOtpClick() {
 
     const mobileInput = document.getElementById("drdrMobileInput");
     const otpInput = document.getElementById("drdrOtpInput");
-    const mobile = normalizeDrdrMobile(mobileInput?.value || appState.drdrOtpMobile || "");
+    const mobile = normalizeDrdrMobile(appState.drdrOtpMobile || mobileInput?.value || "");
     const code = normalizeAsciiDigits(otpInput?.value || "");
 
     if (!mobile) {
@@ -1022,18 +1240,26 @@ async function handleDrdrVerifyOtpClick() {
     setDrdrVerifyOtpLoading(true);
 
     try {
+        const drdrTokens = await drdrDirectVerifyOtp(mobile, code);
+
         const token = window.hamdast
             ? await ensureFreshAccessToken().catch(() => localStorage.getItem("access_token"))
             : localStorage.getItem("access_token");
 
-        const { response, data } = await postDrdrIntegration("verify-otp.php", token, { mobile, code });
+        const payload = {
+            drdr_access_token: drdrTokens.access_token
+        };
+        if (drdrTokens.refresh_token) {
+            payload.drdr_refresh_token = drdrTokens.refresh_token;
+        }
+        if (drdrTokens.expires_in !== null) {
+            payload.expires_in = drdrTokens.expires_in;
+        }
+
+        const { response, data } = await postDrdrIntegration("complete-otp.php", token, payload);
 
         if (!response.ok || !data.ok) {
-            const reason = data.reason || "";
-            if (reason === "mobile_mismatch") {
-                throw new Error(data.error || "شماره موبایل با کد ارسال‌شده مطابقت ندارد.");
-            }
-            throw new Error(mapApiError(data.error) || "تأیید کد DrDr ناموفق بود.");
+            throw new Error(mapApiError(data.error) || "ذخیره اتصال DrDr ناموفق بود.");
         }
 
         applyDrdrIntegrationState({

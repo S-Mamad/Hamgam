@@ -143,6 +143,63 @@ final class DrDrAuthService
     }
 
     /**
+     * Store DrDr tokens obtained from browser-direct OAuth (same flow as drdr.ir login).
+     *
+     * @return array{ok: true, connected: true}
+     */
+    public static function storeClientTokens(
+        string $doctorId,
+        string $accessToken,
+        ?string $refreshToken = null,
+        ?int $expiresAt = null
+    ): array {
+        $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
+        $accessToken = trim($accessToken);
+
+        if ($accessToken === '') {
+            throw new IntegrationException('invalid_token', 'توکن DrDr دریافت نشد.');
+        }
+
+        DoctorExternalConnectionsRepository::upsert(
+            doctorId: $doctorId,
+            provider: 'drdr',
+            accessToken: $accessToken,
+            refreshToken: $refreshToken,
+            expiresAt: $expiresAt
+        );
+
+        DrDrPendingLoginRepository::clear($doctorId);
+        ProviderIntegrationService::logIntegrationEvent($doctorId, 'drdr', true, 'verify_otp_success:client');
+
+        return [
+            'ok' => true,
+            'connected' => true,
+        ];
+    }
+
+    /**
+     * @return array{
+     *   client_id: string,
+     *   client_secret: string,
+     *   init_url: string,
+     *   token_url: string,
+     *   scope: string
+     * }
+     */
+    public static function publicOtpClientConfig(): array
+    {
+        $config = self::apiConfig();
+
+        return [
+            'client_id' => $config['api_client_id'],
+            'client_secret' => $config['api_client_secret'],
+            'init_url' => $config['send_otp_url'],
+            'token_url' => $config['oauth_token_url'],
+            'scope' => $config['oauth_scope'] !== '' ? $config['oauth_scope'] : '*',
+        ];
+    }
+
+    /**
      * @return array{ok: true, connected: true}
      */
     public static function verifyOtpAndStore(string $doctorId, string $mobile, string $code): array

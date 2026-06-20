@@ -15,6 +15,7 @@ require_once __DIR__ . '/../includes/DoctorExternalConnectionsRepository.php';
 require_once __DIR__ . '/../includes/ProviderIntegrationService.php';
 require_once __DIR__ . '/../includes/IntegrationAuth.php';
 require_once __DIR__ . '/../includes/DrDrPendingLoginRepository.php';
+require_once __DIR__ . '/../includes/DrDrAuthService.php';
 
 Request::applyCors();
 
@@ -45,6 +46,7 @@ try {
         'expires_at' => $status['expires_at'] ?? null,
         'has_refresh_token' => $status['has_refresh_token'] ?? false,
         'otp_pending' => $otpPending,
+        'otp_client' => $provider === 'drdr' ? DrDrAuthService::publicOtpClientConfig() : null,
     ]);
 } catch (IntegrationException $e) {
     Response::jsonError(

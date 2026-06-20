@@ -9,7 +9,7 @@ declare(strict_types=1);
 return [
     'api_client_id' => 'f60d5037-b7ac-404a-9e3a-a263fd9f8054',
     'api_client_secret' => 'vZHXE1Wx15g0RMVacaTN4KbKJ1mCk3jjkx3ZoKDj',
-    'send_otp_url' => 'https://drdr.ir/api/v3/auth/login/mobile/init',
+    'send_otp_url' => 'https://drdr.ir/api/v3/auth/login/mobile/init/',
     'oauth_token_url' => 'https://drdr.ir/api/v3/oauth/token/',
     'oauth_scope' => '*',
     'client_id' => '',
