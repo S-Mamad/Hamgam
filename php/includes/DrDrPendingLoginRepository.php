@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 final class DrDrPendingLoginRepository
 {
-    private const TTL_SECONDS = 300;
+    /** DrDr OTP is typically valid ~2–3 minutes; keep local session aligned. */
+    private const TTL_SECONDS = 180;
+    public const VERIFY_MAX_AGE_SECONDS = 180;
     private const RESEND_COOLDOWN_SECONDS = 60;
     private const DUPLICATE_SEND_GUARD_SECONDS = 15;
 
     public static function save(string $doctorId, string $mobile, ?array $initPayload): void
     {
         $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
+        self::ensureStorageReady();
         $path = self::pathForDoctor($doctorId);
         $now = time();
 
@@ -21,12 +24,35 @@ final class DrDrPendingLoginRepository
             'expires_at' => $now + self::TTL_SECONDS,
         ];
 
-        $dir = dirname($path);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0750, true);
+        $written = file_put_contents(
+            $path,
+            json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            LOCK_EX
+        );
+        if ($written === false) {
+            throw new IntegrationException(
+                'storage_unavailable',
+                'ذخیره‌سازی نشست DrDr روی سرور ممکن نیست. با پشتیبانی تماس بگیرید.'
+            );
         }
+    }
 
-        file_put_contents($path, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    public static function ensureStorageReady(): void
+    {
+        foreach ([
+            __DIR__ . '/../storage/drdr_pending_login',
+            __DIR__ . '/../storage/drdr_cookies',
+        ] as $dir) {
+            if (is_dir($dir)) {
+                continue;
+            }
+            if (!@mkdir($dir, 0750, true) && !is_dir($dir)) {
+                throw new IntegrationException(
+                    'storage_unavailable',
+                    'پوشه storage روی سرور قابل نوشتن نیست. با پشتیبانی تماس بگیرید.'
+                );
+            }
+        }
     }
 
     /**
@@ -105,7 +131,7 @@ final class DrDrPendingLoginRepository
     }
 
     /**
-     * @return array{mobile: string, init_payload: ?array}|null
+     * @return array{mobile: string, init_payload: ?array, sent_at: int}|null
      */
     public static function get(string $doctorId, string $mobile): ?array
     {
@@ -121,7 +147,7 @@ final class DrDrPendingLoginRepository
     }
 
     /**
-     * @return array{mobile: string, init_payload: ?array}|null
+     * @return array{mobile: string, init_payload: ?array, sent_at: int}|null
      */
     private static function read(string $doctorId, string $mobile, bool $deleteAfterRead): ?array
     {
@@ -166,6 +192,7 @@ final class DrDrPendingLoginRepository
         return [
             'mobile' => $storedMobile,
             'init_payload' => is_array($initPayload) ? $initPayload : null,
+            'sent_at' => (int) ($decoded['sent_at'] ?? 0),
         ];
     }
 

@@ -59,14 +59,15 @@ try {
         'has_refresh_token' => $status['has_refresh_token'] ?? false,
     ]);
 } catch (IntegrationException $e) {
-    Response::jsonError(
-        $e->getMessage(),
-        match ($e->reasonCode()) {
-            'auth_required', 'auth_failed' => 401,
-            'rate_limited' => 429,
-            default => 400,
-        }
-    );
+    Response::json([
+        'ok' => false,
+        'error' => $e->getMessage(),
+        'reason' => $e->reasonCode(),
+    ], match ($e->reasonCode()) {
+        'auth_required', 'auth_failed' => 401,
+        'rate_limited' => 429,
+        default => 400,
+    });
 } catch (Throwable $e) {
     RequestContext::log('integrations/verify-otp', $e->getMessage());
     Response::jsonError('Internal server error', 500);

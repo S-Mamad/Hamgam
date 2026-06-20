@@ -792,6 +792,13 @@ async function handleDrdrVerifyOtpClick() {
         showToast("اتصال DrDr با موفقیت برقرار شد.");
     } catch (error) {
         console.error("[Hamgam] drdr verify otp failed:", error);
+        const status = await fetchDrdrIntegrationStatus({ silent: true });
+        if (status?.connected) {
+            applyDrdrIntegrationState(status);
+            resetDrdrOtpForm(true);
+            showToast("اتصال DrDr برقرار شد.");
+            return;
+        }
         showToast(error.message || "تأیید کد DrDr ناموفق بود.", "error");
     } finally {
         drdrVerifyOtpInFlight = false;

@@ -78,6 +78,8 @@ final class DrDrAuthService
 
         DrDrPendingLoginRepository::clear($doctorId);
 
+        DrDrPendingLoginRepository::ensureStorageReady();
+
         $response = HttpClient::request(
             'POST',
             $config['send_otp_url'],
@@ -146,6 +148,14 @@ final class DrDrAuthService
     public static function verifyOtpAndStore(string $doctorId, string $mobile, string $code): array
     {
         $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
+
+        if (DoctorExternalConnectionsRepository::isConnected($doctorId, 'drdr')) {
+            return [
+                'ok' => true,
+                'connected' => true,
+            ];
+        }
+
         $code = self::normalizeOtpCode($code);
         if ($code === null) {
             throw new IntegrationException('invalid_code', 'کد تأیید نامعتبر است.');
@@ -160,18 +170,46 @@ final class DrDrAuthService
             throw new IntegrationException('otp_expired', 'کد منقضی شده. دوباره «ارسال کد» را بزنید.');
         }
 
+        $sentAt = (int) ($pending['sent_at'] ?? 0);
+        $otpAge = $sentAt > 0 ? time() - $sentAt : DrDrPendingLoginRepository::VERIFY_MAX_AGE_SECONDS + 1;
+        if ($otpAge > DrDrPendingLoginRepository::VERIFY_MAX_AGE_SECONDS) {
+            DrDrPendingLoginRepository::clear($doctorId);
+            throw new IntegrationException(
+                'otp_expired',
+                'کد پیامکی منقضی شده (بیش از ۳ دقیقه). دوباره «ارسال کد» بزنید و کد جدید را وارد کنید.'
+            );
+        }
+
+        $mobile = $pending['mobile'];
+
         $config = self::apiConfig();
         $response = self::requestVerify($config, $doctorId, $mobile, $code);
         $tokenPayload = self::unwrapDrDrPayload($response['body']);
         $accessToken = self::extractAccessToken($tokenPayload);
 
         if ($response['status'] < 200 || $response['status'] >= 300) {
-            ProviderIntegrationService::logIntegrationEvent($doctorId, 'drdr', false, 'verify_otp_rejected');
+            ProviderIntegrationService::logIntegrationEvent(
+                $doctorId,
+                'drdr',
+                false,
+                'verify_otp_rejected:http' . $response['status'] . ':' . self::summarizeDrDrBody($response['body'])
+            );
+            if (self::isDrDrSystemError($response['body'])) {
+                DrDrPendingLoginRepository::clear($doctorId);
+            }
             throw new IntegrationException('verify_otp_failed', self::humanizeDrDrError($response['body'], 'کد تأیید DrDr نامعتبر است یا منقضی شده.'));
         }
 
         if ($accessToken === null && !self::isSuccessfulDrDrBody($response['body'])) {
-            ProviderIntegrationService::logIntegrationEvent($doctorId, 'drdr', false, 'verify_otp_rejected');
+            ProviderIntegrationService::logIntegrationEvent(
+                $doctorId,
+                'drdr',
+                false,
+                'verify_otp_rejected:body:' . self::summarizeDrDrBody($response['body'])
+            );
+            if (self::isDrDrSystemError($response['body'])) {
+                DrDrPendingLoginRepository::clear($doctorId);
+            }
             throw new IntegrationException('verify_otp_failed', self::humanizeDrDrError($response['body'], 'کد تأیید DrDr نامعتبر است یا منقضی شده.'));
         }
 
@@ -287,11 +325,83 @@ final class DrDrAuthService
             return 'درخواست زیاد بود. چند دقیقه بعد دوباره تلاش کنید.';
         }
 
-        if (str_contains($message, 'خطایی در سیستم') || str_contains($normalized, 'system error')) {
-            return 'خطای موقت DrDr. دوباره «ارسال کد» بزنید، همان کد جدید پیامکی را وارد کنید و تا پایان شمارشگر «ارسال مجدد» نزنید.';
+        if (str_contains($message, 'خطایی در سیستم') || str_contains($message, 'مشکلی در سیستم') || str_contains($normalized, 'system error')) {
+            return 'کد پیامکی منقضی یا نامعتبر است. دوباره «ارسال کد» بزنید، کد جدید را وارد کنید و تا پایان شمارشگر «ارسال مجدد» نزنید.';
         }
 
         return $message;
+    }
+
+    /**
+     * @param array<string, mixed>|null $body
+     */
+    private static function isDrDrSystemError(?array $body): bool
+    {
+        if (!is_array($body)) {
+            return false;
+        }
+
+        $raw = self::extractDrDrErrorMessage($body);
+
+        return str_contains($raw, 'خطایی در سیستم')
+            || str_contains($raw, 'مشکلی در سیستم')
+            || str_contains(strtolower($raw), 'system error');
+    }
+
+    /**
+     * @param array<string, mixed> $body
+     */
+    private static function extractDrDrErrorMessage(array $body): string
+    {
+        if (isset($body['meta']['message']['body']) && is_string($body['meta']['message']['body'])) {
+            return trim($body['meta']['message']['body']);
+        }
+
+        foreach (['message', 'error', 'detail'] as $key) {
+            $value = $body[$key] ?? null;
+            if (is_string($value) && trim($value) !== '') {
+                return trim($value);
+            }
+        }
+
+        if (isset($body['data']) && is_array($body['data'])) {
+            return self::extractDrDrErrorMessage($body['data']);
+        }
+
+        return '';
+    }
+
+    /**
+     * @param array<string, mixed>|null $body
+     */
+    private static function summarizeDrDrBody(?array $body): string
+    {
+        if (!is_array($body)) {
+            return 'empty';
+        }
+
+        $message = '';
+        if (isset($body['meta']['message']['body']) && is_string($body['meta']['message']['body'])) {
+            $message = trim($body['meta']['message']['body']);
+        }
+
+        if ($message === '') {
+            foreach (['message', 'error', 'detail'] as $key) {
+                $value = $body[$key] ?? null;
+                if (is_string($value) && trim($value) !== '') {
+                    $message = trim($value);
+                    break;
+                }
+            }
+        }
+
+        if ($message === '') {
+            return 'ok=' . json_encode($body['ok'] ?? null);
+        }
+
+        $message = preg_replace('/\s+/', ' ', $message) ?? $message;
+
+        return mb_substr($message, 0, 120);
     }
 
     /**
@@ -307,6 +417,15 @@ final class DrDrAuthService
             $value = $body[$key] ?? null;
             if (is_string($value) && trim($value) !== '') {
                 return trim($value);
+            }
+        }
+
+        if (isset($body['user']) && is_array($body['user'])) {
+            foreach (['token', 'access_token', 'accessToken'] as $key) {
+                $value = $body['user'][$key] ?? null;
+                if (is_string($value) && trim($value) !== '') {
+                    return trim($value);
+                }
             }
         }
 
