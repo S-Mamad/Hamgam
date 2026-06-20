@@ -61,7 +61,11 @@ try {
 } catch (IntegrationException $e) {
     Response::jsonError(
         $e->getMessage(),
-        $e->reasonCode() === 'auth_required' || $e->reasonCode() === 'auth_failed' ? 401 : 400
+        match ($e->reasonCode()) {
+            'auth_required', 'auth_failed' => 401,
+            'rate_limited' => 429,
+            default => 400,
+        }
     );
 } catch (Throwable $e) {
     RequestContext::log('integrations/verify-otp', $e->getMessage());

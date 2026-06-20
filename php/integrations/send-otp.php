@@ -49,13 +49,14 @@ try {
         'provider' => $provider,
         'mobile' => $mobile,
         'retry_after' => $result['retry_after'] ?? 60,
+        'deduped' => ($result['deduped'] ?? false) === true,
     ]);
 } catch (IntegrationException $e) {
     Response::jsonError(
         $e->getMessage(),
         match ($e->reasonCode()) {
             'auth_required', 'auth_failed' => 401,
-            'rate_limited' => 429,
+            'rate_limited', 'otp_cooldown' => 429,
             default => 400,
         }
     );

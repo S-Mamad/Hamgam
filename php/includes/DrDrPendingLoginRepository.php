@@ -5,16 +5,20 @@ declare(strict_types=1);
 final class DrDrPendingLoginRepository
 {
     private const TTL_SECONDS = 300;
+    private const RESEND_COOLDOWN_SECONDS = 60;
+    private const DUPLICATE_SEND_GUARD_SECONDS = 15;
 
     public static function save(string $doctorId, string $mobile, ?array $initPayload): void
     {
         $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
         $path = self::pathForDoctor($doctorId);
+        $now = time();
 
         $data = [
             'mobile' => $mobile,
             'init_payload' => $initPayload,
-            'expires_at' => time() + self::TTL_SECONDS,
+            'sent_at' => $now,
+            'expires_at' => $now + self::TTL_SECONDS,
         ];
 
         $dir = dirname($path);
@@ -23,6 +27,81 @@ final class DrDrPendingLoginRepository
         }
 
         file_put_contents($path, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    }
+
+    /**
+     * @return array{retry_after: int, mobile: string}|null
+     */
+    public static function recentSendForMobile(string $doctorId, string $mobile): ?array
+    {
+        $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
+        $path = self::pathForDoctor($doctorId);
+
+        if (!is_file($path)) {
+            return null;
+        }
+
+        $raw = file_get_contents($path);
+        if ($raw === false || trim($raw) === '') {
+            return null;
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+
+        $storedMobile = (string) ($decoded['mobile'] ?? '');
+        if ($storedMobile !== $mobile) {
+            return null;
+        }
+
+        $sentAt = (int) ($decoded['sent_at'] ?? 0);
+        $expiresAt = (int) ($decoded['expires_at'] ?? 0);
+        if ($sentAt <= 0 || $expiresAt <= time()) {
+            return null;
+        }
+
+        $elapsed = time() - $sentAt;
+        if ($elapsed >= self::DUPLICATE_SEND_GUARD_SECONDS) {
+            return null;
+        }
+
+        return [
+            'mobile' => $storedMobile,
+            'retry_after' => max(1, self::RESEND_COOLDOWN_SECONDS - $elapsed),
+        ];
+    }
+
+    public static function resendCooldownRemaining(string $doctorId, string $mobile): int
+    {
+        $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
+        $path = self::pathForDoctor($doctorId);
+
+        if (!is_file($path)) {
+            return 0;
+        }
+
+        $raw = file_get_contents($path);
+        if ($raw === false || trim($raw) === '') {
+            return 0;
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return 0;
+        }
+
+        if ((string) ($decoded['mobile'] ?? '') !== $mobile) {
+            return 0;
+        }
+
+        $sentAt = (int) ($decoded['sent_at'] ?? 0);
+        if ($sentAt <= 0) {
+            return 0;
+        }
+
+        return max(0, self::RESEND_COOLDOWN_SECONDS - (time() - $sentAt));
     }
 
     /**

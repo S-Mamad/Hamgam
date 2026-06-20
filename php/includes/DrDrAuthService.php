@@ -48,7 +48,7 @@ final class DrDrAuthService
     }
 
     /**
-     * @return array{ok: true, retry_after: int}
+     * @return array{ok: true, retry_after: int, deduped?: bool}
      */
     public static function sendOtp(string $doctorId, string $mobile): array
     {
@@ -57,6 +57,23 @@ final class DrDrAuthService
 
         if (!IntegrationRateLimiter::allow('drdr_send_otp_' . $doctorId, 5)) {
             throw new IntegrationException('rate_limited', 'تعداد درخواست کد زیاد است. چند دقیقه بعد دوباره تلاش کنید.');
+        }
+
+        $recent = DrDrPendingLoginRepository::recentSendForMobile($doctorId, $mobile);
+        if ($recent !== null) {
+            return [
+                'ok' => true,
+                'retry_after' => $recent['retry_after'],
+                'deduped' => true,
+            ];
+        }
+
+        $cooldown = DrDrPendingLoginRepository::resendCooldownRemaining($doctorId, $mobile);
+        if ($cooldown > 0) {
+            throw new IntegrationException(
+                'otp_cooldown',
+                'کد قبلی هنوز معتبر است. ' . $cooldown . ' ثانیه صبر کنید و همان کد پیامکی را وارد کنید.'
+            );
         }
 
         DrDrPendingLoginRepository::clear($doctorId);
@@ -84,6 +101,45 @@ final class DrDrAuthService
         ];
     }
 
+    private static function isSuccessfulDrDrBody(?array $body): bool
+    {
+        if (!is_array($body)) {
+            return false;
+        }
+
+        if (($body['ok'] ?? null) === false) {
+            return false;
+        }
+
+        $code = $body['code'] ?? null;
+        if (is_numeric($code) && (int) $code >= 400) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static function unwrapDrDrPayload(?array $body): ?array
+    {
+        if (!is_array($body)) {
+            return null;
+        }
+
+        if (isset($body['result']) && is_array($body['result'])) {
+            return $body['result'];
+        }
+
+        if (isset($body['payload']) && is_array($body['payload'])) {
+            return $body['payload'];
+        }
+
+        if (isset($body['data']) && is_array($body['data'])) {
+            return $body['data'];
+        }
+
+        return $body;
+    }
+
     /**
      * @return array{ok: true, connected: true}
      */
@@ -95,6 +151,10 @@ final class DrDrAuthService
             throw new IntegrationException('invalid_code', 'کد تأیید نامعتبر است.');
         }
 
+        if (!IntegrationRateLimiter::allow('drdr_verify_otp_' . $doctorId, 8)) {
+            throw new IntegrationException('rate_limited', 'تعداد تلاش تأیید زیاد است. یک دقیقه صبر کنید.');
+        }
+
         $pending = DrDrPendingLoginRepository::get($doctorId, $mobile);
         if ($pending === null) {
             throw new IntegrationException('otp_expired', 'کد منقضی شده. دوباره «ارسال کد» را بزنید.');
@@ -103,19 +163,20 @@ final class DrDrAuthService
         $config = self::apiConfig();
         $response = self::requestVerify($config, $doctorId, $mobile, $code);
 
-        if ($response['status'] < 200 || $response['status'] >= 300) {
+        if ($response['status'] < 200 || $response['status'] >= 300 || !self::isSuccessfulDrDrBody($response['body'])) {
             ProviderIntegrationService::logIntegrationEvent($doctorId, 'drdr', false, 'verify_otp_rejected');
             throw new IntegrationException('verify_otp_failed', self::humanizeDrDrError($response['body'], 'کد تأیید DrDr نامعتبر است یا منقضی شده.'));
         }
 
-        $accessToken = self::extractAccessToken($response['body']);
+        $tokenPayload = self::unwrapDrDrPayload($response['body']);
+        $accessToken = self::extractAccessToken($tokenPayload);
         if ($accessToken === null) {
             ProviderIntegrationService::logIntegrationEvent($doctorId, 'drdr', false, 'verify_no_token');
             throw new IntegrationException('verify_otp_failed', 'DrDr توکن دسترسی برنگرداند. لطفاً دوباره «ارسال کد» بزنید و کد جدید را وارد کنید.');
         }
 
-        $refreshToken = self::extractRefreshToken($response['body']);
-        $expiresAt = self::extractExpiresAt($response['body']);
+        $refreshToken = self::extractRefreshToken($tokenPayload);
+        $expiresAt = self::extractExpiresAt($tokenPayload);
 
         DoctorExternalConnectionsRepository::upsert(
             doctorId: $doctorId,
@@ -213,6 +274,10 @@ final class DrDrAuthService
             return 'تعداد تلاش زیاد است. چند دقیقه بعد دوباره امتحان کنید.';
         }
 
+        if (str_contains($normalized, 'تعداد درخواست') || str_contains($normalized, 'too many')) {
+            return 'درخواست زیاد بود. چند دقیقه بعد دوباره تلاش کنید.';
+        }
+
         return $message;
     }
 
@@ -234,6 +299,10 @@ final class DrDrAuthService
 
         if (isset($body['payload']) && is_array($body['payload'])) {
             return self::extractAccessToken($body['payload']);
+        }
+
+        if (isset($body['result']) && is_array($body['result'])) {
+            return self::extractAccessToken($body['result']);
         }
 
         if (isset($body['data']) && is_array($body['data'])) {

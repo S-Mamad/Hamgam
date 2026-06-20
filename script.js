@@ -402,6 +402,8 @@ function normalizeAsciiDigits(raw) {
 }
 
 let drdrOtpCountdownTimer = null;
+let drdrSendOtpInFlight = false;
+let drdrVerifyOtpInFlight = false;
 
 function resetDrdrOtpForm(clearInputs = true) {
     appState.drdrOtpSent = false;
@@ -672,28 +674,27 @@ async function fetchDrdrIntegrationStatus(options = {}) {
 }
 
 async function postDrdrIntegration(scriptName, token, payload) {
-    let response = await apiFetch(
-        integrationEndpoint(scriptName, DRDR_PROVIDER),
-        token,
-        { body: apiBodyWithToken(token, payload), withJson: true }
-    );
-    let data = await parseJsonResponse(response);
-
-    if (response.status === 401 && window.hamdast) {
-        const freshToken = await ensureFreshAccessToken();
-        response = await apiFetch(
-            integrationEndpoint(scriptName, DRDR_PROVIDER),
-            freshToken,
-            { body: apiBodyWithToken(freshToken, payload), withJson: true }
-        );
-        data = await parseJsonResponse(response);
+    let authToken = token;
+    if (window.hamdast) {
+        authToken = await ensureFreshAccessToken().catch(() => token);
     }
+
+    if (!authToken) {
+        throw new Error("ابتدا وارد حساب پذیرش۲۴ شوید.");
+    }
+
+    const response = await apiFetch(
+        integrationEndpoint(scriptName, DRDR_PROVIDER),
+        authToken,
+        { body: apiBodyWithToken(authToken, payload), withJson: true }
+    );
+    const data = await parseJsonResponse(response);
 
     return { response, data };
 }
 
 async function handleDrdrSendOtpClick() {
-    if (appState.drdrConnected || appState.drdrSendingOtp || appState.drdrVerifyingOtp) {
+    if (appState.drdrConnected || appState.drdrSendingOtp || appState.drdrVerifyingOtp || drdrSendOtpInFlight) {
         return;
     }
 
@@ -709,16 +710,13 @@ async function handleDrdrSendOtpClick() {
         return;
     }
 
+    drdrSendOtpInFlight = true;
     setDrdrSendOtpLoading(true);
 
     try {
         const token = window.hamdast
-            ? await ensureFreshAccessToken()
+            ? await ensureFreshAccessToken().catch(() => localStorage.getItem("access_token"))
             : localStorage.getItem("access_token");
-
-        if (!token) {
-            throw new Error("ابتدا وارد حساب پذیرش۲۴ شوید.");
-        }
 
         const { response, data } = await postDrdrIntegration("send-otp.php", token, { mobile });
 
@@ -733,7 +731,11 @@ async function handleDrdrSendOtpClick() {
         }
 
         startDrdrOtpCountdown(Number(data.retry_after) || 60);
-        showToast("کد تأیید DrDr ارسال شد.");
+        showToast(
+            data.deduped
+                ? "کد قبلاً ارسال شده. همان کد پیامکی را وارد کنید."
+                : "کد تأیید DrDr ارسال شد."
+        );
 
         const otpInput = document.getElementById("drdrOtpInput");
         otpInput?.focus();
@@ -741,12 +743,13 @@ async function handleDrdrSendOtpClick() {
         console.error("[Hamgam] drdr send otp failed:", error);
         showToast(error.message || "ارسال کد DrDr ناموفق بود.", "error");
     } finally {
+        drdrSendOtpInFlight = false;
         setDrdrSendOtpLoading(false);
     }
 }
 
 async function handleDrdrVerifyOtpClick() {
-    if (appState.drdrConnected || appState.drdrVerifyingOtp || !appState.drdrOtpSent) {
+    if (appState.drdrConnected || appState.drdrVerifyingOtp || !appState.drdrOtpSent || drdrVerifyOtpInFlight) {
         return;
     }
 
@@ -766,16 +769,13 @@ async function handleDrdrVerifyOtpClick() {
         return;
     }
 
+    drdrVerifyOtpInFlight = true;
     setDrdrVerifyOtpLoading(true);
 
     try {
         const token = window.hamdast
-            ? await ensureFreshAccessToken()
+            ? await ensureFreshAccessToken().catch(() => localStorage.getItem("access_token"))
             : localStorage.getItem("access_token");
-
-        if (!token) {
-            throw new Error("ابتدا وارد حساب پذیرش۲۴ شوید.");
-        }
 
         const { response, data } = await postDrdrIntegration("verify-otp.php", token, { mobile, code });
 
@@ -794,6 +794,7 @@ async function handleDrdrVerifyOtpClick() {
         console.error("[Hamgam] drdr verify otp failed:", error);
         showToast(error.message || "تأیید کد DrDr ناموفق بود.", "error");
     } finally {
+        drdrVerifyOtpInFlight = false;
         setDrdrVerifyOtpLoading(false);
     }
 }
@@ -1590,6 +1591,14 @@ function bindUiEvents() {
             e.preventDefault();
             e.stopPropagation();
             void handleDisconnectGoogleClick();
+        });
+    }
+
+    const drdrLoginForm = document.getElementById("drdrLoginForm");
+    if (drdrLoginForm) {
+        drdrLoginForm.addEventListener("submit", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
         });
     }
 
