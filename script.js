@@ -200,16 +200,21 @@ function setImportFutureBackfillStarting(starting) {
     applyImportFutureBackfillCardUiState();
 }
 
-function setImportFutureBackfillPending(pending) {
+function setImportFutureBackfillPending(pending, options = {}) {
+    const wasPending = appState.importFutureBackfillPending;
     appState.importFutureBackfillPending = !!pending;
     applyImportFutureBackfillCardUiState();
     applyImportFutureBackfillUndoUiState();
+    if (pending && !wasPending && options.notify) {
+        showToast("درخواست شما با موفقیت در دست انجام قرار گرفت");
+    }
 }
 
 function applyImportFutureBackfillCardUiState() {
     const wrap = document.getElementById("importFutureBackfillWrap");
+    const card = document.getElementById("importFutureBackfillCard");
     const btn = document.getElementById("importFutureBackfillBtn");
-    const queued = document.getElementById("importFutureBackfillQueued");
+    const btnText = btn?.querySelector(".import-future-backfill__btn-text");
     if (!wrap || !btn) {
         return;
     }
@@ -224,12 +229,20 @@ function applyImportFutureBackfillCardUiState() {
 
     wrap.hidden = !panelOpen || hideCard;
 
+    card?.classList.toggle("is-pending", pending);
+
     btn.disabled = starting || pending || used || inactive || !appState.connected;
     btn.classList.toggle("is-loading", starting);
     btn.setAttribute("aria-busy", starting ? "true" : "false");
 
-    if (queued) {
-        queued.hidden = !pending;
+    if (btnText) {
+        if (starting) {
+            btnText.textContent = "شروع";
+        } else if (pending) {
+            btnText.textContent = "در حال انجام…";
+        } else {
+            btnText.textContent = "شروع";
+        }
     }
 }
 
@@ -322,7 +335,7 @@ async function handleImportFutureBackfillClick() {
         }
 
         if (data.backfill?.pending || data.sync_pending) {
-            setImportFutureBackfillPending(true);
+            setImportFutureBackfillPending(true, { notify: true });
             void startImportFutureBackfillPoll();
             return;
         }
@@ -335,8 +348,6 @@ async function handleImportFutureBackfillClick() {
             });
             return;
         }
-
-        showToast("درخواست شما با موفقیت در دست انجام قرار گرفت");
     } catch (error) {
         console.error("[Hamgam] import future backfill failed:", error);
         showToast(error.message || "شروع درون‌ریزی ناموفق بود. دوباره تلاش کنید.", "error");
@@ -1729,7 +1740,7 @@ function bindUiEvents() {
         });
     });
 
-    document.querySelectorAll(".field.row:not(.vacation-conflict-option)").forEach(row => {
+    document.querySelectorAll(".field.row:not(.vacation-conflict-field)").forEach(row => {
         row.addEventListener("click", (e) => {
             e.stopPropagation();
             if (e.target.closest(".switch")) return;
@@ -2204,9 +2215,8 @@ function setVacationConflictMode(mode) {
 function updateVacationConflictOptionStates() {
     const cancelSwitch = document.getElementById("vacationConflictCancelSwitch");
     const rescheduleSwitch = document.getElementById("vacationConflictRescheduleSwitch");
-    const block = document.getElementById("vacationConflictBlock");
     const subOptionsBlock = document.getElementById("vacationSubOptionsBlock");
-    if (!cancelSwitch || !rescheduleSwitch || !block) {
+    if (!cancelSwitch || !rescheduleSwitch) {
         return;
     }
 
@@ -2215,13 +2225,6 @@ function updateVacationConflictOptionStates() {
     rescheduleSwitch.disabled = inactive;
     cancelSwitch.setAttribute("aria-disabled", inactive ? "true" : "false");
     rescheduleSwitch.setAttribute("aria-disabled", inactive ? "true" : "false");
-
-    block.querySelectorAll(".vacation-conflict-option").forEach(row => {
-        const rowMode = row.dataset.conflictMode;
-        const active = rowMode === "cancel" ? cancelSwitch.checked : rescheduleSwitch.checked;
-        row.classList.toggle("is-active", active);
-        row.setAttribute("aria-selected", active ? "true" : "false");
-    });
 }
 
 function bindVacationConflictSwitches() {
@@ -2234,7 +2237,7 @@ function bindVacationConflictSwitches() {
     cancelSwitch.addEventListener("change", () => {
         if (cancelSwitch.checked) {
             setVacationConflictMode("cancel");
-            pulseField(cancelSwitch.closest(".vacation-conflict-option"));
+            pulseField(cancelSwitch.closest(".vacation-conflict-field"));
             return;
         }
 
@@ -2246,7 +2249,7 @@ function bindVacationConflictSwitches() {
     rescheduleSwitch.addEventListener("change", () => {
         if (rescheduleSwitch.checked) {
             setVacationConflictMode("reschedule");
-            pulseField(rescheduleSwitch.closest(".vacation-conflict-option"));
+            pulseField(rescheduleSwitch.closest(".vacation-conflict-field"));
             return;
         }
 
@@ -2255,7 +2258,7 @@ function bindVacationConflictSwitches() {
         }
     });
 
-    document.querySelectorAll(".vacation-conflict-option").forEach(row => {
+    document.querySelectorAll(".vacation-conflict-field").forEach(row => {
         row.addEventListener("click", (e) => {
             e.stopPropagation();
             if (e.target.closest(".switch")) {

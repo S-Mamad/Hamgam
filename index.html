@@ -117,36 +117,28 @@
 
                     <p id="vacationSubOptionsHint" class="vacation-sub-options-hint" hidden>ابتدا حداقل یک مرکز درمانی انتخاب کنید</p>
 
-                    <div id="importFutureBackfillWrap" class="import-future-card-wrap">
-                        <div id="importFutureBackfillCard" class="import-future-card">
-                            <div class="import-future-card__copy">
-                                <p class="import-future-card__title">درون‌ریزی ۳۰ روز آینده</p>
-                                <p class="import-future-card__hint">انتقال یک‌باره رویدادهای تقویم فعلی Google Calendar به پذیرش۲۴.</p>
+                    <div id="importFutureBackfillWrap" class="import-future-backfill-wrap">
+                        <div id="importFutureBackfillCard" class="field row import-future-backfill">
+                            <div class="field-label-group">
+                                <div class="field-title1">اعمال رویدادهای ۳۰ روز آینده شما به عنوان مرخصی</div>
                             </div>
-                            <button type="button" id="importFutureBackfillBtn" class="import-future-card__btn" aria-busy="false">
-                                <span class="import-future-card__btn-text">شروع فرآیند</span>
-                                <span class="import-future-card__btn-spinner" aria-hidden="true"></span>
+                            <button type="button" id="importFutureBackfillBtn" class="import-future-backfill__btn" aria-busy="false">
+                                <span class="import-future-backfill__btn-text">شروع</span>
+                                <span class="import-future-backfill__btn-spinner" aria-hidden="true"></span>
                             </button>
                         </div>
-                        <p id="importFutureBackfillQueued" class="import-future-card__queued" hidden aria-live="polite">
-                            درخواست شما با موفقیت در دست انجام قرار گرفت
-                        </p>
                     </div>
 
                     <div class="vacation-sub-divider" aria-hidden="true"></div>
 
                     <div id="vacationConflictBlock" class="vacation-conflict-block" role="group" aria-labelledby="vacationConflictTitle">
-                        <div class="vacation-conflict-block__header">
-                            <p id="vacationConflictTitle" class="vacation-conflict-block__title">در صورت وجود تداخل مرخصی با نوبت</p>
-                            <p class="vacation-conflict-block__hint">فقط برای مراکز درمانی انتخاب‌شده اعمال می‌شود</p>
-                        </div>
+                        <p id="vacationConflictTitle" class="vacation-conflict-block__title">در صورت وجود تداخل مرخصی با نوبت</p>
 
                         <input type="checkbox" id="cancelConflictingAppointments" data-field="cancelConflictingAppointments" hidden tabindex="-1" aria-hidden="true">
 
-                        <div class="vacation-conflict-option field row" data-conflict-mode="cancel">
+                        <div class="field row vacation-conflict-field" data-conflict-mode="cancel">
                             <div class="field-label-group">
-                                <div class="field-title">لغو نوبت</div>
-                                <p class="vacation-conflict-option__hint">نوبت‌های هم‌پوشان در مراکز انتخاب‌شده لغو می‌شوند</p>
+                                <div class="field-title1">لغو نوبت</div>
                             </div>
                             <label class="switch" for="vacationConflictCancelSwitch">
                                 <input type="checkbox" id="vacationConflictCancelSwitch" aria-label="لغو نوبت">
@@ -154,13 +146,9 @@
                             </label>
                         </div>
 
-                        <div class="vacation-conflict-option field row is-active" data-conflict-mode="reschedule">
+                        <div class="field row vacation-conflict-field" data-conflict-mode="reschedule">
                             <div class="field-label-group">
-                                <div class="field-title">
-                                    <span>انتقال به اولین زمان خالی</span>
-                                    <span class="vacation-conflict-option__badge">به‌زودی</span>
-                                </div>
-                                <p class="vacation-conflict-option__hint">نوبت به نزدیک‌ترین زمان آزاد در همان مرکز منتقل می‌شود</p>
+                                <div class="field-title1">انتقال به اولین زمان خالی</div>
                             </div>
                             <label class="switch" for="vacationConflictRescheduleSwitch">
                                 <input type="checkbox" id="vacationConflictRescheduleSwitch" checked aria-label="انتقال به اولین زمان خالی">
@@ -200,12 +188,11 @@
 
         </section>
 
-        <section class="settings-section settings-section--appointment-cancel" aria-label="لغو نوبت با حذف رویداد">
+        <section class="settings-section settings-section--appointment-cancel" aria-label="لغو نوبت در صورت حذف رویداد">
             <main class="settings-card settings-card--appointment-cancel">
-                <div class="field row appointment-cancel-field" data-toggle-field="cancelAppointmentOnEventDelete">
+                <div class="field row" data-toggle-field="cancelAppointmentOnEventDelete">
                     <div class="field-label-group">
-                        <div class="field-title">لغو نوبت با حذف رویداد از تقویم</div>
-                        <p class="appointment-cancel-field__hint">با حذف رویداد مربوط به نوبت از تقویم موبایلتان، آن نوبت در پذیرش۲۴ نیز لغو قطعی خواهد شد.</p>
+                        <div class="field-title1">لغو نوبت در صورت حذف رویداد آن در تقویم</div>
                     </div>
                     <label class="switch" for="cancelAppointmentOnEventDelete">
                         <input type="checkbox" data-field="cancelAppointmentOnEventDelete" id="cancelAppointmentOnEventDelete" checked>
