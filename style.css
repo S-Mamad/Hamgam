@@ -1397,11 +1397,14 @@ body {
 }
 
 .vacation-centers-section {
-    margin-bottom: 12px;
-    padding: 12px 14px;
-    border-radius: 12px;
-    background: #fff;
-    border: 1px solid var(--slate-200);
+    margin-bottom: 10px;
+    padding: 13px 13px 11px;
+    border-radius: 14px;
+    background: #ffffff;
+    border: 1px solid #dbeafe;
+    box-shadow:
+        0 1px 2px rgba(59, 130, 246, 0.04),
+        0 4px 18px rgba(15, 23, 42, 0.04);
 }
 
 .vacation-centers-header {
@@ -1411,7 +1414,7 @@ body {
 .vacation-centers-heading {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     margin-bottom: 4px;
 }
 
@@ -1420,8 +1423,8 @@ body {
     flex: 1;
     min-width: 0;
     font-size: 12px;
-    font-weight: 800;
-    color: var(--slate-800);
+    font-weight: 700;
+    color: var(--slate-900);
     line-height: 1.5;
 }
 
@@ -1430,74 +1433,34 @@ body {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    width: 26px;
-    height: 26px;
+    width: 28px;
+    height: 28px;
     padding: 0;
-    border: 1px solid #bfdbfe;
-    border-radius: 999px;
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    color: var(--blue-600);
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: var(--slate-500);
     cursor: pointer;
-    transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-}
-
-.vacation-sub-panel.open .vacation-centers-refresh-btn {
-    width: 30px;
-    height: 30px;
-    border: 1px solid rgba(147, 197, 253, 0.85);
-    background: linear-gradient(145deg, #ffffff 0%, #eff6ff 48%, #dbeafe 100%);
-    color: var(--blue-700);
-    box-shadow:
-        0 1px 2px rgba(37, 99, 235, 0.06),
-        inset 0 1px 0 rgba(255, 255, 255, 0.92);
     transition:
-        transform 0.22s var(--ease-spring),
-        background 0.2s ease,
-        box-shadow 0.22s ease,
-        border-color 0.2s ease,
-        color 0.2s ease;
+        background 0.18s ease,
+        border-color 0.18s ease,
+        color 0.18s ease,
+        transform 0.15s ease;
 }
 
 .vacation-centers-refresh-btn svg {
-    width: 12px;
-    height: 12px;
-}
-
-.vacation-sub-panel.open .vacation-centers-refresh-btn svg {
     width: 13px;
     height: 13px;
-    transition: transform 0.35s var(--ease-out);
 }
 
-.vacation-centers-refresh-btn:hover {
-    background: #dbeafe;
-    transform: scale(1.05);
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.14);
+.vacation-centers-refresh-btn:hover:not(:disabled) {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: var(--blue-600);
 }
 
-.vacation-sub-panel.open .vacation-centers-refresh-btn:hover:not(:disabled) {
-    background: linear-gradient(145deg, #ffffff 0%, #dbeafe 100%);
-    border-color: #93c5fd;
-    color: var(--blue-800);
-    transform: translateY(-1px) scale(1.04);
-    box-shadow:
-        0 4px 14px rgba(37, 99, 235, 0.16),
-        inset 0 1px 0 rgba(255, 255, 255, 0.95);
-}
-
-.vacation-sub-panel.open .vacation-centers-refresh-btn:hover:not(:disabled) svg {
-    transform: rotate(-28deg);
-}
-
-.vacation-centers-refresh-btn:active {
+.vacation-centers-refresh-btn:active:not(:disabled) {
     transform: scale(0.96);
-}
-
-.vacation-sub-panel.open .vacation-centers-refresh-btn:active:not(:disabled) {
-    transform: translateY(0) scale(0.97);
-    box-shadow:
-        0 1px 4px rgba(37, 99, 235, 0.1),
-        inset 0 1px 2px rgba(37, 99, 235, 0.08);
 }
 
 .vacation-centers-refresh-btn:focus-visible {
@@ -1505,35 +1468,27 @@ body {
     outline-offset: 2px;
 }
 
-.vacation-sub-panel.open .vacation-centers-refresh-btn:focus-visible {
-    outline: 2px solid var(--blue-500);
-    outline-offset: 3px;
-}
-
 .vacation-centers-refresh-btn.is-loading svg {
     animation: vacation-centers-spin 0.7s linear infinite;
 }
 
 .vacation-centers-refresh-btn:disabled {
-    opacity: 0.65;
+    opacity: 0.55;
     cursor: wait;
-    transform: none;
-    box-shadow: none;
 }
 
 .vacation-centers-hint {
     margin: 0;
     font-size: 10px;
-    line-height: 1.65;
+    line-height: 1.6;
     color: var(--slate-500);
-    text-align: justify;
-    text-align-last: right;
+    text-align: right;
 }
 
 .vacation-centers-body {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
 }
 
 .vacation-centers-status[hidden],
@@ -1551,6 +1506,10 @@ body {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    padding: 6px;
+    border-radius: 12px;
+    background: #f1f5f9;
+    border: 1px solid #e8edf3;
 }
 
 .vacation-centers-detail {
@@ -1561,11 +1520,9 @@ body {
     opacity: 1;
     overflow: hidden;
     transition:
-        max-height 0.38s var(--ease-out),
-        opacity 0.28s ease,
-        margin 0.32s ease,
-        transform 0.32s var(--ease-out);
-    transform-origin: top center;
+        max-height 0.32s var(--ease-out),
+        opacity 0.22s ease,
+        margin 0.28s ease;
 }
 
 .vacation-centers-detail.is-collapsed {
@@ -1573,7 +1530,6 @@ body {
     opacity: 0;
     margin-top: -4px;
     pointer-events: none;
-    transform: scaleY(0.96);
 }
 
 .vacation-centers-collapsed-summary {
@@ -1585,9 +1541,9 @@ body {
     font-size: 10px;
     font-weight: 700;
     color: var(--blue-700);
-    background: linear-gradient(135deg, rgba(239, 246, 255, 0.95) 0%, rgba(219, 234, 254, 0.55) 100%);
+    background: #eff6ff;
     border: 1px solid #bfdbfe;
-    animation: vacation-centers-summary-in 0.32s var(--ease-out);
+    animation: vacation-centers-summary-in 0.28s var(--ease-out);
 }
 
 .vacation-centers-collapsed-icon {
@@ -1610,7 +1566,7 @@ body {
 @keyframes vacation-centers-summary-in {
     from {
         opacity: 0;
-        transform: translateY(-4px);
+        transform: translateY(-3px);
     }
     to {
         opacity: 1;
@@ -1629,7 +1585,7 @@ body {
     color: #b91c1c;
     background: #fef2f2;
     border: 1px solid #fecaca;
-    animation: vacation-centers-summary-in 0.28s var(--ease-out);
+    animation: vacation-centers-summary-in 0.24s var(--ease-out);
 }
 
 .vacation-centers-validation[hidden] {
@@ -1644,7 +1600,7 @@ body {
 
 .vacation-centers-section.has-validation-error {
     border-color: #fca5a5;
-    box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.12);
+    box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.1);
 }
 
 .vacation-centers-section.field-pulse {
@@ -1653,7 +1609,171 @@ body {
 
 @keyframes vacation-centers-pulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0); }
-    40% { box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.18); }
+    40% { box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.16); }
+}
+
+.vacation-center-item {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 11px 12px;
+    border-radius: 10px;
+    border: 1.5px solid transparent;
+    background: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    transition:
+        border-color 0.18s ease,
+        background 0.18s ease,
+        box-shadow 0.18s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.vacation-center-item:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+}
+
+.vacation-center-item.is-selected {
+    border-color: #3b82f6;
+    background: #ffffff;
+    box-shadow:
+        0 0 0 1px rgba(59, 130, 246, 0.14),
+        0 3px 10px rgba(37, 99, 235, 0.1);
+}
+
+.vacation-center-item--all {
+    border-color: #bfdbfe;
+    background: linear-gradient(160deg, #f8fbff 0%, #ffffff 100%);
+    margin-bottom: 2px;
+}
+
+.vacation-center-item--all:hover {
+    border-color: #93c5fd;
+}
+
+.vacation-center-item--all.is-selected {
+    border-color: #2563eb;
+    background: linear-gradient(160deg, #eff6ff 0%, #ffffff 100%);
+    box-shadow:
+        0 0 0 1px rgba(37, 99, 235, 0.16),
+        0 4px 12px rgba(37, 99, 235, 0.12);
+}
+
+.vacation-center-item-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.vacation-center-item-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--slate-800);
+    line-height: 1.5;
+}
+
+.vacation-center-item.is-selected .vacation-center-item-title {
+    font-weight: 700;
+    color: var(--blue-800);
+}
+
+.vacation-center-item-hint {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--slate-500);
+    line-height: 1.45;
+}
+
+.vacation-center-item.is-selected .vacation-center-item-hint {
+    color: var(--blue-600);
+}
+
+.vacation-center-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-inline-start: 6px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 700;
+    color: #ffffff;
+    background: var(--blue-600);
+    vertical-align: middle;
+}
+
+.vacation-center-item .vacation-check {
+    width: 20px;
+    height: 20px;
+    margin-top: 0;
+    border-radius: 50%;
+    border: 2px solid #cbd5e1;
+    background: #ffffff;
+    box-shadow: none;
+    transform: none;
+    transition:
+        border-color 0.18s ease,
+        background 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+.vacation-center-item:hover .vacation-check {
+    border-color: #94a3b8;
+    box-shadow: none;
+    transform: none;
+}
+
+.vacation-center-item .vacation-center-input:checked + .vacation-check {
+    border-color: #2563eb;
+    background: #2563eb;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.28);
+    transform: none;
+}
+
+.vacation-center-item .vacation-check svg {
+    width: 11px;
+    height: 11px;
+}
+
+.vacation-centers-status {
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.vacation-centers-status--loading {
+    color: var(--slate-600);
+    background: #ffffff;
+    border: 1px solid #e8edf3;
+}
+
+.vacation-centers-status--error {
+    color: #b91c1c;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+}
+
+.vacation-centers-status--empty {
+    color: var(--slate-500);
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
+}
+
+.vacation-centers-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid #dbeafe;
+    border-top-color: var(--blue-600);
+    border-radius: 50%;
+    animation: vacation-centers-spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes vacation-centers-spin {
+    to { transform: rotate(360deg); }
 }
 
 .vacation-sub-options-block {
@@ -1689,165 +1809,6 @@ body {
 
 .vacation-sub-option--inactive {
     cursor: not-allowed;
-}
-
-.vacation-center-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    border: 1px solid var(--slate-200);
-    background: var(--slate-50);
-    cursor: pointer;
-    transition:
-        border-color 0.2s ease,
-        background 0.2s ease;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.vacation-sub-panel.open .vacation-center-item {
-    position: relative;
-    padding: 11px 13px 11px 14px;
-    border-radius: 11px;
-    background: linear-gradient(160deg, #ffffff 0%, #f8fafc 100%);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-    transition:
-        border-color 0.22s ease,
-        background 0.22s ease,
-        box-shadow 0.22s ease,
-        transform 0.2s var(--ease-out);
-}
-
-.vacation-sub-panel.open .vacation-center-item::before {
-    content: "";
-    position: absolute;
-    top: 10px;
-    bottom: 10px;
-    right: 0;
-    width: 3px;
-    border-radius: 999px 0 0 999px;
-    background: transparent;
-    transition: background 0.22s ease, box-shadow 0.22s ease;
-}
-
-.vacation-center-item:hover {
-    border-color: #bfdbfe;
-    background: #fff;
-}
-
-.vacation-sub-panel.open .vacation-center-item:hover {
-    border-color: #93c5fd;
-    background: linear-gradient(160deg, #ffffff 0%, #f0f7ff 100%);
-    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.08);
-    transform: translateY(-1px);
-}
-
-.vacation-center-item.is-selected {
-    border-color: #93c5fd;
-    background: linear-gradient(135deg, #eff6ff 0%, #fff 100%);
-}
-
-.vacation-sub-panel.open .vacation-center-item.is-selected {
-    border-color: #60a5fa;
-    background: linear-gradient(145deg, #eff6ff 0%, #ffffff 62%, #f8fbff 100%);
-    box-shadow:
-        0 0 0 1px rgba(59, 130, 246, 0.1),
-        0 6px 18px rgba(37, 99, 235, 0.1);
-}
-
-.vacation-sub-panel.open .vacation-center-item.is-selected::before {
-    background: linear-gradient(180deg, var(--blue-500) 0%, var(--blue-700) 100%);
-    box-shadow: 0 0 8px rgba(37, 99, 235, 0.35);
-}
-
-.vacation-center-item--all {
-    border-style: dashed;
-    border-color: #93c5fd;
-}
-
-.vacation-sub-panel.open .vacation-center-item--all {
-    border-style: dashed;
-    border-color: #93c5fd;
-    background: linear-gradient(160deg, #f8fbff 0%, #ffffff 100%);
-}
-
-.vacation-sub-panel.open .vacation-center-item--all.is-selected {
-    border-color: #60a5fa;
-    background: linear-gradient(145deg, #eff6ff 0%, #ffffff 70%, #f0f7ff 100%);
-}
-
-.vacation-center-item-body {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    flex: 1;
-}
-
-.vacation-center-item-title {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--slate-800);
-    line-height: 1.55;
-}
-
-.vacation-center-item-hint {
-    font-size: 10px;
-    color: var(--slate-500);
-    line-height: 1.5;
-}
-
-.vacation-center-badge {
-    display: inline-flex;
-    align-items: center;
-    margin-inline-start: 6px;
-    padding: 1px 7px;
-    border-radius: 999px;
-    font-size: 9px;
-    font-weight: 700;
-    color: var(--blue-700);
-    background: rgba(59, 130, 246, 0.12);
-    vertical-align: middle;
-}
-
-.vacation-centers-status {
-    padding: 10px 12px;
-    border-radius: 10px;
-    font-size: 11px;
-    line-height: 1.6;
-}
-
-.vacation-centers-status--loading {
-    color: var(--slate-500);
-    background: var(--slate-50);
-    border: 1px dashed var(--slate-200);
-}
-
-.vacation-centers-status--error {
-    color: #b91c1c;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-}
-
-.vacation-centers-status--empty {
-    color: var(--slate-500);
-    background: var(--slate-50);
-    border: 1px dashed var(--slate-200);
-}
-
-.vacation-centers-spinner {
-    width: 14px;
-    height: 14px;
-    border: 2px solid #dbeafe;
-    border-top-color: var(--blue-600);
-    border-radius: 50%;
-    animation: vacation-centers-spin 0.7s linear infinite;
-    flex-shrink: 0;
-}
-
-@keyframes vacation-centers-spin {
-    to { transform: rotate(360deg); }
 }
 
 .vacation-sub-divider--centers {
@@ -2079,28 +2040,24 @@ body {
     transition: stroke-dashoffset 0.22s ease 0.04s;
 }
 
-.vacation-sub-option:hover:not(.vacation-sub-option--disabled) .vacation-check,
-.vacation-center-item:hover .vacation-check {
+.vacation-sub-option:hover:not(.vacation-sub-option--disabled) .vacation-check {
     border-color: #93c5fd;
 }
 
-.vacation-sub-panel.open .vacation-sub-option:hover:not(.vacation-sub-option--disabled):not(.vacation-sub-option--inactive) .vacation-check,
-.vacation-sub-panel.open .vacation-center-item:hover .vacation-check {
+.vacation-sub-panel.open .vacation-sub-option:hover:not(.vacation-sub-option--disabled):not(.vacation-sub-option--inactive) .vacation-check {
     border-color: #60a5fa;
     box-shadow:
         0 0 0 3px rgba(59, 130, 246, 0.1),
         inset 0 1px 1px rgba(15, 23, 42, 0.04);
 }
 
-.vacation-sub-checkbox:checked + .vacation-check,
-.vacation-center-input:checked + .vacation-check {
+.vacation-sub-checkbox:checked + .vacation-check {
     background: linear-gradient(135deg, #2563EB, #1D4ED8);
     border-color: transparent;
     box-shadow: 0 2px 6px rgba(37, 99, 235, 0.22);
 }
 
-.vacation-sub-panel.open .vacation-sub-checkbox:checked + .vacation-check,
-.vacation-sub-panel.open .vacation-center-input:checked + .vacation-check {
+.vacation-sub-panel.open .vacation-sub-checkbox:checked + .vacation-check {
     background: linear-gradient(145deg, #3b82f6 0%, #2563eb 52%, #1d4ed8 100%);
     box-shadow:
         0 2px 8px rgba(37, 99, 235, 0.28),
@@ -2109,7 +2066,7 @@ body {
 }
 
 .vacation-sub-checkbox:checked + .vacation-check svg,
-.vacation-center-input:checked + .vacation-check svg {
+.vacation-center-item .vacation-center-input:checked + .vacation-check svg {
     stroke-dashoffset: 0;
 }
 
@@ -2559,7 +2516,7 @@ body {
 
 .vacation-event-delete__label {
     display: block;
-    font-size: 10.5px;
+    font-size: 12px;
     font-weight: 600;
     line-height: 1.55;
     color: var(--slate-600);
