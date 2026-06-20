@@ -40,6 +40,9 @@ const appState = {
     importFutureVacationsUsed: false,
     importFutureBackfillUndoAvailable: false,
     importFutureBackfillSlotCount: 0,
+    importFutureBackfillStarting: false,
+    importFutureBackfillPending: false,
+    importFutureBackfillPollId: 0,
     deletingSyncedBackfill: false,
     drdrConnected: false,
     drdrOAuthReady: false,
@@ -54,13 +57,6 @@ const appState = {
     drdrExpiresAt: null,
     drdrHasRefreshToken: false
 };
-
-const IMPORT_FUTURE_VACATIONS_HINT_DEFAULT =
-    "رویدادهای شخصی ۳۰ روز آینده تقویم Google Calendar بررسی و به‌عنوان مرخصی ثبت می‌شوند";
-const IMPORT_FUTURE_VACATIONS_HINT_USED_WITH_VACATIONS =
-    "همگام‌سازی ۳۰ روزه انجام شده است. برای حذف مرخصی‌های ثبت‌شده از بخش زیر استفاده کنید.";
-const IMPORT_FUTURE_VACATIONS_HINT_USED_EMPTY =
-    "همگام‌سازی ۳۰ روزه انجام شده است. برای استفاده مجدد، ابتدا از بخش «حذف مرخصی‌های همگام‌شده» استفاده کنید.";
 
 document.addEventListener("DOMContentLoaded", initApp);
 
@@ -151,6 +147,7 @@ function applyBackfillStatusToUi(backfill) {
         return;
     }
 
+    setImportFutureBackfillPending(false);
     setImportFutureVacationsUsed(true);
 
     const slotCount = Number(backfill.slot_count ?? backfill.imported ?? 0);
@@ -160,6 +157,191 @@ function applyBackfillStatusToUi(backfill) {
     } else {
         setImportFutureBackfillUndoAvailable(false);
         setImportFutureBackfillSlotCount(0);
+    }
+}
+
+function showImportFutureBackfillCompletionFeedback(status) {
+    if (!status || status.pending) {
+        return;
+    }
+
+    if (status.warnings?.length) {
+        showWarningsIfAny({ warnings: status.warnings });
+        return;
+    }
+
+    if (status.ok === false) {
+        showToast("درون‌ریزی مرخصی با مشکل مواجه شد.", "error");
+        return;
+    }
+
+    const backfill = status.backfill;
+    if (!backfill?.ran) {
+        return;
+    }
+
+    applyBackfillStatusToUi(backfill);
+
+    if (backfill.imported > 0) {
+        showToast(`${backfill.imported} رویداد آینده به‌عنوان مرخصی ثبت شد.`);
+        return;
+    }
+
+    if (backfill.failed > 0) {
+        showToast("برخی رویدادهای تقویم ثبت نشدند.", "error");
+        return;
+    }
+
+    showToast("رویداد شخصی جدیدی در ۳۰ روز آینده یافت نشد.");
+}
+
+function setImportFutureBackfillStarting(starting) {
+    appState.importFutureBackfillStarting = !!starting;
+    applyImportFutureBackfillCardUiState();
+}
+
+function setImportFutureBackfillPending(pending) {
+    appState.importFutureBackfillPending = !!pending;
+    applyImportFutureBackfillCardUiState();
+    applyImportFutureBackfillUndoUiState();
+}
+
+function applyImportFutureBackfillCardUiState() {
+    const wrap = document.getElementById("importFutureBackfillWrap");
+    const btn = document.getElementById("importFutureBackfillBtn");
+    const queued = document.getElementById("importFutureBackfillQueued");
+    if (!wrap || !btn) {
+        return;
+    }
+
+    const used = appState.importFutureVacationsUsed;
+    const pending = appState.importFutureBackfillPending;
+    const starting = appState.importFutureBackfillStarting;
+    const panelOpen = isVacationPanelOpen();
+    const hasSelection = hasVacationCenterSelection();
+    const inactive = panelOpen && !hasSelection;
+    const hideCard = used && !pending;
+
+    wrap.hidden = !panelOpen || hideCard;
+
+    btn.disabled = starting || pending || used || inactive || !appState.connected;
+    btn.classList.toggle("is-loading", starting);
+    btn.setAttribute("aria-busy", starting ? "true" : "false");
+
+    if (queued) {
+        queued.hidden = !pending;
+    }
+}
+
+async function startImportFutureBackfillPoll() {
+    const pollId = ++appState.importFutureBackfillPollId;
+
+    const status = await pollSyncStatus({
+        maxAttempts: 90,
+        intervalMs: 2000
+    });
+
+    if (pollId !== appState.importFutureBackfillPollId) {
+        return status;
+    }
+
+    setImportFutureBackfillPending(false);
+
+    if (status && !status.pending) {
+        showImportFutureBackfillCompletionFeedback(status);
+        try {
+            await openSettings();
+        } catch (refreshError) {
+            console.error("[Hamgam] settings refresh after import backfill failed:", refreshError);
+        }
+        return status;
+    }
+
+    showToast(
+        "درون‌ریزی در پس‌زمینه ادامه دارد. چند دقیقه بعد نتیجه را در همین صفحه بررسی کنید.",
+        "warning"
+    );
+    return status;
+}
+
+async function handleImportFutureBackfillClick() {
+    if (
+        appState.importFutureBackfillStarting
+        || appState.importFutureBackfillPending
+        || appState.importFutureVacationsUsed
+    ) {
+        return;
+    }
+
+    if (!appState.connected) {
+        showToast("برای درون‌ریزی ابتدا حساب Google را متصل کنید.", "error");
+        return;
+    }
+
+    if (!isVacationPanelOpen()) {
+        showToast("ابتدا ثبت خودکار مرخصی را فعال کنید.", "error");
+        return;
+    }
+
+    if (!validateVacationCentersBeforeSave(true)) {
+        return;
+    }
+
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+        showToast("ابتدا وارد حساب پذیرش۲۴ شوید.", "error");
+        return;
+    }
+
+    setImportFutureBackfillStarting(true);
+
+    try {
+        const payload = {
+            ...collectSettingsPayload(),
+            importFutureVacations: true
+        };
+
+        const response = await apiFetch(
+            `${HAMGAM_API_PREFIX}/updatesetting.php`,
+            token,
+            {
+                body: apiBodyWithToken(token, { ...payload, returnJson: true }),
+                withJson: true
+            }
+        );
+        const data = await parseJsonResponse(response);
+
+        if (!response.ok || data.ok !== true) {
+            throw new Error(mapSaveErrorMessage(data, response));
+        }
+
+        showWarningsIfAny(data);
+
+        if (data.settings) {
+            applySettingsToForm(data.settings);
+        }
+
+        if (data.backfill?.pending || data.sync_pending) {
+            setImportFutureBackfillPending(true);
+            void startImportFutureBackfillPoll();
+            return;
+        }
+
+        if (data.backfill?.ran) {
+            showImportFutureBackfillCompletionFeedback({
+                pending: false,
+                ok: true,
+                backfill: data.backfill
+            });
+            return;
+        }
+
+        showToast("درخواست شما با موفقیت در دست انجام قرار گرفت");
+    } catch (error) {
+        console.error("[Hamgam] import future backfill failed:", error);
+        showToast(error.message || "شروع درون‌ریزی ناموفق بود. دوباره تلاش کنید.", "error");
+    } finally {
+        setImportFutureBackfillStarting(false);
     }
 }
 
@@ -271,6 +453,12 @@ async function waitForBackgroundSync(options = {}) {
 async function checkRecentSyncStatus() {
     const status = await fetchSyncStatusOnce();
     if (!status) {
+        return;
+    }
+
+    if (status.pending && status.operation === "backfill") {
+        setImportFutureBackfillPending(true);
+        void startImportFutureBackfillPoll();
         return;
     }
 
@@ -1541,7 +1729,7 @@ function bindUiEvents() {
         });
     });
 
-    document.querySelectorAll(".field.row").forEach(row => {
+    document.querySelectorAll(".field.row:not(.vacation-conflict-option)").forEach(row => {
         row.addEventListener("click", (e) => {
             e.stopPropagation();
             if (e.target.closest(".switch")) return;
@@ -1569,6 +1757,17 @@ function bindUiEvents() {
             void handleDeleteSyncedBackfillClick();
         });
     }
+
+    const importFutureBackfillBtn = document.getElementById("importFutureBackfillBtn");
+    if (importFutureBackfillBtn) {
+        importFutureBackfillBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void handleImportFutureBackfillClick();
+        });
+    }
+
+    bindVacationConflictSwitches();
 
     document.getElementById("saveSettings").addEventListener("click", handleSaveClick);
 
@@ -1976,10 +2175,6 @@ function updateVacationSubOptionsState() {
 
     block?.querySelectorAll(".vacation-sub-option:not(.vacation-sub-option--disabled)").forEach(option => {
         const checkbox = option.querySelector(".vacation-sub-checkbox");
-        if (checkbox?.dataset.field === "importFutureVacations" && appState.importFutureVacationsUsed) {
-            return;
-        }
-
         option.classList.toggle("vacation-sub-option--inactive", inactive);
         if (checkbox) {
             checkbox.disabled = inactive;
@@ -1987,12 +2182,100 @@ function updateVacationSubOptionsState() {
         }
     });
 
-    applyImportFutureVacationsUiState();
+    applyImportFutureBackfillCardUiState();
+    updateVacationConflictOptionStates();
+}
+
+function setVacationConflictMode(mode) {
+    const cancelSwitch = document.getElementById("vacationConflictCancelSwitch");
+    const rescheduleSwitch = document.getElementById("vacationConflictRescheduleSwitch");
+    const hidden = document.getElementById("cancelConflictingAppointments");
+    if (!cancelSwitch || !rescheduleSwitch || !hidden) {
+        return;
+    }
+
+    const isCancel = mode === "cancel";
+    cancelSwitch.checked = isCancel;
+    rescheduleSwitch.checked = !isCancel;
+    hidden.checked = isCancel;
+    updateVacationConflictOptionStates();
+}
+
+function updateVacationConflictOptionStates() {
+    const cancelSwitch = document.getElementById("vacationConflictCancelSwitch");
+    const rescheduleSwitch = document.getElementById("vacationConflictRescheduleSwitch");
+    const block = document.getElementById("vacationConflictBlock");
+    const subOptionsBlock = document.getElementById("vacationSubOptionsBlock");
+    if (!cancelSwitch || !rescheduleSwitch || !block) {
+        return;
+    }
+
+    const inactive = subOptionsBlock?.classList.contains("vacation-sub-options-block--inactive") ?? false;
+    cancelSwitch.disabled = inactive;
+    rescheduleSwitch.disabled = inactive;
+    cancelSwitch.setAttribute("aria-disabled", inactive ? "true" : "false");
+    rescheduleSwitch.setAttribute("aria-disabled", inactive ? "true" : "false");
+
+    block.querySelectorAll(".vacation-conflict-option").forEach(row => {
+        const rowMode = row.dataset.conflictMode;
+        const active = rowMode === "cancel" ? cancelSwitch.checked : rescheduleSwitch.checked;
+        row.classList.toggle("is-active", active);
+        row.setAttribute("aria-selected", active ? "true" : "false");
+    });
+}
+
+function bindVacationConflictSwitches() {
+    const cancelSwitch = document.getElementById("vacationConflictCancelSwitch");
+    const rescheduleSwitch = document.getElementById("vacationConflictRescheduleSwitch");
+    if (!cancelSwitch || !rescheduleSwitch) {
+        return;
+    }
+
+    cancelSwitch.addEventListener("change", () => {
+        if (cancelSwitch.checked) {
+            setVacationConflictMode("cancel");
+            pulseField(cancelSwitch.closest(".vacation-conflict-option"));
+            return;
+        }
+
+        if (!rescheduleSwitch.checked) {
+            setVacationConflictMode("reschedule");
+        }
+    });
+
+    rescheduleSwitch.addEventListener("change", () => {
+        if (rescheduleSwitch.checked) {
+            setVacationConflictMode("reschedule");
+            pulseField(rescheduleSwitch.closest(".vacation-conflict-option"));
+            return;
+        }
+
+        if (!cancelSwitch.checked) {
+            setVacationConflictMode("cancel");
+        }
+    });
+
+    document.querySelectorAll(".vacation-conflict-option").forEach(row => {
+        row.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (e.target.closest(".switch")) {
+                return;
+            }
+
+            const mode = row.dataset.conflictMode;
+            if (!mode) {
+                return;
+            }
+
+            setVacationConflictMode(mode);
+            pulseField(row);
+        });
+    });
 }
 
 function setImportFutureVacationsUsed(used) {
     appState.importFutureVacationsUsed = !!used;
-    applyImportFutureVacationsUiState();
+    applyImportFutureBackfillCardUiState();
     applyImportFutureBackfillUndoUiState();
 }
 
@@ -2052,8 +2335,9 @@ function applyImportFutureBackfillUndoUiState() {
     const hasTrackedVacations = slotCount > 0;
     const used = appState.importFutureVacationsUsed;
     const busy = appState.deletingSyncedBackfill;
+    const pending = appState.importFutureBackfillPending;
 
-    wrap.hidden = !used;
+    wrap.hidden = !used || pending;
     wrap.classList.toggle("vacation-sync-undo--reset", used && !hasTrackedVacations);
 
     btn.disabled = busy;
@@ -2074,20 +2358,16 @@ function applyImportFutureBackfillUndoUiState() {
         btnText.textContent = hasTrackedVacations ? "حذف" : "فعال‌سازی مجدد";
     }
 
-    applyImportFutureVacationsUiState();
+    applyImportFutureBackfillCardUiState();
 }
 
 function resetImportFutureVacationsAfterSyncedDelete() {
+    appState.importFutureBackfillPollId += 1;
+    setImportFutureBackfillPending(false);
     setImportFutureBackfillUndoAvailable(false);
     setImportFutureBackfillSlotCount(0);
     setImportFutureVacationsUsed(false);
 
-    const importFutureEl = document.querySelector('[data-field="importFutureVacations"]');
-    if (importFutureEl) {
-        importFutureEl.checked = false;
-    }
-
-    applyImportFutureVacationsUiState();
     updateVacationSubOptionsState();
 }
 
@@ -2168,38 +2448,7 @@ async function runImportFutureBackfillCleanup(confirmOptions) {
 }
 
 function applyImportFutureVacationsUiState() {
-    const importFutureEl = document.querySelector('[data-field="importFutureVacations"]');
-    const option = importFutureEl?.closest(".vacation-sub-option");
-    const hint = option?.querySelector(".vacation-sub-option-hint");
-    const used = appState.importFutureVacationsUsed;
-    const hasTrackedVacations = appState.importFutureBackfillSlotCount > 0;
-
-    if (!importFutureEl || !option) {
-        return;
-    }
-
-    if (used) {
-        importFutureEl.checked = true;
-        importFutureEl.disabled = true;
-        importFutureEl.setAttribute("aria-disabled", "true");
-        option.classList.add("vacation-sub-option--disabled");
-        option.classList.remove("vacation-sub-option--inactive");
-        option.setAttribute("aria-disabled", "true");
-        if (hint) {
-            hint.textContent = hasTrackedVacations
-                ? IMPORT_FUTURE_VACATIONS_HINT_USED_WITH_VACATIONS
-                : IMPORT_FUTURE_VACATIONS_HINT_USED_EMPTY;
-        }
-        return;
-    }
-
-    importFutureEl.disabled = false;
-    importFutureEl.removeAttribute("aria-disabled");
-    option.classList.remove("vacation-sub-option--disabled");
-    option.removeAttribute("aria-disabled");
-    if (hint) {
-        hint.textContent = IMPORT_FUTURE_VACATIONS_HINT_DEFAULT;
-    }
+    applyImportFutureBackfillCardUiState();
 }
 
 function setVacationCenterSelection(selection) {
@@ -2515,7 +2764,7 @@ function collectSettingsPayload() {
         nationalId: fields.nationalId,
         phone: fields.phone,
         autoVacation: fields.autoVacation,
-        importFutureVacations: fields.autoVacation ? fields.importFutureVacations : false,
+        importFutureVacations: false,
         cancelAppointmentOnEventDelete: fields.autoVacation ? fields.cancelAppointmentOnEventDelete : false,
         cancelConflictingAppointments: fields.autoVacation ? fields.cancelConflictingAppointments : false,
         vacationSyncCenters: buildVacationSyncCentersPayload()
@@ -2766,7 +3015,6 @@ function showWarningsIfAny(data) {
 }
 
 function getFieldState() {
-    const importFutureEl = document.querySelector('[data-field="importFutureVacations"]');
     const cancelOnDeleteEl = document.querySelector('[data-field="cancelAppointmentOnEventDelete"]');
     const cancelConflictEl = document.querySelector('[data-field="cancelConflictingAppointments"]');
     return {
@@ -2776,9 +3024,8 @@ function getFieldState() {
         nationalId: document.querySelector('[data-field="nationalId"]').checked,
         phone: document.querySelector('[data-field="phone"]').checked,
         autoVacation: document.querySelector('[data-field="autoVacation"]').checked,
-        importFutureVacations: importFutureEl ? importFutureEl.checked : false,
         cancelAppointmentOnEventDelete: cancelOnDeleteEl ? cancelOnDeleteEl.checked : true,
-        cancelConflictingAppointments: cancelConflictEl ? cancelConflictEl.checked : true
+        cancelConflictingAppointments: cancelConflictEl ? cancelConflictEl.checked : false
     };
 }
 
@@ -2796,10 +3043,6 @@ function applySettingsToForm(settings) {
     document.querySelector('[data-field="phone"]').checked = !!settings.Patient_phone;
     document.querySelector('[data-field="autoVacation"]').checked = !!settings.auto_vacation;
 
-    const importFutureEl = document.querySelector('[data-field="importFutureVacations"]');
-    if (importFutureEl) {
-        importFutureEl.checked = !!settings.import_future_vacations;
-    }
     setImportFutureVacationsUsed(!!settings.import_future_vacations_used);
     const slotCount = Math.max(
         0,
@@ -2815,7 +3058,9 @@ function applySettingsToForm(settings) {
 
     const cancelConflictEl = document.querySelector('[data-field="cancelConflictingAppointments"]');
     if (cancelConflictEl) {
-        cancelConflictEl.checked = !!settings.cancel_conflicting_appointments;
+        setVacationConflictMode(settings.cancel_conflicting_appointments ? "cancel" : "reschedule");
+    } else {
+        setVacationConflictMode("reschedule");
     }
 
     if (settings.vacation_sync_centers) {
@@ -2832,6 +3077,8 @@ function applySettingsToForm(settings) {
     if (settings.google_account_email !== undefined) {
         updateGoogleAccountBanner(settings.google_account_email || null);
     }
+
+    applyImportFutureBackfillCardUiState();
 }
 
 function updateGoogleAccountBanner(email) {
@@ -3257,6 +3504,7 @@ function mapSaveErrorMessage(data, response) {
 }
 
 function showSaveToast(data, settings = null) {
+    void settings;
     if (data?.backfill?.pending || data?.sync_pending) {
         showToast("تنظیمات ذخیره شد.");
         return;
@@ -3273,12 +3521,6 @@ function showSaveToast(data, settings = null) {
         return;
     }
 
-    if (settings?.autoVacation && settings?.importFutureVacations && data?.backfill?.ran) {
-        setImportFutureVacationsUsed(true);
-        showToast("تنظیمات ذخیره شد. رویداد شخصی جدیدی در ۳۰ روز آینده یافت نشد.");
-        return;
-    }
-
     showToast("تنظیمات ذخیره شد.");
 }
 
@@ -3289,10 +3531,7 @@ async function update() {
         return;
     }
 
-    const loadingLabel = settings.autoVacation && settings.importFutureVacations
-        ? "در حال ذخیره تنظیمات…"
-        : null;
-    setSaveLoading(true, loadingLabel);
+    setSaveLoading(true);
 
     const loadingSafetyTimer = window.setTimeout(() => {
         if (appState.saving) {
@@ -3323,20 +3562,9 @@ async function update() {
             applySettingsToForm(data.settings);
         }
 
-        const waitingForBackfill = settings.importFutureVacations && data?.backfill?.pending === true;
-        if (waitingForBackfill) {
-            await waitForBackgroundSync({
-                backfillPending: true,
-                maxAttempts: 90,
-                intervalMs: 2000
-            });
-            window.clearTimeout(loadingSafetyTimer);
-        } else {
-            window.clearTimeout(loadingSafetyTimer);
-            setSaveLoading(false);
-            showSaveToast(data, settings);
-        }
-
+        window.clearTimeout(loadingSafetyTimer);
+        setSaveLoading(false);
+        showSaveToast(data, settings);
         redirectToLauncher();
     } catch (err) {
         console.error(err);

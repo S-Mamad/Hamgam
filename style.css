@@ -1089,6 +1089,247 @@ body {
     pointer-events: auto;
 }
 
+.import-future-card-wrap {
+    margin: 8px 0 12px;
+}
+
+.import-future-card-wrap[hidden] {
+    display: none !important;
+}
+
+.import-future-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.import-future-card__copy {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.import-future-card__title {
+    margin: 0;
+    font-size: 12.5px;
+    font-weight: 800;
+    line-height: 1.65;
+    color: #0f172a;
+}
+
+.import-future-card__hint {
+    margin: 0;
+    font-size: 10.5px;
+    line-height: 1.7;
+    color: #64748b;
+    text-align: justify;
+    text-align-last: right;
+}
+
+.import-future-card__btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 108px;
+    height: 36px;
+    padding: 0 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 11px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 10.5px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+}
+
+.import-future-card__btn:hover:not(:disabled):not(.is-loading):not([aria-busy="true"]) {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    transform: translateY(-1px);
+}
+
+.import-future-card__btn:active:not(:disabled):not(.is-loading):not([aria-busy="true"]) {
+    transform: translateY(0);
+}
+
+.import-future-card__btn:focus-visible {
+    outline: 2px solid #93c5fd;
+    outline-offset: 2px;
+}
+
+.import-future-card__btn:disabled:not(.is-loading):not([aria-busy="true"]) {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.import-future-card__btn.is-loading,
+.import-future-card__btn[aria-busy="true"] {
+    opacity: 0.85;
+    cursor: wait;
+}
+
+.import-future-card__btn-spinner {
+    display: none;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(15, 23, 42, 0.12);
+    border-top-color: #334155;
+    border-radius: 50%;
+    animation: btnSpin 0.7s linear infinite;
+}
+
+.import-future-card__btn.is-loading .import-future-card__btn-text,
+.import-future-card__btn[aria-busy="true"] .import-future-card__btn-text {
+    display: none;
+}
+
+.import-future-card__btn.is-loading .import-future-card__btn-spinner,
+.import-future-card__btn[aria-busy="true"] .import-future-card__btn-spinner {
+    display: inline-block;
+}
+
+.import-future-card__queued {
+    margin: 8px 2px 0;
+    padding: 0 2px;
+    font-size: 10.5px;
+    line-height: 1.7;
+    font-weight: 700;
+    color: #047857;
+}
+
+.import-future-card__queued[hidden] {
+    display: none !important;
+}
+
+.vacation-sub-options-block--inactive .import-future-card-wrap {
+    opacity: 0.52;
+    pointer-events: none;
+}
+
+.vacation-conflict-block {
+    margin: 8px 0 4px;
+    padding: 14px 12px 10px;
+    border-radius: 14px;
+    background: linear-gradient(165deg, rgba(255, 255, 255, 0.92) 0%, rgba(239, 246, 255, 0.72) 100%);
+    border: 1px solid #dbeafe;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.vacation-conflict-block__header {
+    margin-bottom: 8px;
+    padding: 0 4px 2px;
+}
+
+.vacation-conflict-block__title {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.65;
+    color: #1e3a8a;
+    letter-spacing: -0.01em;
+}
+
+.vacation-conflict-block__hint {
+    margin: 3px 0 0;
+    font-size: 10px;
+    line-height: 1.6;
+    color: #64748b;
+}
+
+.vacation-conflict-option {
+    margin: 0;
+    padding: 11px 10px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background: transparent;
+    align-items: flex-start;
+    gap: 14px;
+    transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.vacation-conflict-option + .vacation-conflict-option {
+    margin-top: 4px;
+}
+
+.vacation-conflict-option.is-active {
+    background: #ffffff;
+    border-color: #bfdbfe;
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.07);
+}
+
+.vacation-conflict-option .field-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    font-weight: 700;
+    font-variation-settings: "wght" 700;
+    line-height: 1.6;
+    color: #0f172a;
+}
+
+.vacation-conflict-option__hint {
+    margin: 4px 0 0;
+    font-size: 10px;
+    line-height: 1.65;
+    color: #64748b;
+    text-align: justify;
+    text-align-last: right;
+}
+
+.vacation-conflict-option__badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: #ede9fe;
+    color: #6d28d9;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1.5;
+}
+
+.vacation-conflict-option .switch {
+    margin-top: 1px;
+}
+
+.vacation-sub-options-block--inactive .vacation-conflict-block {
+    opacity: 0.52;
+    pointer-events: none;
+}
+
+@media (max-width: 520px) {
+    .import-future-card {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .import-future-card__btn {
+        width: 100%;
+    }
+
+    .vacation-conflict-block {
+        padding: 12px 10px 8px;
+    }
+
+    .vacation-conflict-option {
+        padding: 10px 8px;
+        gap: 10px;
+    }
+}
+
 .import-future-reenable {
     display: flex;
     align-items: center;
@@ -1178,6 +1419,61 @@ body {
 
 .settings-section--vacation .settings-card--vacation {
     margin-top: 0;
+}
+
+.settings-section--appointment-cancel {
+    margin-top: 16px;
+}
+
+.settings-card--appointment-cancel {
+    background: #ffffff;
+    border: 1px solid #e8ecf0;
+    border-radius: calc(var(--radius) + 2px);
+    padding: 4px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.settings-card--appointment-cancel .appointment-cancel-field {
+    margin: 0;
+    padding: 16px 18px;
+    border-radius: calc(var(--radius) - 2px);
+    border: 1px solid transparent;
+    background: transparent;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.settings-card--appointment-cancel .appointment-cancel-field:hover {
+    background: #fafbfc;
+    border-color: #eef2f6;
+}
+
+.settings-card--appointment-cancel .field-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    font-variation-settings: "wght" 700;
+    line-height: 1.65;
+    color: #0f172a;
+}
+
+.appointment-cancel-field__hint {
+    margin: 5px 0 0;
+    font-size: 11px;
+    line-height: 1.75;
+    color: #64748b;
+    text-align: justify;
+    text-align-last: right;
+}
+
+.settings-card--appointment-cancel .switch {
+    margin-top: 2px;
+}
+
+@media (max-width: 520px) {
+    .settings-card--appointment-cancel .appointment-cancel-field {
+        padding: 14px 14px;
+        gap: 12px;
+    }
 }
 
 .settings-card--vacation {
