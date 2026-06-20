@@ -389,6 +389,18 @@ function normalizeDrdrMobile(raw) {
     return /^09\d{9}$/.test(mobile) ? mobile : null;
 }
 
+function normalizeAsciiDigits(raw) {
+    if (typeof raw !== "string" && typeof raw !== "number") {
+        return "";
+    }
+
+    return String(raw)
+        .trim()
+        .replace(/[\s\-()]/g, "")
+        .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+        .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
+}
+
 let drdrOtpCountdownTimer = null;
 
 function resetDrdrOtpForm(clearInputs = true) {
@@ -741,7 +753,7 @@ async function handleDrdrVerifyOtpClick() {
     const mobileInput = document.getElementById("drdrMobileInput");
     const otpInput = document.getElementById("drdrOtpInput");
     const mobile = normalizeDrdrMobile(mobileInput?.value || appState.drdrOtpMobile || "");
-    const code = (otpInput?.value || "").trim();
+    const code = normalizeAsciiDigits(otpInput?.value || "");
 
     if (!mobile) {
         showToast("شماره موبایل معتبر نیست.", "error");

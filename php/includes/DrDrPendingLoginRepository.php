@@ -28,7 +28,23 @@ final class DrDrPendingLoginRepository
     /**
      * @return array{mobile: string, init_payload: ?array}|null
      */
+    public static function get(string $doctorId, string $mobile): ?array
+    {
+        return self::read($doctorId, $mobile, false);
+    }
+
+    /**
+     * @return array{mobile: string, init_payload: ?array}|null
+     */
     public static function consume(string $doctorId, string $mobile): ?array
+    {
+        return self::read($doctorId, $mobile, true);
+    }
+
+    /**
+     * @return array{mobile: string, init_payload: ?array}|null
+     */
+    private static function read(string $doctorId, string $mobile, bool $deleteAfterRead): ?array
     {
         $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
         $path = self::pathForDoctor($doctorId);
@@ -38,7 +54,9 @@ final class DrDrPendingLoginRepository
         }
 
         $raw = file_get_contents($path);
-        @unlink($path);
+        if ($deleteAfterRead) {
+            @unlink($path);
+        }
 
         if ($raw === false || trim($raw) === '') {
             return null;
@@ -51,6 +69,11 @@ final class DrDrPendingLoginRepository
 
         $expiresAt = (int) ($decoded['expires_at'] ?? 0);
         if ($expiresAt <= time()) {
+            if ($deleteAfterRead) {
+                return null;
+            }
+            @unlink($path);
+
             return null;
         }
 
@@ -69,10 +92,23 @@ final class DrDrPendingLoginRepository
 
     public static function clear(string $doctorId): void
     {
-        $path = self::pathForDoctor(GoogleTokensRepository::normalizeUserId($doctorId));
+        $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
+        $path = self::pathForDoctor($doctorId);
         if (is_file($path)) {
             @unlink($path);
         }
+
+        $cookiePath = self::cookiePathForDoctor($doctorId);
+        if (is_file($cookiePath)) {
+            @unlink($cookiePath);
+        }
+    }
+
+    public static function cookiePathForDoctor(string $doctorId): string
+    {
+        $safe = preg_replace('/[^a-zA-Z0-9._-]/', '_', GoogleTokensRepository::normalizeUserId($doctorId)) ?? 'unknown';
+
+        return __DIR__ . '/../storage/drdr_cookies/' . $safe . '.txt';
     }
 
     private static function pathForDoctor(string $doctorId): string

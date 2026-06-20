@@ -34,7 +34,9 @@ final class HttpClient
 
         ?array $body = null,
 
-        string $bodyFormat = 'form'
+        string $bodyFormat = 'form',
+
+        ?string $cookieJarPath = null
 
     ): array {
 
@@ -58,7 +60,7 @@ final class HttpClient
 
         while (true) {
 
-            $result = self::executeRequest($method, $url, $headers, $body, $bodyFormat);
+            $result = self::executeRequest($method, $url, $headers, $body, $bodyFormat, $cookieJarPath);
 
             $raw = $result['raw'];
 
@@ -158,7 +160,9 @@ final class HttpClient
 
         ?array $body = null,
 
-        string $bodyFormat = 'form'
+        string $bodyFormat = 'form',
+
+        ?string $cookieJarPath = null
 
     ): array {
 
@@ -207,6 +211,16 @@ final class HttpClient
             CURLOPT_SSL_VERIFYHOST => $sslVerify ? 2 : 0,
 
         ]);
+
+        if ($cookieJarPath !== null && $cookieJarPath !== '') {
+            $cookieDir = dirname($cookieJarPath);
+            if (!is_dir($cookieDir)) {
+                mkdir($cookieDir, 0750, true);
+            }
+
+            curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieJarPath);
+            curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieJarPath);
+        }
 
 
 

@@ -9,11 +9,12 @@ declare(strict_types=1);
 return [
     'api_client_id' => 'f60d5037-b7ac-404a-9e3a-a263fd9f8054',
     'send_otp_url' => 'https://drdr.ir/api/v3/auth/login/mobile/init',
-    'verify_otp_url' => 'https://drdr.ir/api/v3/auth/login/mobile/verify',
+    // DrDr verifies on the same init route with {mobile, code, ...sessionFields}.
+    'verify_otp_url' => 'https://drdr.ir/api/v3/auth/login/mobile/init',
     'verify_otp_urls' => [
+        'https://drdr.ir/api/v3/auth/login/mobile/init',
         'https://drdr.ir/api/v3/auth/login/mobile/verify',
-        'https://drdr.ir/api/v3/auth/login/mobile/confirm',
-        'https://drdr.ir/api/v3/auth/login/mobile/complete',
+        'https://drdr.ir/api/v3/auth/login/mobile/login',
     ],
     'client_id' => '',
     'client_secret' => '',
