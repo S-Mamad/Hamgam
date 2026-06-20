@@ -7,6 +7,11 @@ RewriteRule ^hamgam/update/?$ ../hamgam/update.php [L,QSA]
 RewriteRule ^hamgam/updatesetting/?$ ../hamgam/updatesetting.php [L,QSA]
 RewriteRule ^webhook/paziresh24-hamgam/?$ ../webhook/paziresh24-hamgam.php [L,QSA]
 
+RewriteRule ^integrations/([a-z0-9_-]+)/connect/?$ ../integrations/connect.php?provider=$1 [L,QSA]
+RewriteRule ^integrations/([a-z0-9_-]+)/callback/?$ ../integrations/callback.php?provider=$1 [L,QSA]
+RewriteRule ^integrations/([a-z0-9_-]+)/status/?$ ../integrations/status.php?provider=$1 [L,QSA]
+RewriteRule ^integrations/([a-z0-9_-]+)/disconnect/?$ ../integrations/disconnect.php?provider=$1 [L,QSA]
+
 # سازگاری با URLهای قدیمی zamanak
 RewriteRule ^zamanak/button/?$ ../hamgam/button.php [L,QSA]
 RewriteRule ^zamanak/google-oauth/?$ ../hamgam/google-oauth.php [L,QSA]

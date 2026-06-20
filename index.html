@@ -198,6 +198,54 @@
 
         </section>
 
+        <section class="integration-section" id="drdrIntegrationSection" aria-label="اتصال DrDr">
+            <div class="integration-card" id="drdrIntegrationCard">
+                <div class="integration-card__glow" aria-hidden="true"></div>
+
+                <div class="integration-card__header">
+                    <div class="integration-card__brand">
+                        <span class="integration-card__icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                                <path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </span>
+                        <div class="integration-card__titles">
+                            <h3 class="integration-card__title">اتصال DrDr</h3>
+                            <p class="integration-card__subtitle">ورود امن و قانونی از طریق OAuth2</p>
+                        </div>
+                    </div>
+                    <span id="drdrIntegrationBadge" class="integration-card__badge integration-card__badge--idle" aria-live="polite">در حال بررسی…</span>
+                </div>
+
+                <p class="integration-card__desc">
+                    حساب پذیرش۲۴ خود را به DrDr متصل کنید تا همگام‌سازی بدون نیاز به ورود دستی یا OTP انجام شود.
+                </p>
+
+                <ul class="integration-card__features" aria-label="مزایای اتصال">
+                    <li>احراز هویت رسمی provider</li>
+                    <li>بدون ذخیره رمز عبور یا OTP</li>
+                    <li>قابل قطع اتصال در هر زمان</li>
+                </ul>
+
+                <div id="drdrIntegrationMeta" class="integration-card__meta" hidden>
+                    <span class="integration-card__meta-label">وضعیت توکن</span>
+                    <span id="drdrIntegrationMetaText" class="integration-card__meta-value"></span>
+                </div>
+
+                <div class="integration-card__actions">
+                    <button type="button" id="drdrConnectBtn" class="integration-card__btn integration-card__btn--primary" aria-busy="false">
+                        <span class="integration-card__btn-text">اتصال به DrDr</span>
+                        <span class="integration-card__btn-spinner" aria-hidden="true"></span>
+                    </button>
+                    <button type="button" id="drdrDisconnectBtn" class="integration-card__btn integration-card__btn--ghost" hidden aria-busy="false">
+                        <span class="integration-card__btn-text">قطع اتصال</span>
+                        <span class="integration-card__btn-spinner" aria-hidden="true"></span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
         </div>
 
         <div id="tab-personalize" class="main-tab-content" role="tabpanel" aria-label="رویدادشخصی‌سازی">

@@ -29,6 +29,12 @@ RewriteRule ^hamgam/sync-status/?$ php/hamgam/sync-status.php [L,QSA]
 RewriteRule ^webhook/paziresh24-hamgam/?$ php/webhook/paziresh24-hamgam.php [L,QSA]
 RewriteRule ^webhook/google-calendar/?$ php/webhook/google-calendar.php [L,QSA]
 
+# External provider OAuth (DrDr, ...)
+RewriteRule ^integrations/([a-z0-9_-]+)/connect/?$ php/integrations/connect.php?provider=$1 [L,QSA]
+RewriteRule ^integrations/([a-z0-9_-]+)/callback/?$ php/integrations/callback.php?provider=$1 [L,QSA]
+RewriteRule ^integrations/([a-z0-9_-]+)/status/?$ php/integrations/status.php?provider=$1 [L,QSA]
+RewriteRule ^integrations/([a-z0-9_-]+)/disconnect/?$ php/integrations/disconnect.php?provider=$1 [L,QSA]
+
 # سازگاری با URLهای قدیمی zamanak (تا به‌روزرسانی پنل‌ها)
 RewriteRule ^zamanak/auth/?$ php/hamgam/auth.php [L,QSA]
 RewriteRule ^zamanak/button/?$ php/hamgam/button.php [L,QSA]

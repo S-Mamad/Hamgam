@@ -87,6 +87,7 @@ final class Database
             self::migrateVacationSchema($pdo, 'mysql');
             self::migrateBookingSchema($pdo, 'mysql');
             self::migrateImportFutureVacationsSchema($pdo, 'mysql');
+            self::migrateExternalConnectionsSchema($pdo, 'mysql');
             self::migrateLegacyDefaultColorId($pdo);
             return;
         }
@@ -109,21 +110,8 @@ final class Database
         self::migrateVacationSchema($pdo, 'sqlite');
         self::migrateBookingSchema($pdo, 'sqlite');
         self::migrateImportFutureVacationsSchema($pdo, 'sqlite');
+        self::migrateExternalConnectionsSchema($pdo, 'sqlite');
         self::migrateLegacyDefaultColorId($pdo);
-    }
-
-    private static function migrateLegacyDefaultColorId(PDO $pdo): void
-    {
-        try {
-            $pdo->exec(
-                "UPDATE google_tokens
-                 SET color_id = '9'
-                 WHERE color_id = '1'
-                   AND (google_refresh_token IS NULL OR TRIM(google_refresh_token) = '')"
-            );
-        } catch (Throwable $e) {
-            error_log('[Database] legacy color_id migration failed: ' . $e->getMessage());
-        }
     }
 
     private static function migrateImportFutureVacationsSchema(PDO $pdo, string $driver): void
@@ -180,6 +168,53 @@ final class Database
             ImportFutureVacationsRepository::migrateExistingDoctorLocks($pdo);
         } catch (Throwable $e) {
             error_log('[Database] import_future_vacations migration failed: ' . $e->getMessage());
+        }
+    }
+
+    private static function migrateExternalConnectionsSchema(PDO $pdo, string $driver): void
+    {
+        try {
+            if ($driver === 'mysql') {
+                $pdo->exec(
+                    'CREATE TABLE IF NOT EXISTS doctor_external_connections (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        doctor_id VARCHAR(64) NOT NULL,
+                        provider VARCHAR(32) NOT NULL,
+                        access_token TEXT NOT NULL,
+                        refresh_token TEXT NULL,
+                        expires_at BIGINT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        UNIQUE KEY uq_doctor_provider (doctor_id, provider),
+                        INDEX idx_doctor_external_connections_doctor (doctor_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+                );
+                return;
+            }
+
+            $schemaFile = __DIR__ . '/../sql/doctor_external_connections.sql';
+            if (is_file($schemaFile)) {
+                $sql = file_get_contents($schemaFile);
+                if ($sql !== false) {
+                    $pdo->exec($sql);
+                }
+            }
+        } catch (Throwable $e) {
+            error_log('[Database] doctor_external_connections migration failed: ' . $e->getMessage());
+        }
+    }
+
+    private static function migrateLegacyDefaultColorId(PDO $pdo): void
+    {
+        try {
+            $pdo->exec(
+                "UPDATE google_tokens
+                 SET color_id = '9'
+                 WHERE color_id = '1'
+                   AND (google_refresh_token IS NULL OR TRIM(google_refresh_token) = '')"
+            );
+        } catch (Throwable $e) {
+            error_log('[Database] legacy color_id migration failed: ' . $e->getMessage());
         }
     }
 

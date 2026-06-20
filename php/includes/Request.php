@@ -24,12 +24,17 @@ final class Request
         }
 
         foreach ($candidates as $token) {
-            if ($token !== '' && self::isValidJwt($token)) {
+            if ($token !== '' && self::isValidJwtPublic($token)) {
                 return $token;
             }
         }
 
         return '';
+    }
+
+    public static function isValidJwtPublic(string $token): bool
+    {
+        return self::isValidJwt($token);
     }
 
     /**
@@ -68,7 +73,7 @@ final class Request
             header('Vary: Origin');
         }
 
-        header('Access-Control-Allow-Methods: POST, OPTIONS');
+        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
         header('Access-Control-Allow-Headers: Content-Type, Authorization, access_token, Access-Token, X-Access-Token');
         header('Access-Control-Max-Age: 86400');
 

@@ -4,6 +4,7 @@
 
 **منابع مرتبط:**
 - [DEPLOY.md](../DEPLOY.md) — راهنمای آپلود و تست روی production
+- [EXTERNAL_INTEGRATIONS.md](./EXTERNAL_INTEGRATIONS.md) — OAuth2 اتصال providerهای خارجی
 - [google-vacation/README.md](../google-vacation/README.md) — همگام‌سازی مرخصی از Google Calendar
 
 ---
@@ -134,6 +135,7 @@ powershell -ExecutionPolicy Bypass -File scripts\test-server.ps1
 | `RequestContext.php` | شناسه درخواست برای لاگ |
 | `HttpClient.php` | درخواست HTTP با retry محافظه‌کارانه (GET/DELETE) |
 | `HamgamConnectionService.php` | sync بعد از auth |
+| `ProviderIntegrationService.php` | OAuth2 اتصال providerهای خارجی (DrDr, ...) |
 | `GoogleTokensRepository.php` | توکن‌ها و تنظیمات کاربر |
 | `WebhookVerifier.php` | تأیید webhook (stub) |
 

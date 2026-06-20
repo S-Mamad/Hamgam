@@ -2830,3 +2830,294 @@ body.hamgam-confirm-open {
         animation-duration: 0.7s !important;
     }
 }
+
+/* ── External integrations (DrDr) ─────────────────────── */
+
+.integration-section {
+    margin-top: 18px;
+}
+
+.integration-card {
+    position: relative;
+    overflow: hidden;
+    padding: 16px 16px 14px;
+    border-radius: calc(var(--radius) + 2px);
+    border: 1px solid #ddd6fe;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(167, 139, 250, 0.16) 0%, transparent 42%),
+        linear-gradient(155deg, #faf5ff 0%, #f5f3ff 38%, #eef2ff 100%);
+    box-shadow:
+        0 10px 28px rgba(91, 33, 182, 0.08),
+        0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.integration-card__glow {
+    position: absolute;
+    inset: auto auto -40px -40px;
+    width: 140px;
+    height: 140px;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(124, 58, 237, 0.18) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.integration-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.integration-card__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.integration-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    color: #6d28d9;
+    background: linear-gradient(145deg, #ffffff 0%, #ede9fe 100%);
+    border: 1px solid #ddd6fe;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.integration-card__icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+.integration-card__titles {
+    min-width: 0;
+}
+
+.integration-card__title {
+    margin: 0 0 2px;
+    font-size: 14px;
+    font-weight: 800;
+    color: #4c1d95;
+    line-height: 1.45;
+}
+
+.integration-card__subtitle {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: #7c3aed;
+    line-height: 1.5;
+}
+
+.integration-card__badge {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    border: 1px solid transparent;
+}
+
+.integration-card__badge--idle {
+    color: #64748b;
+    background: rgba(255, 255, 255, 0.72);
+    border-color: #e2e8f0;
+}
+
+.integration-card__badge--connected {
+    color: #047857;
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+}
+
+.integration-card__badge--disconnected {
+    color: #9a3412;
+    background: #fff7ed;
+    border-color: #fed7aa;
+}
+
+.integration-card__desc {
+    margin: 0 0 10px;
+    font-size: 12px;
+    line-height: 1.75;
+    color: #5b21b6;
+    text-align: justify;
+}
+
+.integration-card__features {
+    list-style: none;
+    margin: 0 0 12px;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+}
+
+.integration-card__features li {
+    position: relative;
+    padding-right: 18px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    line-height: 1.6;
+}
+
+.integration-card__features li::before {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 0.62em;
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.14);
+}
+
+.integration-card__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid #e9d5ff;
+}
+
+.integration-card__meta[hidden] {
+    display: none !important;
+}
+
+.integration-card__meta-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #7c3aed;
+}
+
+.integration-card__meta-value {
+    font-size: 10px;
+    font-weight: 700;
+    color: #475569;
+    direction: ltr;
+    text-align: left;
+}
+
+.integration-card__actions {
+    display: grid;
+    gap: 8px;
+}
+
+.integration-card__btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 42px;
+    padding: 0 14px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease,
+        background 0.15s ease,
+        border-color 0.15s ease,
+        opacity 0.15s ease;
+}
+
+.integration-card__btn:focus-visible {
+    outline: 2px solid #8b5cf6;
+    outline-offset: 2px;
+}
+
+.integration-card__btn--primary {
+    color: #ffffff;
+    background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+    box-shadow: 0 8px 18px rgba(99, 102, 241, 0.24);
+}
+
+.integration-card__btn--primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(99, 102, 241, 0.28);
+}
+
+.integration-card__btn--ghost {
+    color: #6d28d9;
+    background: rgba(255, 255, 255, 0.82);
+    border-color: #ddd6fe;
+}
+
+.integration-card__btn--ghost:hover:not(:disabled) {
+    background: #ffffff;
+    border-color: #c4b5fd;
+}
+
+.integration-card__btn:disabled {
+    opacity: 0.72;
+    cursor: not-allowed;
+}
+
+.integration-card__btn-spinner {
+    display: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffffff;
+    animation: btnSpin 0.7s linear infinite;
+}
+
+.integration-card__btn--ghost .integration-card__btn-spinner {
+    border-color: rgba(109, 40, 217, 0.18);
+    border-top-color: #7c3aed;
+}
+
+.integration-card__btn.is-loading .integration-card__btn-text {
+    opacity: 0;
+}
+
+.integration-card__btn.is-loading .integration-card__btn-spinner {
+    display: inline-block;
+    position: absolute;
+}
+
+.integration-card.is-connected {
+    border-color: #bbf7d0;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(52, 211, 153, 0.14) 0%, transparent 42%),
+        linear-gradient(155deg, #f0fdf4 0%, #ecfdf5 45%, #eef2ff 100%);
+}
+
+.integration-card.is-connected .integration-card__title {
+    color: #065f46;
+}
+
+.integration-card.is-connected .integration-card__subtitle,
+.integration-card.is-connected .integration-card__desc {
+    color: #047857;
+}
+
+@media (max-width: 380px) {
+    .integration-card__header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .integration-card__badge {
+        align-self: flex-start;
+    }
+}

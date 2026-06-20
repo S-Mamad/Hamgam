@@ -1,6 +1,8 @@
 // روی هاست nginx مسیرهای /hamgam/* ممکن است 404 بدهند؛ php/ همیشه در دسترس است
 const HAMGAM_API = window.location.origin;
 const HAMGAM_API_PREFIX = `${HAMGAM_API}/php/hamgam`;
+const INTEGRATIONS_API_PREFIX = `${HAMGAM_API}/php/integrations`;
+const DRDR_PROVIDER = "drdr";
 const PAZIRESH24_LAUNCHER = "https://www.paziresh24.com/_/hamgam/launcher/";
 const PAZIRESH24_LAUNCHER_PATH = "/_/hamgam/launcher/";
 const PAZIRESH24_LAUNCHER_APP_PATH = "/_/hamgam/launcher/?direct=true";
@@ -38,7 +40,13 @@ const appState = {
     importFutureVacationsUsed: false,
     importFutureBackfillUndoAvailable: false,
     importFutureBackfillSlotCount: 0,
-    deletingSyncedBackfill: false
+    deletingSyncedBackfill: false,
+    drdrConnected: false,
+    drdrStatusLoaded: false,
+    drdrConnecting: false,
+    drdrDisconnecting: false,
+    drdrExpiresAt: null,
+    drdrHasRefreshToken: false
 };
 
 const IMPORT_FUTURE_VACATIONS_HINT_DEFAULT =
@@ -280,6 +288,340 @@ function cleanOAuthParams() {
     url.searchParams.delete("reason");
     const clean = url.pathname + (url.search ? url.search : "");
     window.history.replaceState({}, "", clean);
+}
+
+function isIntegrationReturn() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("integration") === "success"
+        && (params.get("provider") || DRDR_PROVIDER) === DRDR_PROVIDER;
+}
+
+function isIntegrationErrorReturn() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("integration") === "error"
+        && (params.get("provider") || DRDR_PROVIDER) === DRDR_PROVIDER;
+}
+
+function cleanIntegrationParams() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("integration");
+    url.searchParams.delete("provider");
+    if (!url.searchParams.has("oauth") && !url.searchParams.has("change")) {
+        url.searchParams.delete("reason");
+    }
+    const clean = url.pathname + (url.search ? url.search : "");
+    window.history.replaceState({}, "", clean);
+}
+
+function getIntegrationErrorMessageFromReason(reason) {
+    const messages = {
+        invalid_state: "نشست OAuth نامعتبر یا منقضی شده. دوباره «اتصال به DrDr» را بزنید.",
+        missing_code: "کد تأیید از DrDr دریافت نشد. دوباره تلاش کنید.",
+        token_exchange_failed: "تبادل توکن با DrDr ناموفق بود. چند لحظه بعد دوباره تلاش کنید.",
+        rate_limited: "تعداد درخواست‌ها زیاد است. چند دقیقه بعد دوباره تلاش کنید.",
+        provider_denied: "دسترسی توسط DrDr رد شد.",
+        unsupported_provider: "سرویس اتصال پشتیبانی نمی‌شود.",
+        internal_error: "خطای داخلی سرور. چند لحظه بعد دوباره تلاش کنید.",
+        auth_required: "ابتدا وارد حساب پذیرش۲۴ شوید.",
+        auth_failed: "احراز هویت پذیرش۲۴ ناموفق بود."
+    };
+
+    return messages[reason] || "اتصال DrDr ناموفق بود. دوباره تلاش کنید.";
+}
+
+function formatIntegrationExpiry(expiresAt) {
+    if (!Number.isFinite(expiresAt) || expiresAt <= 0) {
+        return "بدون تاریخ انقضای مشخص";
+    }
+
+    const date = new Date(expiresAt * 1000);
+    if (Number.isNaN(date.getTime())) {
+        return "بدون تاریخ انقضای مشخص";
+    }
+
+    return date.toLocaleString("fa-IR", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+}
+
+function integrationEndpoint(scriptName, provider = DRDR_PROVIDER, extraParams = {}) {
+    const params = new URLSearchParams({ provider, ...extraParams });
+    return `${INTEGRATIONS_API_PREFIX}/${scriptName}?${params.toString()}`;
+}
+
+async function integrationApiGet(scriptName, token, provider = DRDR_PROVIDER, extraParams = {}) {
+    const response = await fetch(integrationEndpoint(scriptName, provider, extraParams), {
+        method: "GET",
+        headers: apiHeaders(token)
+    });
+
+    if (!response.ok) {
+        console.error(`[Hamgam Integration] GET ${scriptName} → HTTP ${response.status}`);
+    }
+
+    return response;
+}
+
+function applyDrdrIntegrationState(data = {}) {
+    appState.drdrConnected = !!data.connected;
+    appState.drdrExpiresAt = Number.isFinite(data.expires_at) ? data.expires_at : null;
+    appState.drdrHasRefreshToken = !!data.has_refresh_token;
+    appState.drdrStatusLoaded = true;
+    updateDrdrIntegrationUi();
+}
+
+function updateDrdrIntegrationUi() {
+    const card = document.getElementById("drdrIntegrationCard");
+    const badge = document.getElementById("drdrIntegrationBadge");
+    const meta = document.getElementById("drdrIntegrationMeta");
+    const metaText = document.getElementById("drdrIntegrationMetaText");
+    const connectBtn = document.getElementById("drdrConnectBtn");
+    const disconnectBtn = document.getElementById("drdrDisconnectBtn");
+
+    if (card) {
+        card.classList.toggle("is-connected", appState.drdrConnected);
+    }
+
+    if (badge) {
+        if (!appState.drdrStatusLoaded) {
+            badge.textContent = "در حال بررسی…";
+            badge.className = "integration-card__badge integration-card__badge--idle";
+        } else if (appState.drdrConnected) {
+            badge.textContent = "متصل";
+            badge.className = "integration-card__badge integration-card__badge--connected";
+        } else {
+            badge.textContent = "متصل نیست";
+            badge.className = "integration-card__badge integration-card__badge--disconnected";
+        }
+    }
+
+    if (meta && metaText) {
+        if (appState.drdrConnected) {
+            meta.hidden = false;
+            const expiryLabel = formatIntegrationExpiry(appState.drdrExpiresAt);
+            const refreshLabel = appState.drdrHasRefreshToken ? "قابل تمدید خودکار" : "بدون refresh token";
+            metaText.textContent = `${expiryLabel} · ${refreshLabel}`;
+        } else {
+            meta.hidden = true;
+            metaText.textContent = "";
+        }
+    }
+
+    if (connectBtn) {
+        const busy = appState.drdrConnecting;
+        const connectText = connectBtn.querySelector(".integration-card__btn-text");
+        connectBtn.hidden = appState.drdrConnected;
+        connectBtn.disabled = busy || appState.drdrDisconnecting || !appState.drdrStatusLoaded;
+        connectBtn.classList.toggle("is-loading", busy);
+        connectBtn.setAttribute("aria-busy", busy ? "true" : "false");
+        if (connectText) {
+            connectText.textContent = busy ? "در حال انتقال…" : "اتصال به DrDr";
+        }
+    }
+
+    if (disconnectBtn) {
+        const busy = appState.drdrDisconnecting;
+        const disconnectText = disconnectBtn.querySelector(".integration-card__btn-text");
+        disconnectBtn.hidden = !appState.drdrConnected;
+        disconnectBtn.disabled = busy || appState.drdrConnecting || !appState.drdrStatusLoaded;
+        disconnectBtn.classList.toggle("is-loading", busy);
+        disconnectBtn.setAttribute("aria-busy", busy ? "true" : "false");
+        if (disconnectText) {
+            disconnectText.textContent = busy ? "در حال قطع…" : "قطع اتصال";
+        }
+    }
+}
+
+function setDrdrConnectLoading(loading) {
+    appState.drdrConnecting = loading;
+    updateDrdrIntegrationUi();
+}
+
+function setDrdrDisconnectLoading(loading) {
+    appState.drdrDisconnecting = loading;
+    updateDrdrIntegrationUi();
+}
+
+async function fetchDrdrIntegrationStatus(options = {}) {
+    const { silent = false } = options;
+    const token = window.hamdast
+        ? await ensureFreshAccessToken().catch(() => localStorage.getItem("access_token"))
+        : localStorage.getItem("access_token");
+
+    if (!token) {
+        applyDrdrIntegrationState({ connected: false });
+        return null;
+    }
+
+    if (!silent) {
+        appState.drdrStatusLoaded = false;
+        updateDrdrIntegrationUi();
+    }
+
+    try {
+        let response = await integrationApiGet("status.php", token, DRDR_PROVIDER);
+        let data = await parseJsonResponse(response);
+
+        if (response.status === 401 && window.hamdast) {
+            const freshToken = await ensureFreshAccessToken();
+            response = await integrationApiGet("status.php", freshToken, DRDR_PROVIDER);
+            data = await parseJsonResponse(response);
+        }
+
+        if (!response.ok) {
+            throw new Error(mapApiError(data.error) || "خطا در دریافت وضعیت DrDr");
+        }
+
+        applyDrdrIntegrationState(data);
+        return data;
+    } catch (error) {
+        console.error("[Hamgam] drdr status failed:", error);
+        appState.drdrStatusLoaded = true;
+        updateDrdrIntegrationUi();
+        if (!silent) {
+            showToast(error.message || "خطا در دریافت وضعیت DrDr", "error");
+        }
+        return null;
+    }
+}
+
+async function requestDrdrOAuthUrl(token) {
+    let response = await integrationApiGet("connect.php", token, DRDR_PROVIDER, {
+        format: "json",
+        return_to: "settings"
+    });
+    let data = await parseJsonResponse(response);
+
+    if (response.status === 401 && window.hamdast) {
+        const freshToken = await ensureFreshAccessToken();
+        response = await integrationApiGet("connect.php", freshToken, DRDR_PROVIDER, {
+            format: "json",
+            return_to: "settings"
+        });
+        data = await parseJsonResponse(response);
+    }
+
+    if (!response.ok || !data.oauth_url) {
+        throw new Error(mapApiError(data.error) || "خطا در دریافت آدرس OAuth DrDr");
+    }
+
+    return data.oauth_url;
+}
+
+async function handleDrdrConnectClick() {
+    if (appState.drdrConnecting || appState.drdrDisconnecting || appState.drdrConnected) {
+        return;
+    }
+
+    const oauthPrepared = prepareOAuthNavigation();
+    setDrdrConnectLoading(true);
+
+    try {
+        const token = window.hamdast
+            ? await ensureFreshAccessToken()
+            : localStorage.getItem("access_token");
+
+        if (!token) {
+            throw new Error("ابتدا وارد حساب پذیرش۲۴ شوید.");
+        }
+
+        const oauthUrl = await requestDrdrOAuthUrl(token);
+        const navMode = await completeOAuthNavigation(oauthPrepared, oauthUrl);
+
+        if (navMode === "none") {
+            throw new Error("خطا در باز کردن صفحه DrDr. دوباره تلاش کنید.");
+        }
+
+        if (navMode === "external" || navMode === "top" || navMode === "same") {
+            return;
+        }
+
+        throw new Error("باز کردن صفحه DrDr ناموفق بود. دوباره تلاش کنید.");
+    } catch (error) {
+        console.error("[Hamgam] drdr connect failed:", error);
+        showToast(error.message || "اتصال DrDr ناموفق بود.", "error");
+        setDrdrConnectLoading(false);
+    }
+}
+
+async function handleDrdrDisconnectClick() {
+    if (appState.drdrDisconnecting || appState.drdrConnecting || !appState.drdrConnected) {
+        return;
+    }
+
+    const confirmed = await showHamgamConfirm({
+        title: "قطع اتصال DrDr",
+        message: "اتصال OAuth با DrDr قطع می‌شود. برای استفاده مجدد باید دوباره از طریق صفحه رسمی DrDr اجازه دهید.",
+        acceptLabel: "قطع اتصال",
+        danger: true
+    });
+    if (!confirmed) {
+        return;
+    }
+
+    setDrdrDisconnectLoading(true);
+
+    try {
+        const token = window.hamdast
+            ? await ensureFreshAccessToken().catch(() => null)
+            : localStorage.getItem("access_token");
+
+        if (!token) {
+            throw new Error("ابتدا وارد حساب پذیرش۲۴ شوید.");
+        }
+
+        let response = await apiFetch(
+            integrationEndpoint("disconnect.php", DRDR_PROVIDER),
+            token,
+            { body: apiBodyWithToken(token), withJson: true }
+        );
+        let data = await parseJsonResponse(response);
+
+        if (response.status === 401 && window.hamdast) {
+            const freshToken = await ensureFreshAccessToken();
+            response = await apiFetch(
+                integrationEndpoint("disconnect.php", DRDR_PROVIDER),
+                freshToken,
+                { body: apiBodyWithToken(freshToken), withJson: true }
+            );
+            data = await parseJsonResponse(response);
+        }
+
+        if (!response.ok || !data.ok) {
+            throw new Error(mapApiError(data.error) || "قطع اتصال DrDr ناموفق بود.");
+        }
+
+        applyDrdrIntegrationState({
+            connected: false,
+            expires_at: null,
+            has_refresh_token: false
+        });
+        showToast("اتصال DrDr قطع شد.");
+    } catch (error) {
+        console.error("[Hamgam] drdr disconnect failed:", error);
+        showToast(error.message || "قطع اتصال DrDr ناموفق بود.", "error");
+    } finally {
+        setDrdrDisconnectLoading(false);
+    }
+}
+
+async function handleIntegrationReturnFromUrl() {
+    if (isIntegrationReturn()) {
+        cleanIntegrationParams();
+        await fetchDrdrIntegrationStatus({ silent: true });
+        showToast("اتصال DrDr با موفقیت برقرار شد.");
+        return;
+    }
+
+    if (isIntegrationErrorReturn()) {
+        const reason = new URLSearchParams(window.location.search).get("reason") || "";
+        cleanIntegrationParams();
+        showToast(getIntegrationErrorMessageFromReason(reason), "error");
+    }
 }
 
 const GMAIL_CHANGE_PENDING_KEY = "hamgam_gmail_change_pending";
@@ -808,6 +1150,8 @@ async function initApp() {
     bindUiEvents();
     setupGmailChangeReturnListener();
     resetChangeGmailButton();
+    appState.drdrConnecting = false;
+    appState.drdrDisconnecting = false;
 
     const oauthReturn = isOAuthReturn();
     const oauthErrorReturn = isOAuthErrorReturn();
@@ -836,6 +1180,15 @@ async function initApp() {
         await applyPendingSettingsAfterOAuth();
         showApp();
         updateSaveButton();
+        updateDrdrIntegrationUi();
+
+        const integrationReturn = isIntegrationReturn();
+        const integrationErrorReturn = isIntegrationErrorReturn();
+        if (integrationReturn || integrationErrorReturn) {
+            await handleIntegrationReturnFromUrl();
+        } else {
+            void fetchDrdrIntegrationStatus({ silent: true });
+        }
 
         if (oauthReturn) {
             const gmailChanged = isGmailChangeReturn();
@@ -985,6 +1338,24 @@ function bindUiEvents() {
             e.preventDefault();
             e.stopPropagation();
             void handleDisconnectGoogleClick();
+        });
+    }
+
+    const drdrConnectBtn = document.getElementById("drdrConnectBtn");
+    if (drdrConnectBtn) {
+        drdrConnectBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void handleDrdrConnectClick();
+        });
+    }
+
+    const drdrDisconnectBtn = document.getElementById("drdrDisconnectBtn");
+    if (drdrDisconnectBtn) {
+        drdrDisconnectBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void handleDrdrDisconnectClick();
         });
     }
 
