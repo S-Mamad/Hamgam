@@ -297,8 +297,6 @@ final class DrDrAuthService
 
         $config = self::apiConfig();
         $response = self::requestVerify($config, $doctorId, $mobile, $code);
-        $tokenPayload = self::unwrapDrDrPayload($response['body']);
-        $accessToken = self::extractAccessToken($tokenPayload);
 
         if ($response['status'] < 200 || $response['status'] >= 300) {
             ProviderIntegrationService::logIntegrationEvent(
@@ -310,30 +308,24 @@ final class DrDrAuthService
             throw new IntegrationException('verify_otp_failed', self::humanizeDrDrError($response['body'], 'کد تأیید DrDr نامعتبر است یا منقضی شده.'));
         }
 
-        if ($accessToken === null && !self::isSuccessfulDrDrBody($response['body'])) {
+        try {
+            $tokens = self::extractTokensFromOAuthBody(is_array($response['body']) ? $response['body'] : null);
+        } catch (IntegrationException $e) {
             ProviderIntegrationService::logIntegrationEvent(
                 $doctorId,
                 'drdr',
                 false,
                 'verify_otp_rejected:body:' . self::summarizeDrDrBody($response['body'])
             );
-            throw new IntegrationException('verify_otp_failed', self::humanizeDrDrError($response['body'], 'کد تأیید DrDr نامعتبر است یا منقضی شده.'));
+            throw $e;
         }
-
-        if ($accessToken === null) {
-            ProviderIntegrationService::logIntegrationEvent($doctorId, 'drdr', false, 'verify_no_token');
-            throw new IntegrationException('verify_otp_failed', 'DrDr توکن دسترسی برنگرداند. لطفاً دوباره «ارسال کد» بزنید و کد جدید را وارد کنید.');
-        }
-
-        $refreshToken = self::extractRefreshToken($tokenPayload);
-        $expiresAt = self::extractExpiresAt($tokenPayload);
 
         DoctorExternalConnectionsRepository::upsert(
             doctorId: $doctorId,
             provider: 'drdr',
-            accessToken: $accessToken,
-            refreshToken: $refreshToken,
-            expiresAt: $expiresAt
+            accessToken: $tokens['access_token'],
+            refreshToken: $tokens['refresh_token'],
+            expiresAt: $tokens['expires_at']
         );
 
         DrDrPendingLoginRepository::clear($doctorId);
@@ -536,6 +528,18 @@ final class DrDrAuthService
                 if (is_string($value) && trim($value) !== '') {
                     return trim($value);
                 }
+            }
+        }
+
+        foreach (['result', 'payload', 'data'] as $wrapper) {
+            $value = $body[$wrapper] ?? null;
+            if (!is_string($value)) {
+                continue;
+            }
+
+            $trimmed = trim($value);
+            if ($trimmed !== '' && (str_contains($trimmed, '.') || strlen($trimmed) >= 20)) {
+                return $trimmed;
             }
         }
 

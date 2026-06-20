@@ -767,7 +767,7 @@ async function drdrDirectInitOtp(mobile) {
     const response = await fetch(client.init_url, {
         method: "POST",
         mode: "cors",
-        credentials: "include",
+        credentials: "omit",
         headers: drdrDirectApiHeaders(client),
         body: JSON.stringify({ mobile })
     });
@@ -791,7 +791,7 @@ async function drdrDirectVerifyOtp(mobile, code) {
     const response = await fetch(client.token_url, {
         method: "POST",
         mode: "cors",
-        credentials: "include",
+        credentials: "omit",
         headers: drdrDirectApiHeaders(client),
         body: JSON.stringify({
             grant_type: "otp",
@@ -1257,17 +1257,29 @@ async function handleDrdrSendOtpClick() {
     setDrdrSendOtpLoading(true);
 
     try {
-        await drdrDirectInitOtp(mobile);
+        const token = window.hamdast
+            ? await ensureFreshAccessToken().catch(() => localStorage.getItem("access_token"))
+            : localStorage.getItem("access_token");
 
-        appState.drdrOtpSent = true;
-        appState.drdrOtpMobile = mobile;
-        if (mobileInput) {
-            mobileInput.value = mobile;
+        const { response, data } = await postDrdrIntegration("send-otp.php", token, { mobile });
+
+        if (!response.ok || !data.ok) {
+            throw new Error(mapApiError(data.error) || "ارسال کد DrDr ناموفق بود.");
         }
 
-        saveDrdrOtpSession(mobile);
-        startDrdrOtpCountdown(DRDR_OTP_RESEND_SECONDS);
-        showToast("کد تأیید DrDr ارسال شد.");
+        appState.drdrOtpSent = true;
+        appState.drdrOtpMobile = data.mobile || mobile;
+        if (mobileInput) {
+            mobileInput.value = appState.drdrOtpMobile;
+        }
+
+        saveDrdrOtpSession(appState.drdrOtpMobile);
+        startDrdrOtpCountdown(Number(data.retry_after) || DRDR_OTP_RESEND_SECONDS);
+        showToast(
+            data.deduped
+                ? "کد قبلاً ارسال شده. همان کد پیامکی را وارد کنید."
+                : "کد تأیید DrDr ارسال شد."
+        );
 
         const otpInput = document.getElementById("drdrOtpInput");
         otpInput?.focus();
@@ -1305,29 +1317,18 @@ async function handleDrdrVerifyOtpClick() {
     setDrdrVerifyOtpLoading(true);
 
     try {
-        const drdrTokens = await drdrDirectVerifyOtp(mobile, code);
-
         const token = window.hamdast
             ? await ensureFreshAccessToken().catch(() => localStorage.getItem("access_token"))
             : localStorage.getItem("access_token");
 
-        const payload = {
-            drdr_response: drdrTokens.raw
-        };
-        if (drdrTokens.access_token) {
-            payload.drdr_access_token = drdrTokens.access_token;
-        }
-        if (drdrTokens.refresh_token) {
-            payload.drdr_refresh_token = drdrTokens.refresh_token;
-        }
-        if (drdrTokens.expires_in !== null) {
-            payload.expires_in = drdrTokens.expires_in;
-        }
-
-        const { response, data } = await postDrdrIntegration("complete-otp.php", token, payload);
+        const { response, data } = await postDrdrIntegration("verify-otp.php", token, { mobile, code });
 
         if (!response.ok || !data.ok) {
-            throw new Error(mapApiError(data.error) || "ذخیره اتصال DrDr ناموفق بود.");
+            const reason = data.reason || "";
+            if (reason === "mobile_mismatch") {
+                throw new Error(data.error || "شماره موبایل با کد ارسال‌شده مطابقت ندارد.");
+            }
+            throw new Error(mapApiError(data.error) || "تأیید کد DrDr ناموفق بود.");
         }
 
         applyDrdrIntegrationState({
