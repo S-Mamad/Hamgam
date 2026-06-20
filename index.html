@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="style.css?v=6f912985">
     <link href="https://fonts.paziresh24.com/iran-sans-x.css" rel="stylesheet">
     <script src="https://hamdast.paziresh24.com/sdk/hamdast.js"></script>
-    <script src="script.js?v=6f912985" defer></script>
+    <script src="script.js?v=drdr-otp2" defer></script>
 </head>
 
 <body>
@@ -132,7 +132,7 @@
 
                     <div id="vacationConflictBlock" class="vacation-conflict" role="radiogroup" aria-labelledby="vacationConflictTitle">
                         <p id="vacationConflictTitle" class="vacation-conflict__title">تداخل بازه مرخصی با نوبت بیمار</p>
-                        <p class="vacation-conflict__desc">هرگاه نوبتی با بازه انتخابی شما به عنوان مرخی تداخل داشت آنگاه :</p>
+                        <p class="vacation-conflict__desc">هرگاه نوبتی با بازه انتخابی شما به عنوان مرخصی تداخل داشت آنگاه :</p>
 
                         <input type="checkbox" id="cancelConflictingAppointments" data-field="cancelConflictingAppointments" hidden tabindex="-1" aria-hidden="true">
                         <input type="checkbox" id="vacationConflictCancelSwitch" hidden tabindex="-1" aria-hidden="true">
@@ -171,7 +171,7 @@
                     <ol class="vacation-info-steps">
                         <li>در Google Calendar یک رویداد با تاریخ و ساعت دلخواه ایجاد کنید.</li>
                         <li>همان بازه زمانی به‌صورت خودکار به‌عنوان مرخصی در پذیرش۲۴ ثبت می‌شود.</li>
-                        <li>اگر چند مرکز درمانی دارید، مرخصی فقط برای مرکز(های) انتخاب‌شده ثبت می‌شود و در صورت تداخل، فقط نوبت‌های همان مرکز لغو می‌شوند.</li>
+                        <li>اگر چند مرکز درمانی دارید، مرخصی فقط برای مرکز(های) انتخاب‌شده ثبت می‌شود و در صورت تداخل، فقط نوبت‌های همان مرکز لغو یا منتقل می‌شوند.</li>
                         <li>در صورت ویرایش یا حذف رویداد در Google Calendar، مرخصی ثبت‌شده در پذیرش۲۴ نیز به‌روزرسانی یا حذف خواهد شد.</li>
                     </ol>
                 </div>
@@ -195,12 +195,9 @@
             <div class="integration-card" id="drdrIntegrationCard">
                 <button type="button" class="integration-card__toggle" id="drdrIntegrationToggle" aria-expanded="false" aria-controls="drdrIntegrationPanel">
                     <span class="integration-card__icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none">
-                            <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-                            <path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <img src="assets/images/drdr-logo.png" alt="" class="integration-card__logo" decoding="async">
                     </span>
-                    <span class="integration-card__toggle-title">انتقال نوبت‌های پلتفرم دکتر دکتر به گوگل کلندر</span>
+                    <span class="integration-card__toggle-title">همگام سازی دکتر دکتر با گوگل کلندر</span>
                     <span id="drdrIntegrationBadge" class="integration-card__badge integration-card__badge--idle" aria-live="polite">در حال بررسی…</span>
                     <span class="integration-card__chevron" aria-hidden="true"></span>
                 </button>

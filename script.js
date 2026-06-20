@@ -634,34 +634,91 @@ function unwrapDrdrPayload(body) {
     return body.result ?? body.payload ?? body.data ?? body;
 }
 
-function extractDrdrAccessToken(body) {
-    const payload = unwrapDrdrPayload(body);
-    if (!payload || typeof payload !== "object") {
+function extractDrdrTokenField(body, fieldNames) {
+    if (!body || typeof body !== "object") {
         return null;
     }
 
-    const token = payload.access_token ?? payload.accessToken ?? payload.token ?? null;
-    return typeof token === "string" && token.trim() !== "" ? token.trim() : null;
+    for (const name of fieldNames) {
+        const value = body[name];
+        if (typeof value === "string" && value.trim() !== "") {
+            return value.trim();
+        }
+    }
+
+    if (body.user && typeof body.user === "object") {
+        for (const name of fieldNames) {
+            const value = body.user[name];
+            if (typeof value === "string" && value.trim() !== "") {
+                return value.trim();
+            }
+        }
+    }
+
+    for (const key of ["payload", "result", "data", "meta", "oauth", "credentials", "auth"]) {
+        const nested = body[key];
+        if (typeof nested === "string" && nested.trim() !== "" && fieldNames.includes("token")) {
+            const trimmed = nested.trim();
+            if (trimmed.includes(".") || trimmed.length >= 20) {
+                return trimmed;
+            }
+        }
+        if (nested && typeof nested === "object") {
+            const found = extractDrdrTokenField(nested, fieldNames);
+            if (found) {
+                return found;
+            }
+        }
+    }
+
+    return null;
+}
+
+function extractDrdrAccessToken(body) {
+    if (!body || typeof body !== "object") {
+        return null;
+    }
+
+    for (const key of ["payload", "result", "data"]) {
+        const value = body[key];
+        if (typeof value === "string" && value.trim() !== "") {
+            const trimmed = value.trim();
+            if (trimmed.includes(".") || trimmed.length >= 20) {
+                return trimmed;
+            }
+        }
+    }
+
+    return (
+        extractDrdrTokenField(unwrapDrdrPayload(body), ["access_token", "accessToken", "token"]) ||
+        extractDrdrTokenField(body, ["access_token", "accessToken", "token"])
+    );
 }
 
 function extractDrdrRefreshToken(body) {
-    const payload = unwrapDrdrPayload(body);
-    if (!payload || typeof payload !== "object") {
+    if (!body || typeof body !== "object") {
         return null;
     }
 
-    const token = payload.refresh_token ?? payload.refreshToken ?? null;
-    return typeof token === "string" && token.trim() !== "" ? token.trim() : null;
+    return (
+        extractDrdrTokenField(unwrapDrdrPayload(body), ["refresh_token", "refreshToken"]) ||
+        extractDrdrTokenField(body, ["refresh_token", "refreshToken"])
+    );
 }
 
 function extractDrdrExpiresIn(body) {
-    const payload = unwrapDrdrPayload(body);
-    if (!payload || typeof payload !== "object") {
+    if (!body || typeof body !== "object") {
         return null;
     }
 
-    const expiresIn = payload.expires_in ?? payload.expiresIn ?? null;
-    return Number.isFinite(Number(expiresIn)) ? Number(expiresIn) : null;
+    const node = unwrapDrdrPayload(body) ?? body;
+    const expiresIn = extractDrdrTokenField(node, ["expires_in", "expiresIn"]);
+    if (expiresIn !== null) {
+        const parsed = Number(expiresIn);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    return null;
 }
 
 function humanizeDrdrDirectError(body, fallback) {
@@ -697,7 +754,12 @@ function isSuccessfulDrdrBody(body) {
         return false;
     }
 
-    return body.ok === true;
+    if (body.ok === true) {
+        return true;
+    }
+
+    const code = Number(body.code);
+    return code === 200 || code === 2001;
 }
 
 async function drdrDirectInitOtp(mobile) {
@@ -705,6 +767,7 @@ async function drdrDirectInitOtp(mobile) {
     const response = await fetch(client.init_url, {
         method: "POST",
         mode: "cors",
+        credentials: "include",
         headers: drdrDirectApiHeaders(client),
         body: JSON.stringify({ mobile })
     });
@@ -728,6 +791,7 @@ async function drdrDirectVerifyOtp(mobile, code) {
     const response = await fetch(client.token_url, {
         method: "POST",
         mode: "cors",
+        credentials: "include",
         headers: drdrDirectApiHeaders(client),
         body: JSON.stringify({
             grant_type: "otp",
@@ -746,16 +810,17 @@ async function drdrDirectVerifyOtp(mobile, code) {
         throw new Error("خطا در ارتباط با DrDr. دوباره تلاش کنید.");
     }
 
-    if (!response.ok || !isSuccessfulDrdrBody(body)) {
+    if (!response.ok || body?.ok === false) {
         throw new Error(humanizeDrdrDirectError(body, "کد تأیید DrDr نامعتبر است یا منقضی شده."));
     }
 
     const accessToken = extractDrdrAccessToken(body);
-    if (!accessToken) {
-        throw new Error("DrDr توکن دسترسی برنگرداند. دوباره «ارسال کد» بزنید.");
+    if (!accessToken && body?.ok !== true && !extractDrdrRefreshToken(body)) {
+        throw new Error(humanizeDrdrDirectError(body, "کد تأیید DrDr نامعتبر است یا منقضی شده."));
     }
 
     return {
+        raw: body,
         access_token: accessToken,
         refresh_token: extractDrdrRefreshToken(body),
         expires_in: extractDrdrExpiresIn(body)
@@ -1247,8 +1312,11 @@ async function handleDrdrVerifyOtpClick() {
             : localStorage.getItem("access_token");
 
         const payload = {
-            drdr_access_token: drdrTokens.access_token
+            drdr_response: drdrTokens.raw
         };
+        if (drdrTokens.access_token) {
+            payload.drdr_access_token = drdrTokens.access_token;
+        }
         if (drdrTokens.refresh_token) {
             payload.drdr_refresh_token = drdrTokens.refresh_token;
         }

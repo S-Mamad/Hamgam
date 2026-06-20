@@ -143,6 +143,61 @@ final class DrDrAuthService
     }
 
     /**
+     * @param array<string, mixed>|null $body
+     * @return array{access_token: string, refresh_token: ?string, expires_at: ?int}
+     */
+    public static function extractTokensFromOAuthBody(?array $body): array
+    {
+        if (!is_array($body)) {
+            throw new IntegrationException('invalid_token', 'پاسخ DrDr نامعتبر است.');
+        }
+
+        if (($body['ok'] ?? null) === false) {
+            throw new IntegrationException(
+                'verify_otp_failed',
+                self::humanizeDrDrError($body, 'کد تأیید DrDr نامعتبر است یا منقضی شده.')
+            );
+        }
+
+        foreach (['payload', 'result', 'data'] as $key) {
+            $value = $body[$key] ?? null;
+            if (is_string($value) && trim($value) !== '') {
+                $candidate = trim($value);
+                if (str_contains($candidate, '.') || strlen($candidate) >= 20) {
+                    return [
+                        'access_token' => $candidate,
+                        'refresh_token' => null,
+                        'expires_at' => null,
+                    ];
+                }
+            }
+        }
+
+        $payload = self::unwrapDrDrPayload($body);
+        $accessToken = self::extractAccessToken($payload);
+        if ($accessToken === null) {
+            $accessToken = self::extractAccessToken($body);
+        }
+
+        if ($accessToken === null && !self::isSuccessfulDrDrBody($body)) {
+            throw new IntegrationException('invalid_token', 'توکن DrDr دریافت نشد.');
+        }
+
+        if ($accessToken === null) {
+            throw new IntegrationException('invalid_token', 'DrDr توکن دسترسی برنگرداند.');
+        }
+
+        $refreshToken = self::extractRefreshToken($payload) ?? self::extractRefreshToken($body);
+        $expiresAt = self::extractExpiresAt($payload) ?? self::extractExpiresAt($body);
+
+        return [
+            'access_token' => $accessToken,
+            'refresh_token' => $refreshToken,
+            'expires_at' => $expiresAt,
+        ];
+    }
+
+    /**
      * Store DrDr tokens obtained from browser-direct OAuth (same flow as drdr.ir login).
      *
      * @return array{ok: true, connected: true}

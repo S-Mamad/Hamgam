@@ -2,18 +2,23 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../includes/bootstrap.php';
-require_once __DIR__ . '/../includes/HttpClient.php';
+$files = [
+    __DIR__ . '/app-chunk.js',
+    __DIR__ . '/login-chunk.js',
+];
 
-$html = HttpClient::request('GET', 'https://drdr.ir/login/?f=true', ['Accept' => 'text/html']);
-preg_match_all('#/_next/static/chunks/[^"\']+\.js#', (string) $html['raw'], $matches);
-foreach (array_unique($matches[0] ?? []) as $path) {
-    $response = HttpClient::request('GET', 'https://drdr.ir' . $path, ['Accept' => '*/*']);
-    $raw = (string) ($response['raw'] ?? '');
-    if (!str_contains($raw, '97801:')) {
+foreach ($files as $file) {
+    if (!is_file($file)) {
         continue;
     }
+
+    $raw = file_get_contents($file);
     $pos = strpos($raw, '97801:');
-    echo basename($path) . "\n" . substr($raw, $pos, 2500) . "\n\n";
-    break;
+    echo "=== " . basename($file) . " ===\n";
+    if ($pos === false) {
+        echo "module 97801 not found\n\n";
+        continue;
+    }
+
+    echo substr($raw, $pos, 2500) . "\n\n";
 }

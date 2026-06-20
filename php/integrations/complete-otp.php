@@ -39,18 +39,28 @@ try {
         throw new IntegrationException('invalid_body', 'Invalid JSON body');
     }
 
-    $accessToken = trim((string) ($body['drdr_access_token'] ?? $body['access_token'] ?? ''));
+    $accessToken = trim((string) ($body['drdr_access_token'] ?? ''));
+    $refreshToken = trim((string) ($body['drdr_refresh_token'] ?? $body['refresh_token'] ?? ''));
+    $refreshToken = $refreshToken !== '' ? $refreshToken : null;
+    $expiresAt = null;
+
+    $drdrResponse = $body['drdr_response'] ?? $body['drdr_body'] ?? null;
+    if ($accessToken === '' && is_array($drdrResponse)) {
+        $parsed = DrDrAuthService::extractTokensFromOAuthBody($drdrResponse);
+        $accessToken = $parsed['access_token'];
+        $refreshToken = $parsed['refresh_token'] ?? $refreshToken;
+        $expiresAt = $parsed['expires_at'] ?? null;
+    }
+
     if ($accessToken === '') {
         throw new IntegrationException('invalid_token', 'توکن DrDr دریافت نشد.');
     }
 
-    $refreshToken = trim((string) ($body['drdr_refresh_token'] ?? $body['refresh_token'] ?? ''));
-    $refreshToken = $refreshToken !== '' ? $refreshToken : null;
-
-    $expiresAt = null;
-    $expiresIn = $body['expires_in'] ?? $body['expiresIn'] ?? null;
-    if (is_numeric($expiresIn)) {
-        $expiresAt = time() + max(0, (int) $expiresIn);
+    if ($expiresAt === null) {
+        $expiresIn = $body['expires_in'] ?? $body['expiresIn'] ?? null;
+        if (is_numeric($expiresIn)) {
+            $expiresAt = time() + max(0, (int) $expiresIn);
+        }
     }
 
     $result = DrDrAuthService::storeClientTokens($doctorId, $accessToken, $refreshToken, $expiresAt);

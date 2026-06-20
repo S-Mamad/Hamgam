@@ -39,6 +39,21 @@ $bodies = [
             ],
         ],
     ],
+    'top_level_payload_token' => [
+        'ok' => true,
+        'code' => 2001,
+        'payload' => [
+            'token' => 'top-token',
+        ],
+    ],
+    'deep_data' => [
+        'ok' => true,
+        'result' => [
+            'data' => [
+                'access_token' => 'deep-token',
+            ],
+        ],
+    ],
 ];
 
 foreach ($bodies as $name => $body) {
@@ -55,4 +70,17 @@ foreach ($bodies as $name => $body) {
     $token = $extract->invoke(null, $payload);
 
     echo $name . ': successful=' . ($successful ? 'yes' : 'no') . ' token=' . ($token ?? 'null') . PHP_EOL;
+}
+
+$reflection = new ReflectionClass(DrDrAuthService::class);
+$extractOAuth = $reflection->getMethod('extractTokensFromOAuthBody');
+$extractOAuth->setAccessible(true);
+
+foreach ($bodies as $name => $body) {
+    try {
+        $parsed = $extractOAuth->invoke(null, $body);
+        echo $name . ' oauth_extract=' . ($parsed['access_token'] ?? 'null') . PHP_EOL;
+    } catch (Throwable $e) {
+        echo $name . ' oauth_extract=ERROR:' . $e->getMessage() . PHP_EOL;
+    }
 }
