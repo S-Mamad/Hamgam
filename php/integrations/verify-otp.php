@@ -42,13 +42,13 @@ try {
         throw new IntegrationException('invalid_mobile', 'شماره موبایل معتبر نیست.');
     }
 
-        $code = trim((string) ($body['code'] ?? $body['otp'] ?? ''));
-        $code = DrDrAuthService::normalizeOtpCode($code);
-        if ($code === null) {
-            throw new IntegrationException('invalid_code', 'کد تأیید نامعتبر است.');
-        }
+    $code = trim((string) ($body['code'] ?? $body['otp'] ?? ''));
+    $code = DrDrAuthService::normalizeOtpCode($code);
+    if ($code === null) {
+        throw new IntegrationException('invalid_code', 'کد تأیید نامعتبر است.');
+    }
 
-        $result = DrDrAuthService::verifyOtpAndStore($doctorId, $mobile, $code);
+    $result = DrDrAuthService::verifyOtpAndStore($doctorId, $mobile, $code);
     $status = DoctorExternalConnectionsRepository::getPublicStatus($doctorId, $provider);
 
     Response::json([

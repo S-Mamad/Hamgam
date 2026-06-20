@@ -87,7 +87,7 @@ final class DrDrAuthService
             DrDrPendingLoginRepository::cookiePathForDoctor($doctorId)
         );
 
-        if ($response['status'] < 200 || $response['status'] >= 300) {
+        if ($response['status'] < 200 || $response['status'] >= 300 || !self::isSuccessfulDrDrBody($response['body'])) {
             ProviderIntegrationService::logIntegrationEvent($doctorId, 'drdr', false, 'send_otp_rejected');
             throw new IntegrationException('send_otp_failed', self::humanizeDrDrError($response['body'], 'ارسال کد تأیید DrDr ناموفق بود.'));
         }
@@ -107,16 +107,16 @@ final class DrDrAuthService
             return false;
         }
 
+        $payload = self::unwrapDrDrPayload($body);
+        if (self::extractAccessToken($payload) !== null) {
+            return true;
+        }
+
         if (($body['ok'] ?? null) === false) {
             return false;
         }
 
-        $code = $body['code'] ?? null;
-        if (is_numeric($code) && (int) $code >= 400) {
-            return false;
-        }
-
-        return true;
+        return ($body['ok'] ?? null) === true;
     }
 
     private static function unwrapDrDrPayload(?array $body): ?array
@@ -162,14 +162,19 @@ final class DrDrAuthService
 
         $config = self::apiConfig();
         $response = self::requestVerify($config, $doctorId, $mobile, $code);
+        $tokenPayload = self::unwrapDrDrPayload($response['body']);
+        $accessToken = self::extractAccessToken($tokenPayload);
 
-        if ($response['status'] < 200 || $response['status'] >= 300 || !self::isSuccessfulDrDrBody($response['body'])) {
+        if ($response['status'] < 200 || $response['status'] >= 300) {
             ProviderIntegrationService::logIntegrationEvent($doctorId, 'drdr', false, 'verify_otp_rejected');
             throw new IntegrationException('verify_otp_failed', self::humanizeDrDrError($response['body'], 'کد تأیید DrDr نامعتبر است یا منقضی شده.'));
         }
 
-        $tokenPayload = self::unwrapDrDrPayload($response['body']);
-        $accessToken = self::extractAccessToken($tokenPayload);
+        if ($accessToken === null && !self::isSuccessfulDrDrBody($response['body'])) {
+            ProviderIntegrationService::logIntegrationEvent($doctorId, 'drdr', false, 'verify_otp_rejected');
+            throw new IntegrationException('verify_otp_failed', self::humanizeDrDrError($response['body'], 'کد تأیید DrDr نامعتبر است یا منقضی شده.'));
+        }
+
         if ($accessToken === null) {
             ProviderIntegrationService::logIntegrationEvent($doctorId, 'drdr', false, 'verify_no_token');
             throw new IntegrationException('verify_otp_failed', 'DrDr توکن دسترسی برنگرداند. لطفاً دوباره «ارسال کد» بزنید و کد جدید را وارد کنید.');
@@ -270,12 +275,20 @@ final class DrDrAuthService
             return 'کد تأیید DrDr اشتباه است.';
         }
 
+        if (str_contains($normalized, 'client authentication failed')) {
+            return 'پیکربندی اتصال DrDr روی سرور نامعتبر است. با پشتیبانی تماس بگیرید.';
+        }
+
         if (str_contains($normalized, 'too many attempts')) {
             return 'تعداد تلاش زیاد است. چند دقیقه بعد دوباره امتحان کنید.';
         }
 
         if (str_contains($normalized, 'تعداد درخواست') || str_contains($normalized, 'too many')) {
             return 'درخواست زیاد بود. چند دقیقه بعد دوباره تلاش کنید.';
+        }
+
+        if (str_contains($message, 'خطایی در سیستم') || str_contains($normalized, 'system error')) {
+            return 'خطای موقت DrDr. دوباره «ارسال کد» بزنید، همان کد جدید پیامکی را وارد کنید و تا پایان شمارشگر «ارسال مجدد» نزنید.';
         }
 
         return $message;
@@ -303,6 +316,10 @@ final class DrDrAuthService
 
         if (isset($body['result']) && is_array($body['result'])) {
             return self::extractAccessToken($body['result']);
+        }
+
+        if (isset($body['meta']) && is_array($body['meta'])) {
+            return self::extractAccessToken($body['meta']);
         }
 
         if (isset($body['data']) && is_array($body['data'])) {
