@@ -16,6 +16,8 @@ $testDb = $root . '/' . $testDbRelative;
 
 file_put_contents($testEnv, implode(PHP_EOL, [
     'APP_ENV=test',
+    'APP_BASE_URL=https://example.com',
+    'REDIRECT_SETTINGS=https://example.com/settings',
     'DB_DRIVER=sqlite',
     'DB_PATH=' . $testDbRelative,
     'TOKEN_ENCRYPTION_KEY=' . base64_encode(random_bytes(32)),
@@ -46,6 +48,7 @@ if (is_file($testDb)) {
 require_once $root . '/includes/Config.php';
 Config::load($testEnv);
 
+require_once $root . '/includes/IntegrationSecrets.php';
 require_once $root . '/includes/RequestContext.php';
 require_once $root . '/includes/Database.php';
 require_once $root . '/includes/GoogleTokensRepository.php';
@@ -102,9 +105,15 @@ assertTrue(is_array($tokens) && str_starts_with((string) ($tokens['access_token'
 DoctorExternalConnectionsRepository::delete('999', 'drdr');
 assertTrue(!DoctorExternalConnectionsRepository::isConnected('999', 'drdr'), 'connection deleted');
 
-$url = ProviderIntegrationService::connect('drdr', '42', 'settings');
-assertTrue(str_contains($url, 'response_type=code'), 'connect URL uses authorization code flow');
-assertTrue(str_contains($url, 'state='), 'connect URL includes signed state');
+$target = ProviderIntegrationService::buildConnectTarget('drdr', '42', 'settings');
+assertTrue(in_array($target['mode'], ['login', 'oauth'], true), 'connect target mode is valid');
+assertTrue(str_starts_with($target['url'], 'http'), 'connect target URL is absolute');
+if ($target['oauth_ready']) {
+    assertTrue(str_contains($target['url'], 'response_type=code'), 'oauth URL uses authorization code flow');
+    assertTrue(str_contains($target['url'], 'state='), 'oauth URL includes signed state');
+} else {
+    assertTrue(str_contains($target['url'], 'panel.drdr.ir'), 'login fallback opens DrDr panel');
+}
 
 echo PHP_EOL . ($failed === 0 ? 'All integration tests passed.' : "Failed: {$failed}") . PHP_EOL;
 exit($failed > 0 ? 1 : 0);

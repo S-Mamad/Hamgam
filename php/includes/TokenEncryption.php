@@ -73,17 +73,6 @@ final class TokenEncryption
 
     private static function encryptionKey(): string
     {
-        $raw = Config::require('TOKEN_ENCRYPTION_KEY');
-        $decoded = base64_decode($raw, true);
-
-        if ($decoded !== false && strlen($decoded) === 32) {
-            return $decoded;
-        }
-
-        if (strlen($raw) === 32) {
-            return $raw;
-        }
-
-        throw new RuntimeException('TOKEN_ENCRYPTION_KEY must be 32 bytes (raw or base64-encoded)');
+        return IntegrationSecrets::encryptionKey();
     }
 }

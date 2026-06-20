@@ -5,11 +5,11 @@ declare(strict_types=1);
 /**
  * GET /integrations/:provider/connect
  *
- * Validates Paziresh24 doctor session, builds OAuth2 authorization URL, redirects to provider.
- * Optional: ?format=json returns { oauth_url } instead of redirect (Authorization header required).
+ * One click → DrDr login (or OAuth authorize when credentials are set).
  */
 
 require_once __DIR__ . '/../includes/bootstrap.php';
+require_once __DIR__ . '/../includes/IntegrationSecrets.php';
 require_once __DIR__ . '/../includes/TokenEncryption.php';
 require_once __DIR__ . '/../includes/OAuthStateSigner.php';
 require_once __DIR__ . '/../includes/IntegrationProviderConfig.php';
@@ -36,19 +36,26 @@ try {
         $returnTo = 'settings';
     }
 
-    $oauthUrl = ProviderIntegrationService::connect($provider, $doctorId, $returnTo);
-    ProviderIntegrationService::logIntegrationEvent($doctorId, $provider, true, 'connect_started');
+    $target = ProviderIntegrationService::buildConnectTarget($provider, $doctorId, $returnTo);
+    ProviderIntegrationService::logIntegrationEvent(
+        $doctorId,
+        $provider,
+        true,
+        $target['oauth_ready'] ? 'connect_oauth_started' : 'connect_login_started'
+    );
 
     $format = strtolower(trim((string) ($_GET['format'] ?? '')));
     if ($format === 'json') {
         Response::json([
             'ok' => true,
             'provider' => $provider,
-            'oauth_url' => $oauthUrl,
+            'oauth_ready' => $target['oauth_ready'],
+            'mode' => $target['mode'],
+            'oauth_url' => $target['url'],
         ]);
     }
 
-    Response::redirectFast($oauthUrl);
+    Response::redirectFast($target['url']);
 } catch (IntegrationException $e) {
     ProviderIntegrationService::logIntegrationEvent(
         'unknown',
@@ -56,7 +63,11 @@ try {
         false,
         $e->reasonCode()
     );
-    Response::jsonError($e->getMessage(), $e->reasonCode() === 'auth_required' || $e->reasonCode() === 'auth_failed' ? 401 : 400);
+    $statusCode = match ($e->reasonCode()) {
+        'auth_required', 'auth_failed' => 401,
+        default => 400,
+    };
+    Response::jsonError($e->getMessage(), $statusCode);
 } catch (Throwable $e) {
     RequestContext::log('integrations/connect', $e->getMessage());
     Response::jsonError('Internal server error', 500);

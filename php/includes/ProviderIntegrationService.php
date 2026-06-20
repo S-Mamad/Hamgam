@@ -7,13 +7,60 @@ final class ProviderIntegrationService
     private const EXPIRY_SKEW_SECONDS = 60;
 
     /**
+     * @return array{mode: string, oauth_ready: bool, url: string}
+     */
+    public static function buildConnectTarget(string $provider, string $doctorId, string $returnTo = 'settings'): array
+    {
+        $config = IntegrationProviderConfig::resolveWithDefaults($provider);
+        $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
+
+        if (!$config['oauth_ready']) {
+            return [
+                'mode' => 'login',
+                'oauth_ready' => false,
+                'url' => $config['login_url'],
+            ];
+        }
+
+        return [
+            'mode' => 'oauth',
+            'oauth_ready' => true,
+            'url' => self::buildOAuthAuthorizeUrl($config, $doctorId, $returnTo),
+        ];
+    }
+
+    /**
      * Builds the provider authorization URL (OAuth2 Authorization Code Flow).
      */
     public static function connect(string $provider, string $doctorId, string $returnTo = 'settings'): string
     {
-        $config = IntegrationProviderConfig::resolve($provider);
-        $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
+        $target = self::buildConnectTarget($provider, $doctorId, $returnTo);
+        if (!$target['oauth_ready']) {
+            throw new IntegrationException(
+                'oauth_not_ready',
+                'OAuth DrDr هنوز فعال نشده. client_id و client_secret را در php/config/providers/drdr.php قرار دهید.'
+            );
+        }
 
+        return $target['url'];
+    }
+
+    /**
+     * @param array{
+     *   slug: string,
+     *   client_id: string,
+     *   client_secret: string,
+     *   auth_url: string,
+     *   token_url: string,
+     *   redirect_uri: string,
+     *   login_url: string,
+     *   scope: string,
+     *   extra_auth_params: array<string, string>,
+     *   oauth_ready: bool
+     * } $config
+     */
+    private static function buildOAuthAuthorizeUrl(array $config, string $doctorId, string $returnTo): string
+    {
         $state = OAuthStateSigner::create($doctorId, $config['slug'], [
             'return_to' => $returnTo,
         ]);

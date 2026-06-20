@@ -29,6 +29,15 @@ try {
     RequestContext::log('hamgam/health', 'database: ' . $e->getMessage());
 }
 
+require_once __DIR__ . '/../includes/IntegrationProviderConfig.php';
+
+$checks['integration_encryption'] = IntegrationProviderConfig::isEncryptionReady() ? 'ok' : 'missing';
+$checks['integration_drdr_oauth'] = IntegrationProviderConfig::isOAuthReady('drdr') ? 'ok' : 'login_only';
+if ($checks['integration_drdr_oauth'] !== 'ok') {
+    $checks['integration_drdr_missing'] = IntegrationProviderConfig::missingRequirements('drdr');
+    $checks['integration_drdr_login_url'] = IntegrationProviderConfig::loginUrl('drdr');
+}
+
 Response::json([
     'status' => ($checks['env'] && $checks['database'] === 'ok') ? 'ok' : 'degraded',
     'checks' => $checks,

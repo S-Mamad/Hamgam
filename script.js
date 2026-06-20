@@ -42,6 +42,7 @@ const appState = {
     importFutureBackfillSlotCount: 0,
     deletingSyncedBackfill: false,
     drdrConnected: false,
+    drdrOAuthReady: false,
     drdrStatusLoaded: false,
     drdrConnecting: false,
     drdrDisconnecting: false,
@@ -89,6 +90,8 @@ function mapApiError(error) {
         "Google account not connected": "حساب Google متصل نیست. ابتدا اتصال Google را برقرار کنید.",
         "Failed to fetch medical centers": "خطا در دریافت مراکز درمانی از پذیرش۲۴",
         "Internal server error": "خطای سرور. چند لحظه بعد دوباره تلاش کنید.",
+        "External integration is not configured on the server": "اتصال DrDr روی سرور هنوز فعال نشده. با پشتیبانی تماس بگیرید.",
+        "اتصال DrDr روی سرور هنوز پیکربندی نشده است.": "اتصال DrDr روی سرور هنوز فعال نشده. با پشتیبانی تماس بگیرید.",
         "Invalid JSON body": "خطا در ارسال داده. صفحه را رفرش کنید و دوباره تلاش کنید.",
         "Authentication failed": "خطا در احراز هویت. صفحه را از پنل پذیرش۲۴ مجدداً باز کنید.",
         "Missing session token": "توکن نشست یافت نشد. صفحه را از پنل پذیرش۲۴ دوباره باز کنید.",
@@ -367,6 +370,7 @@ async function integrationApiGet(scriptName, token, provider = DRDR_PROVIDER, ex
 }
 
 function applyDrdrIntegrationState(data = {}) {
+    appState.drdrOAuthReady = data.oauth_ready === true;
     appState.drdrConnected = !!data.connected;
     appState.drdrExpiresAt = Number.isFinite(data.expires_at) ? data.expires_at : null;
     appState.drdrHasRefreshToken = !!data.has_refresh_token;
@@ -393,6 +397,9 @@ function updateDrdrIntegrationUi() {
         } else if (appState.drdrConnected) {
             badge.textContent = "متصل";
             badge.className = "integration-card__badge integration-card__badge--connected";
+        } else if (!appState.drdrOAuthReady) {
+            badge.textContent = "آماده ورود";
+            badge.className = "integration-card__badge integration-card__badge--idle";
         } else {
             badge.textContent = "متصل نیست";
             badge.className = "integration-card__badge integration-card__badge--disconnected";
@@ -489,7 +496,7 @@ async function fetchDrdrIntegrationStatus(options = {}) {
     }
 }
 
-async function requestDrdrOAuthUrl(token) {
+async function requestDrdrConnectUrl(token) {
     let response = await integrationApiGet("connect.php", token, DRDR_PROVIDER, {
         format: "json",
         return_to: "settings"
@@ -506,10 +513,14 @@ async function requestDrdrOAuthUrl(token) {
     }
 
     if (!response.ok || !data.oauth_url) {
-        throw new Error(mapApiError(data.error) || "خطا در دریافت آدرس OAuth DrDr");
+        throw new Error(mapApiError(data.error) || data.message || "خطا در دریافت آدرس DrDr");
     }
 
-    return data.oauth_url;
+    return {
+        url: data.oauth_url,
+        oauthReady: data.oauth_ready === true,
+        mode: typeof data.mode === "string" ? data.mode : "login"
+    };
 }
 
 async function handleDrdrConnectClick() {
@@ -529,11 +540,17 @@ async function handleDrdrConnectClick() {
             throw new Error("ابتدا وارد حساب پذیرش۲۴ شوید.");
         }
 
-        const oauthUrl = await requestDrdrOAuthUrl(token);
-        const navMode = await completeOAuthNavigation(oauthPrepared, oauthUrl);
+        const connectTarget = await requestDrdrConnectUrl(token);
+        const navMode = await completeOAuthNavigation(oauthPrepared, connectTarget.url);
 
         if (navMode === "none") {
             throw new Error("خطا در باز کردن صفحه DrDr. دوباره تلاش کنید.");
+        }
+
+        if (!connectTarget.oauthReady) {
+            setDrdrConnectLoading(false);
+            showToast("صفحه ورود DrDr باز شد. برای ذخیره خودکار توکن، DrDr باید OAuth اپ شما را فعال کند.");
+            return;
         }
 
         if (navMode === "external" || navMode === "top" || navMode === "same") {

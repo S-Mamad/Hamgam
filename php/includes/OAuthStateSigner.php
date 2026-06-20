@@ -104,7 +104,7 @@ final class OAuthStateSigner
 
     private static function secret(): string
     {
-        return Config::require('INTEGRATION_OAUTH_STATE_SECRET');
+        return IntegrationSecrets::oauthStateSecret();
     }
 
     private static function base64UrlEncode(string $data): string
