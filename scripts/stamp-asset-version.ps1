@@ -1,4 +1,6 @@
 # Stamps style.css and script.js URLs in HTML with a content hash for cache busting.
+# Run after editing CSS/JS:  powershell -File scripts\stamp-asset-version.ps1
+# Or double-click:           scripts\stamp-assets.cmd
 param(
     [string]$Root = (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)),
     [string]$DeployDir = ""
@@ -24,10 +26,12 @@ function Stamp-HtmlFile([string]$HtmlPath, [string]$CssPath, [string]$JsPath) {
     $version = Get-AssetVersion $CssPath $JsPath
     $html = [System.IO.File]::ReadAllText($HtmlPath)
 
-    $html = $html -replace 'href="style\.css(?:\?v=[^"]*)?"', "href=`"style.css?v=$version`""
-    $html = $html -replace 'src="script\.js(?:\?v=[^"]*)?"', "src=`"script.js?v=$version`""
+    $newHtml = $html -replace 'href="style\.css(?:\?v=[^"]*)?"', "href=`"style.css?v=$version`""
+    $newHtml = $newHtml -replace 'src="script\.js(?:\?v=[^"]*)?"', "src=`"script.js?v=$version`""
 
-    [System.IO.File]::WriteAllText($HtmlPath, $html, $utf8NoBom)
+    if ($newHtml -eq $html) { return $version }
+
+    [System.IO.File]::WriteAllText($HtmlPath, $newHtml, $utf8NoBom)
     Write-Host "Asset version v=$version -> $HtmlPath"
     return $version
 }
