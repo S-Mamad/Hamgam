@@ -34,6 +34,8 @@ RewriteRule ^integrations/([a-z0-9_-]+)/connect/?$ php/integrations/connect.php?
 RewriteRule ^integrations/([a-z0-9_-]+)/callback/?$ php/integrations/callback.php?provider=$1 [L,QSA]
 RewriteRule ^integrations/([a-z0-9_-]+)/status/?$ php/integrations/status.php?provider=$1 [L,QSA]
 RewriteRule ^integrations/([a-z0-9_-]+)/disconnect/?$ php/integrations/disconnect.php?provider=$1 [L,QSA]
+RewriteRule ^integrations/([a-z0-9_-]+)/send-otp/?$ php/integrations/send-otp.php?provider=$1 [L,QSA]
+RewriteRule ^integrations/([a-z0-9_-]+)/verify-otp/?$ php/integrations/verify-otp.php?provider=$1 [L,QSA]
 
 # سازگاری با URLهای قدیمی zamanak (تا به‌روزرسانی پنل‌ها)
 RewriteRule ^zamanak/auth/?$ php/hamgam/auth.php [L,QSA]

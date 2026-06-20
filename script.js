@@ -43,9 +43,14 @@ const appState = {
     deletingSyncedBackfill: false,
     drdrConnected: false,
     drdrOAuthReady: false,
+    drdrOtpLoginReady: true,
     drdrStatusLoaded: false,
-    drdrConnecting: false,
+    drdrSendingOtp: false,
+    drdrVerifyingOtp: false,
     drdrDisconnecting: false,
+    drdrOtpSent: false,
+    drdrOtpMobile: "",
+    drdrOtpRetryAfter: 0,
     drdrExpiresAt: null,
     drdrHasRefreshToken: false
 };
@@ -369,12 +374,93 @@ async function integrationApiGet(scriptName, token, provider = DRDR_PROVIDER, ex
     return response;
 }
 
+function normalizeDrdrMobile(raw) {
+    if (typeof raw !== "string") {
+        return null;
+    }
+
+    let mobile = raw.trim().replace(/[\s\-()]/g, "");
+    if (mobile.startsWith("+98")) {
+        mobile = "0" + mobile.slice(3);
+    } else if (mobile.startsWith("98") && mobile.length === 12) {
+        mobile = "0" + mobile.slice(2);
+    }
+
+    return /^09\d{9}$/.test(mobile) ? mobile : null;
+}
+
+let drdrOtpCountdownTimer = null;
+
+function resetDrdrOtpForm(clearInputs = true) {
+    appState.drdrOtpSent = false;
+    appState.drdrOtpMobile = "";
+    appState.drdrOtpRetryAfter = 0;
+
+    if (drdrOtpCountdownTimer) {
+        clearInterval(drdrOtpCountdownTimer);
+        drdrOtpCountdownTimer = null;
+    }
+
+    const otpStep = document.getElementById("drdrOtpStep");
+    const otpInput = document.getElementById("drdrOtpInput");
+    const mobileInput = document.getElementById("drdrMobileInput");
+    const otpHint = document.getElementById("drdrOtpHint");
+
+    if (clearInputs) {
+        if (mobileInput) {
+            mobileInput.value = "";
+        }
+        if (otpInput) {
+            otpInput.value = "";
+        }
+    }
+
+    if (otpStep) {
+        otpStep.hidden = true;
+    }
+    if (otpHint) {
+        otpHint.textContent = "";
+    }
+
+    updateDrdrIntegrationUi();
+}
+
+function startDrdrOtpCountdown(seconds) {
+    appState.drdrOtpRetryAfter = Math.max(0, Number(seconds) || 0);
+
+    if (drdrOtpCountdownTimer) {
+        clearInterval(drdrOtpCountdownTimer);
+    }
+
+    updateDrdrIntegrationUi();
+
+    if (appState.drdrOtpRetryAfter <= 0) {
+        return;
+    }
+
+    drdrOtpCountdownTimer = setInterval(() => {
+        appState.drdrOtpRetryAfter = Math.max(0, appState.drdrOtpRetryAfter - 1);
+        updateDrdrIntegrationUi();
+
+        if (appState.drdrOtpRetryAfter <= 0 && drdrOtpCountdownTimer) {
+            clearInterval(drdrOtpCountdownTimer);
+            drdrOtpCountdownTimer = null;
+        }
+    }, 1000);
+}
+
 function applyDrdrIntegrationState(data = {}) {
     appState.drdrOAuthReady = data.oauth_ready === true;
+    appState.drdrOtpLoginReady = data.otp_login_ready !== false;
     appState.drdrConnected = !!data.connected;
     appState.drdrExpiresAt = Number.isFinite(data.expires_at) ? data.expires_at : null;
     appState.drdrHasRefreshToken = !!data.has_refresh_token;
     appState.drdrStatusLoaded = true;
+
+    if (appState.drdrConnected) {
+        resetDrdrOtpForm(false);
+    }
+
     updateDrdrIntegrationUi();
 }
 
@@ -383,7 +469,13 @@ function updateDrdrIntegrationUi() {
     const badge = document.getElementById("drdrIntegrationBadge");
     const meta = document.getElementById("drdrIntegrationMeta");
     const metaText = document.getElementById("drdrIntegrationMetaText");
-    const connectBtn = document.getElementById("drdrConnectBtn");
+    const loginForm = document.getElementById("drdrLoginForm");
+    const mobileInput = document.getElementById("drdrMobileInput");
+    const otpStep = document.getElementById("drdrOtpStep");
+    const otpInput = document.getElementById("drdrOtpInput");
+    const otpHint = document.getElementById("drdrOtpHint");
+    const sendBtn = document.getElementById("drdrSendOtpBtn");
+    const verifyBtn = document.getElementById("drdrVerifyOtpBtn");
     const disconnectBtn = document.getElementById("drdrDisconnectBtn");
 
     if (card) {
@@ -397,8 +489,8 @@ function updateDrdrIntegrationUi() {
         } else if (appState.drdrConnected) {
             badge.textContent = "متصل";
             badge.className = "integration-card__badge integration-card__badge--connected";
-        } else if (!appState.drdrOAuthReady) {
-            badge.textContent = "آماده ورود";
+        } else if (appState.drdrOtpSent) {
+            badge.textContent = "منتظر کد";
             badge.className = "integration-card__badge integration-card__badge--idle";
         } else {
             badge.textContent = "متصل نیست";
@@ -418,15 +510,77 @@ function updateDrdrIntegrationUi() {
         }
     }
 
-    if (connectBtn) {
-        const busy = appState.drdrConnecting;
-        const connectText = connectBtn.querySelector(".integration-card__btn-text");
-        connectBtn.hidden = appState.drdrConnected;
-        connectBtn.disabled = busy || appState.drdrDisconnecting || !appState.drdrStatusLoaded;
-        connectBtn.classList.toggle("is-loading", busy);
-        connectBtn.setAttribute("aria-busy", busy ? "true" : "false");
-        if (connectText) {
-            connectText.textContent = busy ? "در حال انتقال…" : "اتصال به DrDr";
+    if (loginForm) {
+        loginForm.hidden = appState.drdrConnected;
+    }
+
+    if (mobileInput) {
+        mobileInput.disabled =
+            appState.drdrConnected ||
+            appState.drdrSendingOtp ||
+            appState.drdrVerifyingOtp ||
+            !appState.drdrStatusLoaded ||
+            (appState.drdrOtpSent && appState.drdrOtpRetryAfter > 0);
+    }
+
+    if (otpStep) {
+        otpStep.hidden = !appState.drdrOtpSent || appState.drdrConnected;
+    }
+
+    if (otpInput) {
+        otpInput.disabled =
+            appState.drdrConnected ||
+            !appState.drdrOtpSent ||
+            appState.drdrVerifyingOtp ||
+            !appState.drdrStatusLoaded;
+    }
+
+    if (otpHint) {
+        if (appState.drdrOtpSent && appState.drdrOtpMobile) {
+            otpHint.textContent =
+                appState.drdrOtpRetryAfter > 0
+                    ? `کد به ${appState.drdrOtpMobile} ارسال شد. ارسال مجدد تا ${appState.drdrOtpRetryAfter} ثانیه`
+                    : `کد به ${appState.drdrOtpMobile} ارسال شد.`;
+        } else {
+            otpHint.textContent = "";
+        }
+    }
+
+    if (sendBtn) {
+        const busy = appState.drdrSendingOtp;
+        const sendText = sendBtn.querySelector(".integration-card__btn-text");
+        const resendLocked = appState.drdrOtpSent && appState.drdrOtpRetryAfter > 0;
+        sendBtn.hidden = appState.drdrConnected;
+        sendBtn.disabled =
+            busy ||
+            appState.drdrVerifyingOtp ||
+            appState.drdrDisconnecting ||
+            !appState.drdrStatusLoaded ||
+            resendLocked;
+        sendBtn.classList.toggle("is-loading", busy);
+        sendBtn.setAttribute("aria-busy", busy ? "true" : "false");
+        if (sendText) {
+            sendText.textContent = busy
+                ? "در حال ارسال…"
+                : appState.drdrOtpSent
+                  ? "ارسال مجدد کد"
+                  : "ارسال کد";
+        }
+    }
+
+    if (verifyBtn) {
+        const busy = appState.drdrVerifyingOtp;
+        const verifyText = verifyBtn.querySelector(".integration-card__btn-text");
+        verifyBtn.hidden = !appState.drdrOtpSent || appState.drdrConnected;
+        verifyBtn.disabled =
+            busy ||
+            appState.drdrSendingOtp ||
+            appState.drdrDisconnecting ||
+            !appState.drdrStatusLoaded;
+        verifyBtn.classList.toggle("is-loading", busy);
+        verifyBtn.setAttribute("aria-busy", busy ? "true" : "false");
+        if (verifyText) {
+            verifyText.textContent = busy ? "در حال تأیید…" : "تأیید و اتصال";
         }
     }
 
@@ -434,7 +588,11 @@ function updateDrdrIntegrationUi() {
         const busy = appState.drdrDisconnecting;
         const disconnectText = disconnectBtn.querySelector(".integration-card__btn-text");
         disconnectBtn.hidden = !appState.drdrConnected;
-        disconnectBtn.disabled = busy || appState.drdrConnecting || !appState.drdrStatusLoaded;
+        disconnectBtn.disabled =
+            busy ||
+            appState.drdrSendingOtp ||
+            appState.drdrVerifyingOtp ||
+            !appState.drdrStatusLoaded;
         disconnectBtn.classList.toggle("is-loading", busy);
         disconnectBtn.setAttribute("aria-busy", busy ? "true" : "false");
         if (disconnectText) {
@@ -443,8 +601,13 @@ function updateDrdrIntegrationUi() {
     }
 }
 
-function setDrdrConnectLoading(loading) {
-    appState.drdrConnecting = loading;
+function setDrdrSendOtpLoading(loading) {
+    appState.drdrSendingOtp = loading;
+    updateDrdrIntegrationUi();
+}
+
+function setDrdrVerifyOtpLoading(loading) {
+    appState.drdrVerifyingOtp = loading;
     updateDrdrIntegrationUi();
 }
 
@@ -496,40 +659,45 @@ async function fetchDrdrIntegrationStatus(options = {}) {
     }
 }
 
-async function requestDrdrConnectUrl(token) {
-    let response = await integrationApiGet("connect.php", token, DRDR_PROVIDER, {
-        format: "json",
-        return_to: "settings"
-    });
+async function postDrdrIntegration(scriptName, token, payload) {
+    let response = await apiFetch(
+        integrationEndpoint(scriptName, DRDR_PROVIDER),
+        token,
+        { body: apiBodyWithToken(token, payload), withJson: true }
+    );
     let data = await parseJsonResponse(response);
 
     if (response.status === 401 && window.hamdast) {
         const freshToken = await ensureFreshAccessToken();
-        response = await integrationApiGet("connect.php", freshToken, DRDR_PROVIDER, {
-            format: "json",
-            return_to: "settings"
-        });
+        response = await apiFetch(
+            integrationEndpoint(scriptName, DRDR_PROVIDER),
+            freshToken,
+            { body: apiBodyWithToken(freshToken, payload), withJson: true }
+        );
         data = await parseJsonResponse(response);
     }
 
-    if (!response.ok || !data.oauth_url) {
-        throw new Error(mapApiError(data.error) || data.message || "خطا در دریافت آدرس DrDr");
-    }
-
-    return {
-        url: data.oauth_url,
-        oauthReady: data.oauth_ready === true,
-        mode: typeof data.mode === "string" ? data.mode : "login"
-    };
+    return { response, data };
 }
 
-async function handleDrdrConnectClick() {
-    if (appState.drdrConnecting || appState.drdrDisconnecting || appState.drdrConnected) {
+async function handleDrdrSendOtpClick() {
+    if (appState.drdrConnected || appState.drdrSendingOtp || appState.drdrVerifyingOtp) {
         return;
     }
 
-    const oauthPrepared = prepareOAuthNavigation();
-    setDrdrConnectLoading(true);
+    if (appState.drdrOtpSent && appState.drdrOtpRetryAfter > 0) {
+        return;
+    }
+
+    const mobileInput = document.getElementById("drdrMobileInput");
+    const mobile = normalizeDrdrMobile(mobileInput?.value || appState.drdrOtpMobile || "");
+    if (!mobile) {
+        showToast("شماره موبایل معتبر نیست. مثال: 09123456789", "error");
+        mobileInput?.focus();
+        return;
+    }
+
+    setDrdrSendOtpLoading(true);
 
     try {
         const token = window.hamdast
@@ -540,39 +708,92 @@ async function handleDrdrConnectClick() {
             throw new Error("ابتدا وارد حساب پذیرش۲۴ شوید.");
         }
 
-        const connectTarget = await requestDrdrConnectUrl(token);
-        const navMode = await completeOAuthNavigation(oauthPrepared, connectTarget.url);
+        const { response, data } = await postDrdrIntegration("send-otp.php", token, { mobile });
 
-        if (navMode === "none") {
-            throw new Error("خطا در باز کردن صفحه DrDr. دوباره تلاش کنید.");
+        if (!response.ok || !data.ok) {
+            throw new Error(mapApiError(data.error) || "ارسال کد DrDr ناموفق بود.");
         }
 
-        if (!connectTarget.oauthReady) {
-            setDrdrConnectLoading(false);
-            showToast("صفحه ورود DrDr باز شد. برای ذخیره خودکار توکن، DrDr باید OAuth اپ شما را فعال کند.");
-            return;
+        appState.drdrOtpSent = true;
+        appState.drdrOtpMobile = data.mobile || mobile;
+        if (mobileInput) {
+            mobileInput.value = appState.drdrOtpMobile;
         }
 
-        if (navMode === "external" || navMode === "top" || navMode === "same") {
-            return;
-        }
+        startDrdrOtpCountdown(Number(data.retry_after) || 60);
+        showToast("کد تأیید DrDr ارسال شد.");
 
-        throw new Error("باز کردن صفحه DrDr ناموفق بود. دوباره تلاش کنید.");
+        const otpInput = document.getElementById("drdrOtpInput");
+        otpInput?.focus();
     } catch (error) {
-        console.error("[Hamgam] drdr connect failed:", error);
-        showToast(error.message || "اتصال DrDr ناموفق بود.", "error");
-        setDrdrConnectLoading(false);
+        console.error("[Hamgam] drdr send otp failed:", error);
+        showToast(error.message || "ارسال کد DrDr ناموفق بود.", "error");
+    } finally {
+        setDrdrSendOtpLoading(false);
+    }
+}
+
+async function handleDrdrVerifyOtpClick() {
+    if (appState.drdrConnected || appState.drdrVerifyingOtp || !appState.drdrOtpSent) {
+        return;
+    }
+
+    const mobileInput = document.getElementById("drdrMobileInput");
+    const otpInput = document.getElementById("drdrOtpInput");
+    const mobile = normalizeDrdrMobile(mobileInput?.value || appState.drdrOtpMobile || "");
+    const code = (otpInput?.value || "").trim();
+
+    if (!mobile) {
+        showToast("شماره موبایل معتبر نیست.", "error");
+        return;
+    }
+
+    if (!/^\d{4,8}$/.test(code)) {
+        showToast("کد تأیید را وارد کنید.", "error");
+        otpInput?.focus();
+        return;
+    }
+
+    setDrdrVerifyOtpLoading(true);
+
+    try {
+        const token = window.hamdast
+            ? await ensureFreshAccessToken()
+            : localStorage.getItem("access_token");
+
+        if (!token) {
+            throw new Error("ابتدا وارد حساب پذیرش۲۴ شوید.");
+        }
+
+        const { response, data } = await postDrdrIntegration("verify-otp.php", token, { mobile, code });
+
+        if (!response.ok || !data.ok) {
+            throw new Error(mapApiError(data.error) || "تأیید کد DrDr ناموفق بود.");
+        }
+
+        applyDrdrIntegrationState({
+            connected: true,
+            expires_at: data.expires_at,
+            has_refresh_token: data.has_refresh_token
+        });
+        resetDrdrOtpForm(true);
+        showToast("اتصال DrDr با موفقیت برقرار شد.");
+    } catch (error) {
+        console.error("[Hamgam] drdr verify otp failed:", error);
+        showToast(error.message || "تأیید کد DrDr ناموفق بود.", "error");
+    } finally {
+        setDrdrVerifyOtpLoading(false);
     }
 }
 
 async function handleDrdrDisconnectClick() {
-    if (appState.drdrDisconnecting || appState.drdrConnecting || !appState.drdrConnected) {
+    if (appState.drdrDisconnecting || appState.drdrSendingOtp || appState.drdrVerifyingOtp || !appState.drdrConnected) {
         return;
     }
 
     const confirmed = await showHamgamConfirm({
         title: "قطع اتصال DrDr",
-        message: "اتصال OAuth با DrDr قطع می‌شود. برای استفاده مجدد باید دوباره از طریق صفحه رسمی DrDr اجازه دهید.",
+        message: "اتصال DrDr قطع می‌شود. برای استفاده مجدد باید دوباره با شماره موبایل و کد تأیید وارد شوید.",
         acceptLabel: "قطع اتصال",
         danger: true
     });
@@ -617,6 +838,7 @@ async function handleDrdrDisconnectClick() {
             expires_at: null,
             has_refresh_token: false
         });
+        resetDrdrOtpForm(true);
         showToast("اتصال DrDr قطع شد.");
     } catch (error) {
         console.error("[Hamgam] drdr disconnect failed:", error);
@@ -1167,7 +1389,8 @@ async function initApp() {
     bindUiEvents();
     setupGmailChangeReturnListener();
     resetChangeGmailButton();
-    appState.drdrConnecting = false;
+    appState.drdrSendingOtp = false;
+    appState.drdrVerifyingOtp = false;
     appState.drdrDisconnecting = false;
 
     const oauthReturn = isOAuthReturn();
@@ -1358,12 +1581,41 @@ function bindUiEvents() {
         });
     }
 
-    const drdrConnectBtn = document.getElementById("drdrConnectBtn");
-    if (drdrConnectBtn) {
-        drdrConnectBtn.addEventListener("click", (e) => {
+    const drdrSendOtpBtn = document.getElementById("drdrSendOtpBtn");
+    if (drdrSendOtpBtn) {
+        drdrSendOtpBtn.addEventListener("click", (e) => {
             e.preventDefault();
             e.stopPropagation();
-            void handleDrdrConnectClick();
+            void handleDrdrSendOtpClick();
+        });
+    }
+
+    const drdrVerifyOtpBtn = document.getElementById("drdrVerifyOtpBtn");
+    if (drdrVerifyOtpBtn) {
+        drdrVerifyOtpBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void handleDrdrVerifyOtpClick();
+        });
+    }
+
+    const drdrOtpInput = document.getElementById("drdrOtpInput");
+    if (drdrOtpInput) {
+        drdrOtpInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                void handleDrdrVerifyOtpClick();
+            }
+        });
+    }
+
+    const drdrMobileInput = document.getElementById("drdrMobileInput");
+    if (drdrMobileInput) {
+        drdrMobileInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                void handleDrdrSendOtpClick();
+            }
         });
     }
 
