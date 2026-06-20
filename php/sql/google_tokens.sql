@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS google_tokens (
     color_id VARCHAR(8) NOT NULL DEFAULT '9',
     Patient_name INTEGER NOT NULL DEFAULT 1,
     Patient_date_time INTEGER NOT NULL DEFAULT 0,
-    Patient_national INTEGER NOT NULL DEFAULT 0,
+    Patient_national INTEGER NOT NULL DEFAULT 1,
     Patient_phone INTEGER NOT NULL DEFAULT 0,
     Patient_center INTEGER NOT NULL DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

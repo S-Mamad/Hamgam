@@ -11,10 +11,10 @@
     <meta name="description" content="شخصی‌سازی نحوه ثبت نوبت‌های پذیرش۲۴ در Google Calendar">
     <link rel="dns-prefetch" href="https://accounts.google.com">
     <link rel="preconnect" href="https://accounts.google.com" crossorigin>
-    <link rel="stylesheet" href="style.css?v=034bb3de">
+    <link rel="stylesheet" href="style.css?v=52260c4a">
     <link href="https://fonts.paziresh24.com/iran-sans-x.css" rel="stylesheet">
     <script src="https://hamdast.paziresh24.com/sdk/hamdast.js"></script>
-    <script src="script.js?v=034bb3de" defer></script>
+    <script src="script.js?v=52260c4a" defer></script>
 </head>
 
 <body>
@@ -197,7 +197,6 @@
                     <span class="integration-card__icon" aria-hidden="true">
                         <img src="assets/images/drdr-logo.png" alt="" class="integration-card__logo" decoding="async">
                     </span>
-                    <span class="integration-card__toggle-title">  </span>
                     <span id="drdrIntegrationBadge" class="integration-card__badge integration-card__badge--idle" aria-live="polite">در حال بررسی…</span>
                     <span class="integration-card__chevron" aria-hidden="true"></span>
                 </button>
@@ -247,12 +246,8 @@
                         </div>
                     </form>
 
-                    <div id="drdrIntegrationMeta" class="integration-card__meta" hidden>
-                        <span id="drdrIntegrationMetaText" class="integration-card__meta-value"></span>
-                    </div>
-
-                    <div class="integration-card__actions integration-card__actions--connected">
-                        <button type="button" id="drdrDisconnectBtn" class="integration-card__btn integration-card__btn--ghost" hidden aria-busy="false">
+                    <div id="drdrConnectedWrap" class="integration-connected" hidden>
+                        <button type="button" id="drdrDisconnectBtn" class="integration-card__btn integration-card__btn--disconnect" hidden aria-busy="false">
                             <span class="integration-card__btn-text">قطع اتصال</span>
                             <span class="integration-card__btn-spinner" aria-hidden="true"></span>
                         </button>
@@ -331,7 +326,7 @@
                         <div class="field-title">کد ملی بیمار</div>
                     </div>
                     <label class="switch">
-                        <input type="checkbox" data-field="nationalId">
+                        <input type="checkbox" checked data-field="nationalId">
                         <span></span>
                     </label>
                 </div>

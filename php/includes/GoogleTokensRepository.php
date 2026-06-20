@@ -345,7 +345,7 @@ final class GoogleTokensRepository
         string $colorId = '9',
         bool $patientName = true,
         bool $patientDateTime = false,
-        bool $patientNational = false,
+        bool $patientNational = true,
         bool $patientPhone = false,
         ?array $existingRow = null
     ): void {
@@ -367,7 +367,8 @@ final class GoogleTokensRepository
                     Patient_date_time,
                     Patient_national,
                     Patient_phone,
-                    Patient_center
+                    Patient_center,
+                    cancel_conflicting_appointments
                 ) VALUES (
                     :user_id,
                     :hamdast_access_token,
@@ -378,7 +379,8 @@ final class GoogleTokensRepository
                     :patient_date_time,
                     :patient_national,
                     :patient_phone,
-                    :patient_center
+                    :patient_center,
+                    :cancel_conflicting_appointments
                 )
                 ON DUPLICATE KEY UPDATE
                     hamdast_access_token = VALUES(hamdast_access_token),
@@ -399,6 +401,7 @@ final class GoogleTokensRepository
                     Patient_national,
                     Patient_phone,
                     Patient_center,
+                    cancel_conflicting_appointments,
                     updated_at
                 ) VALUES (
                     :user_id,
@@ -411,6 +414,7 @@ final class GoogleTokensRepository
                     :patient_national,
                     :patient_phone,
                     :patient_center,
+                    :cancel_conflicting_appointments,
                     CURRENT_TIMESTAMP
                 )
                 ON CONFLICT(paziresh24_user_id) DO UPDATE SET
@@ -432,6 +436,7 @@ final class GoogleTokensRepository
             'patient_national' => $prefs['Patient_national'] ? 1 : 0,
             'patient_phone' => $prefs['Patient_phone'] ? 1 : 0,
             'patient_center' => $prefs['Patient_center'] ? 1 : 0,
+            'cancel_conflicting_appointments' => $prefs['cancel_conflicting_appointments'] ? 1 : 0,
         ]);
     }
 
@@ -460,7 +465,7 @@ final class GoogleTokensRepository
                 'color_id' => '9',
                 'Patient_name' => true,
                 'Patient_date_time' => false,
-                'Patient_national' => false,
+                'Patient_national' => true,
                 'Patient_phone' => false,
                 'Patient_center' => true,
                 'auto_vacation' => false,
@@ -471,7 +476,7 @@ final class GoogleTokensRepository
                 'import_future_backfill_slot_count' => 0,
                 'synced_vacation_count' => 0,
                 'cancel_appointment_on_event_delete' => true,
-                'cancel_conflicting_appointments' => true,
+                'cancel_conflicting_appointments' => false,
                 'google_account_email' => null,
                 'vacation_sync_centers' => self::defaultVacationSyncCenters(),
             ];

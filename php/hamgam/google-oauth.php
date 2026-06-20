@@ -75,7 +75,7 @@ try {
         colorId: '9',
         patientName: true,
         patientDateTime: false,
-        patientNational: false,
+        patientNational: true,
         patientPhone: false,
         existingRow: $existingRow
     );

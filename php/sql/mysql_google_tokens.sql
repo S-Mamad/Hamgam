@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS google_tokens (
     color_id VARCHAR(8) NOT NULL DEFAULT '9',
     Patient_name TINYINT(1) NOT NULL DEFAULT 1,
     Patient_date_time TINYINT(1) NOT NULL DEFAULT 0,
-    Patient_national TINYINT(1) NOT NULL DEFAULT 0,
+    Patient_national TINYINT(1) NOT NULL DEFAULT 1,
     Patient_phone TINYINT(1) NOT NULL DEFAULT 0,
     Patient_center TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -69,7 +69,7 @@ final class Database
                     color_id VARCHAR(8) NOT NULL DEFAULT "9",
                     Patient_name TINYINT(1) NOT NULL DEFAULT 1,
                     Patient_date_time TINYINT(1) NOT NULL DEFAULT 0,
-                    Patient_national TINYINT(1) NOT NULL DEFAULT 0,
+                    Patient_national TINYINT(1) NOT NULL DEFAULT 1,
                     Patient_phone TINYINT(1) NOT NULL DEFAULT 0,
                     Patient_center TINYINT(1) NOT NULL DEFAULT 1,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -81,7 +81,7 @@ final class Database
             self::ensureColumn($pdo, 'google_tokens', 'color_id', 'VARCHAR(8) NOT NULL DEFAULT "9"');
             self::ensureColumn($pdo, 'google_tokens', 'Patient_name', 'TINYINT(1) NOT NULL DEFAULT 1');
             self::ensureColumn($pdo, 'google_tokens', 'Patient_date_time', 'TINYINT(1) NOT NULL DEFAULT 0');
-            self::ensureColumn($pdo, 'google_tokens', 'Patient_national', 'TINYINT(1) NOT NULL DEFAULT 0');
+            self::ensureColumn($pdo, 'google_tokens', 'Patient_national', 'TINYINT(1) NOT NULL DEFAULT 1');
             self::ensureColumn($pdo, 'google_tokens', 'Patient_phone', 'TINYINT(1) NOT NULL DEFAULT 0');
             self::ensureColumn($pdo, 'google_tokens', 'Patient_center', 'TINYINT(1) NOT NULL DEFAULT 1');
             self::migrateVacationSchema($pdo, 'mysql');
@@ -105,7 +105,7 @@ final class Database
         self::ensureColumn($pdo, 'google_tokens', 'color_id', 'VARCHAR(8) NOT NULL DEFAULT "9"');
         self::ensureColumn($pdo, 'google_tokens', 'Patient_name', 'INTEGER NOT NULL DEFAULT 1');
         self::ensureColumn($pdo, 'google_tokens', 'Patient_date_time', 'INTEGER NOT NULL DEFAULT 0');
-        self::ensureColumn($pdo, 'google_tokens', 'Patient_national', 'INTEGER NOT NULL DEFAULT 0');
+        self::ensureColumn($pdo, 'google_tokens', 'Patient_national', 'INTEGER NOT NULL DEFAULT 1');
         self::ensureColumn($pdo, 'google_tokens', 'Patient_phone', 'INTEGER NOT NULL DEFAULT 0');
         self::ensureColumn($pdo, 'google_tokens', 'Patient_center', 'INTEGER NOT NULL DEFAULT 1');
         self::migrateVacationSchema($pdo, 'sqlite');
@@ -304,7 +304,7 @@ final class Database
                 self::ensureColumn($pdo, 'google_tokens', 'import_future_vacations_window_end', 'BIGINT NULL');
                 self::ensureColumn($pdo, 'google_tokens', 'import_future_vacations_last_cleared_at', 'TIMESTAMP NULL');
                 self::ensureColumn($pdo, 'google_tokens', 'cancel_appointment_on_event_delete', 'TINYINT(1) NOT NULL DEFAULT 1');
-                self::ensureColumn($pdo, 'google_tokens', 'cancel_conflicting_appointments', 'TINYINT(1) NOT NULL DEFAULT 1');
+                self::ensureColumn($pdo, 'google_tokens', 'cancel_conflicting_appointments', 'TINYINT(1) NOT NULL DEFAULT 0');
                 self::ensureColumn($pdo, 'google_tokens', 'vacation_sync_centers', 'TEXT NULL');
                 self::ensureColumn($pdo, 'google_tokens', 'last_sync_status', 'TEXT NULL');
 
@@ -340,7 +340,7 @@ final class Database
             self::ensureColumn($pdo, 'google_tokens', 'import_future_vacations_window_end', 'INTEGER');
             self::ensureColumn($pdo, 'google_tokens', 'import_future_vacations_last_cleared_at', 'DATETIME');
             self::ensureColumn($pdo, 'google_tokens', 'cancel_appointment_on_event_delete', 'INTEGER NOT NULL DEFAULT 1');
-            self::ensureColumn($pdo, 'google_tokens', 'cancel_conflicting_appointments', 'INTEGER NOT NULL DEFAULT 1');
+            self::ensureColumn($pdo, 'google_tokens', 'cancel_conflicting_appointments', 'INTEGER NOT NULL DEFAULT 0');
             self::ensureColumn($pdo, 'google_tokens', 'vacation_sync_centers', 'TEXT');
             self::ensureColumn($pdo, 'google_tokens', 'last_sync_status', 'TEXT');
 

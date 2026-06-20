@@ -1098,8 +1098,8 @@ function ensureDrdrPanelOpenForFlow() {
 function updateDrdrIntegrationUi() {
     const card = document.getElementById("drdrIntegrationCard");
     const badge = document.getElementById("drdrIntegrationBadge");
-    const meta = document.getElementById("drdrIntegrationMeta");
-    const metaText = document.getElementById("drdrIntegrationMetaText");
+    const panel = document.getElementById("drdrIntegrationPanel");
+    const connectedWrap = document.getElementById("drdrConnectedWrap");
     const loginForm = document.getElementById("drdrLoginForm");
     const mobileInput = document.getElementById("drdrMobileInput");
     const otpStep = document.getElementById("drdrOtpStep");
@@ -1111,6 +1111,10 @@ function updateDrdrIntegrationUi() {
 
     if (card) {
         card.classList.toggle("is-connected", appState.drdrConnected);
+    }
+
+    if (panel) {
+        panel.classList.toggle("is-connected-view", appState.drdrConnected);
     }
 
     if (badge) {
@@ -1129,16 +1133,8 @@ function updateDrdrIntegrationUi() {
         }
     }
 
-    if (meta && metaText) {
-        if (appState.drdrConnected) {
-            meta.hidden = false;
-            const expiryLabel = formatIntegrationExpiry(appState.drdrExpiresAt);
-            const refreshLabel = appState.drdrHasRefreshToken ? "قابل تمدید خودکار" : "بدون refresh token";
-            metaText.textContent = `${expiryLabel} · ${refreshLabel}`;
-        } else {
-            meta.hidden = true;
-            metaText.textContent = "";
-        }
+    if (connectedWrap) {
+        connectedWrap.hidden = !appState.drdrConnected;
     }
 
     if (loginForm) {
@@ -1170,8 +1166,8 @@ function updateDrdrIntegrationUi() {
         if (appState.drdrOtpSent && appState.drdrOtpMobile) {
             otpHint.textContent =
                 appState.drdrOtpRetryAfter > 0
-                    ? `کد به ${appState.drdrOtpMobile} ارسال شد. تا ${appState.drdrOtpRetryAfter} ثانیه دوباره ارسال نکنید.`
-                    : `کد به ${appState.drdrOtpMobile} ارسال شد. همان کد پیامکی را وارد کنید.`;
+                    ? `کد به ${appState.drdrOtpMobile} ارسال شد · ارسال مجدد تا ${appState.drdrOtpRetryAfter} ثانیه`
+                    : `کد به ${appState.drdrOtpMobile} ارسال شد`;
         } else {
             otpHint.textContent = "";
         }
@@ -3911,7 +3907,7 @@ async function applyPendingSettingsAfterOAuth() {
         showWarningsIfAny(data);
         showSaveToast(data, settings);
 
-        redirectToLauncher();
+        // redirectToLauncher(); // موقتاً: بعد از ذخیره در همین صفحه بمان
     } catch (err) {
         console.error("[Hamgam] pending settings save failed:", err);
         showToast(err.message || "ذخیره تنظیمات ناموفق بود. دوباره تلاش کنید.", "error");
@@ -3994,7 +3990,7 @@ async function update() {
         window.clearTimeout(loadingSafetyTimer);
         setSaveLoading(false);
         showSaveToast(data, settings);
-        redirectToLauncher();
+        // redirectToLauncher(); // موقتاً: بعد از ذخیره در همین صفحه بمان
     } catch (err) {
         console.error(err);
         window.clearTimeout(loadingSafetyTimer);
