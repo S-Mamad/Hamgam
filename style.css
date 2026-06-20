@@ -3136,7 +3136,8 @@ body.hamgam-confirm-open {
     align-items: center;
     gap: 10px;
     width: 100%;
-    padding: 11px 12px;
+    min-height: 44px;
+    padding: 12px 14px;
     border: none;
     background: transparent;
     cursor: pointer;
@@ -3159,9 +3160,10 @@ body.hamgam-confirm-open {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    height: 28px;
-    padding: 3px 6px;
-    border-radius: 8px;
+    height: 32px;
+    min-width: 52px;
+    padding: 4px 8px;
+    border-radius: 9px;
     background: #ffffff;
     border: 1px solid #eef2f6;
 }
@@ -3173,8 +3175,8 @@ body.hamgam-confirm-open {
 .integration-card__logo {
     display: block;
     width: auto;
-    height: 16px;
-    max-width: 68px;
+    height: 18px;
+    max-width: 76px;
     object-fit: contain;
     object-position: center;
 }
@@ -3243,8 +3245,8 @@ body.hamgam-confirm-open {
 }
 
 .integration-card__panel.open.is-connected-view {
-    max-height: 80px;
-    padding: 0 12px 10px;
+    max-height: 112px;
+    padding: 0 12px 12px;
 }
 
 .integration-connected[hidden] {
@@ -3252,8 +3254,13 @@ body.hamgam-confirm-open {
 }
 
 .integration-connected {
-    display: flex;
-    justify-content: flex-end;
+    display: grid;
+    width: 100%;
+    gap: 0;
+    padding: 8px;
+    border-radius: 11px;
+    background: #f8fafc;
+    border: 1px solid #eef2f6;
 }
 
 .integration-card__actions {
@@ -3268,39 +3275,61 @@ body.hamgam-confirm-open {
     justify-content: center;
     width: 100%;
     min-height: 36px;
-    padding: 0 14px;
+    padding: 8px 16px;
     border-radius: 10px;
     border: 1px solid transparent;
     font-family: inherit;
     font-size: 11px;
     font-weight: 700;
+    line-height: 1.35;
+    letter-spacing: 0.01em;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
     transition:
         background 0.18s ease,
         border-color 0.18s ease,
+        box-shadow 0.18s ease,
+        transform 0.2s var(--ease-out),
         opacity 0.15s ease;
 }
 
 .integration-card__btn--disconnect {
-    width: auto;
-    min-width: 108px;
-    min-height: 34px;
-    padding: 7px 16px;
     border: 1px solid rgba(252, 165, 165, 0.85);
-    background: linear-gradient(180deg, #ffffff 0%, #fff5f5 100%);
+    background: linear-gradient(180deg, #ffffff 0%, #fff1f2 100%);
     color: #b91c1c;
-    box-shadow: 0 1px 2px rgba(185, 28, 28, 0.05);
+    box-shadow:
+        0 1px 2px rgba(185, 28, 28, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 .integration-card__btn--disconnect:hover:not(:disabled) {
     background: linear-gradient(180deg, #fff5f5 0%, #fee2e2 100%);
     border-color: #f87171;
     color: #991b1b;
+    transform: translateY(-1px);
+    box-shadow:
+        0 4px 14px rgba(220, 38, 38, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.integration-card__btn--disconnect:active:not(:disabled):not(.is-loading) {
+    transform: translateY(0);
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 .integration-card__btn--disconnect .integration-card__btn-spinner {
     border-color: rgba(185, 28, 28, 0.22);
     border-top-color: #b91c1c;
+}
+
+.integration-card__btn--disconnect:focus-visible {
+    outline: 2px solid #fca5a5;
+    outline-offset: 2px;
+}
+
+.integration-card__btn-text {
+    white-space: nowrap;
 }
 
 .integration-card__btn:focus-visible {
@@ -3433,8 +3462,14 @@ body.hamgam-confirm-open {
 
 @media (max-width: 380px) {
     .integration-card__toggle {
-        padding: 10px 11px;
+        min-height: 46px;
+        padding: 12px;
         gap: 8px;
+    }
+
+    .integration-card__icon {
+        min-width: 48px;
+        height: 30px;
     }
 
     .integration-card__badge {
@@ -3443,7 +3478,9 @@ body.hamgam-confirm-open {
         padding: 0 7px;
     }
 
+    .integration-card__btn,
     .integration-card__btn--disconnect {
-        width: 100%;
+        min-height: 38px;
+        padding: 9px 16px;
     }
 }
