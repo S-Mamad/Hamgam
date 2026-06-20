@@ -120,9 +120,9 @@
                     <div id="importFutureBackfillWrap" class="sync-backfill-action">
                         <div class="sync-backfill-action__copy">
                             <span class="sync-backfill-action__title">همگام‌ساز ۳۰ روزه</span>
-                            <span class="sync-backfill-action__desc">رویدادهای ایجاد شده در گوگل کلندر تا ۳۰ روز آینده به عنوان مرخصی در پذیرش۲۴ اعمال خواهد شد.</span>
+                            <span class="sync-backfill-action__desc">رویدادهای ایجاد شده در گوگل کلندر در بازه ۳۰ روز آینده به عنوان مرخصی در پذیرش۲۴ اعمال خواهد شد.</span>
                         </div>
-                        <button type="button" id="importFutureBackfillBtn" class="sync-backfill-action__btn" aria-label="درون‌ریزی رویدادهای ۳۰ روز آینده" aria-busy="false">
+                        <button type="button" id="importFutureBackfillBtn" class="sync-backfill-action__btn" aria-label="همگام‌سازی رویدادهای ۳۰ روز آینده" aria-busy="false">
                             <span class="sync-backfill-action__btn-text">شروع فرآیند</span>
                             <span class="sync-backfill-action__btn-spinner" aria-hidden="true"></span>
                         </button>
@@ -143,7 +143,7 @@
                                 نوبت بیمار لغو شود
                             </button>
                             <button type="button" id="vacationConflictRescheduleBtn" class="vacation-conflict-segment__option is-active" data-conflict-mode="reschedule" aria-pressed="true">
-                                نوبت به اولین زمان آزاد انتقال یابد
+                                به اولین زمان آزاد انتقال یابد
                             </button>
                         </div>
                     </div>
@@ -193,88 +193,73 @@
 
         <section class="integration-section" id="drdrIntegrationSection" aria-label="اتصال DrDr">
             <div class="integration-card" id="drdrIntegrationCard">
-                <div class="integration-card__glow" aria-hidden="true"></div>
-
-                <div class="integration-card__header">
-                    <div class="integration-card__brand">
-                        <span class="integration-card__icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none">
-                                <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-                                <path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </span>
-                        <div class="integration-card__titles">
-                            <h3 class="integration-card__title">اتصال DrDr</h3>
-                            <p class="integration-card__subtitle">ورود با شماره موبایل و کد تأیید</p>
-                        </div>
-                    </div>
+                <button type="button" class="integration-card__toggle" id="drdrIntegrationToggle" aria-expanded="false" aria-controls="drdrIntegrationPanel">
+                    <span class="integration-card__icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                            <path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <span class="integration-card__toggle-title">انتقال نوبت‌های پلتفرم دکتر دکتر به گوگل کلندر</span>
                     <span id="drdrIntegrationBadge" class="integration-card__badge integration-card__badge--idle" aria-live="polite">در حال بررسی…</span>
-                </div>
+                    <span class="integration-card__chevron" aria-hidden="true"></span>
+                </button>
 
-                <p class="integration-card__desc">
-                    شماره موبایل DrDr خود را وارد کنید. کد تأیید برایتان ارسال می‌شود و access token به‌صورت امن در سرور ذخیره می‌گردد.
-                </p>
-
-                <ul class="integration-card__features" aria-label="مزایای اتصال">
-                    <li>ورود داخل همین اپ، بدون popup</li>
-                    <li>ذخیره امن توکن روی سرور</li>
-                    <li>قابل قطع اتصال در هر زمان</li>
-                </ul>
-
-                <form id="drdrLoginForm" class="integration-login" autocomplete="one-time-code" novalidate>
-                    <label class="integration-login__field">
-                        <span class="integration-login__label">شماره موبایل DrDr</span>
-                        <input
-                            type="tel"
-                            id="drdrMobileInput"
-                            class="integration-login__input"
-                            inputmode="numeric"
-                            dir="ltr"
-                            placeholder="09123456789"
-                            maxlength="11"
-                            autocomplete="tel"
-                        />
-                    </label>
-
-                    <div id="drdrOtpStep" class="integration-login__otp" hidden>
+                <div id="drdrIntegrationPanel" class="integration-card__panel" aria-hidden="true">
+                    <form id="drdrLoginForm" class="integration-login" autocomplete="one-time-code" novalidate>
                         <label class="integration-login__field">
-                            <span class="integration-login__label">کد تأیید پیامکی</span>
+                            <span class="integration-login__label">شماره موبایل DrDr</span>
                             <input
-                                type="text"
-                                id="drdrOtpInput"
-                                class="integration-login__input integration-login__input--otp"
+                                type="tel"
+                                id="drdrMobileInput"
+                                class="integration-login__input"
                                 inputmode="numeric"
                                 dir="ltr"
-                                placeholder="12345"
-                                maxlength="8"
-                                autocomplete="one-time-code"
+                                placeholder="09123456789"
+                                maxlength="11"
+                                autocomplete="tel"
                             />
                         </label>
-                        <p id="drdrOtpHint" class="integration-login__hint" aria-live="polite"></p>
+
+                        <div id="drdrOtpStep" class="integration-login__otp" hidden>
+                            <label class="integration-login__field">
+                                <span class="integration-login__label">کد تأیید</span>
+                                <input
+                                    type="text"
+                                    id="drdrOtpInput"
+                                    class="integration-login__input integration-login__input--otp"
+                                    inputmode="numeric"
+                                    dir="ltr"
+                                    placeholder="12345"
+                                    maxlength="8"
+                                    autocomplete="one-time-code"
+                                />
+                            </label>
+                            <p id="drdrOtpHint" class="integration-login__hint" aria-live="polite"></p>
+                        </div>
+
+                        <div class="integration-login__actions">
+                            <button type="button" id="drdrSendOtpBtn" class="integration-card__btn integration-card__btn--primary" aria-busy="false">
+                                <span class="integration-card__btn-text">ارسال کد</span>
+                                <span class="integration-card__btn-spinner" aria-hidden="true"></span>
+                            </button>
+                            <button type="button" id="drdrVerifyOtpBtn" class="integration-card__btn integration-card__btn--primary" hidden aria-busy="false">
+                                <span class="integration-card__btn-text">تأیید و اتصال</span>
+                                <span class="integration-card__btn-spinner" aria-hidden="true"></span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <div id="drdrIntegrationMeta" class="integration-card__meta" hidden>
+                        <span id="drdrIntegrationMetaText" class="integration-card__meta-value"></span>
                     </div>
 
-                    <div class="integration-login__actions">
-                        <button type="button" id="drdrSendOtpBtn" class="integration-card__btn integration-card__btn--primary" aria-busy="false">
-                            <span class="integration-card__btn-text">ارسال کد</span>
-                            <span class="integration-card__btn-spinner" aria-hidden="true"></span>
-                        </button>
-                        <button type="button" id="drdrVerifyOtpBtn" class="integration-card__btn integration-card__btn--primary" hidden aria-busy="false">
-                            <span class="integration-card__btn-text">تأیید و اتصال</span>
+                    <div class="integration-card__actions integration-card__actions--connected">
+                        <button type="button" id="drdrDisconnectBtn" class="integration-card__btn integration-card__btn--ghost" hidden aria-busy="false">
+                            <span class="integration-card__btn-text">قطع اتصال</span>
                             <span class="integration-card__btn-spinner" aria-hidden="true"></span>
                         </button>
                     </div>
-                </form>
-
-                <div id="drdrIntegrationMeta" class="integration-card__meta" hidden>
-                    <span class="integration-card__meta-label">وضعیت توکن</span>
-                    <span id="drdrIntegrationMetaText" class="integration-card__meta-value"></span>
-                </div>
-
-                <div class="integration-card__actions integration-card__actions--connected">
-                    <button type="button" id="drdrDisconnectBtn" class="integration-card__btn integration-card__btn--ghost" hidden aria-busy="false">
-                        <span class="integration-card__btn-text">قطع اتصال</span>
-                        <span class="integration-card__btn-spinner" aria-hidden="true"></span>
-                    </button>
                 </div>
             </div>
         </section>

@@ -171,7 +171,7 @@ function showImportFutureBackfillCompletionFeedback(status) {
     }
 
     if (status.ok === false) {
-        showToast("درون‌ریزی مرخصی با مشکل مواجه شد.", "error");
+        showToast("همگام سازی مرخصی با مشکل مواجه شد.", "error");
         return;
     }
 
@@ -236,11 +236,11 @@ function applyImportFutureBackfillCardUiState() {
 
     if (btnText) {
         if (starting) {
-            btnText.textContent = "درون‌ریزی";
+            btnText.textContent = "شروع فرآیند";
         } else if (pending) {
             btnText.textContent = "در حال انجام…";
         } else {
-            btnText.textContent = "درون‌ریزی";
+            btnText.textContent = "شروع فرآیند";
         }
     }
 }
@@ -270,7 +270,7 @@ async function startImportFutureBackfillPoll() {
     }
 
     showToast(
-        "درون‌ریزی در پس‌زمینه ادامه دارد. چند دقیقه بعد نتیجه را در همین صفحه بررسی کنید.",
+        "همگام سازی در پس‌زمینه ادامه دارد. چند دقیقه بعد نتیجه را در همین صفحه بررسی کنید.",
         "warning"
     );
     return status;
@@ -286,7 +286,7 @@ async function handleImportFutureBackfillClick() {
     }
 
     if (!appState.connected) {
-        showToast("برای درون‌ریزی ابتدا حساب Google را متصل کنید.", "error");
+        showToast("برای همگام سازی ابتدا حساب Google را متصل کنید.", "error");
         return;
     }
 
@@ -349,7 +349,7 @@ async function handleImportFutureBackfillClick() {
         }
     } catch (error) {
         console.error("[Hamgam] import future backfill failed:", error);
-        showToast(error.message || "شروع درون‌ریزی ناموفق بود. دوباره تلاش کنید.", "error");
+        showToast(error.message || "شروع همگام سازی ناموفق بود. دوباره تلاش کنید.", "error");
     } finally {
         setImportFutureBackfillStarting(false);
     }
@@ -676,6 +676,39 @@ function applyDrdrIntegrationState(data = {}) {
     updateDrdrIntegrationUi();
 }
 
+function setDrdrIntegrationPanelOpen(open) {
+    const toggle = document.getElementById("drdrIntegrationToggle");
+    const panel = document.getElementById("drdrIntegrationPanel");
+    const card = document.getElementById("drdrIntegrationCard");
+    if (!toggle || !panel) {
+        return;
+    }
+
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    panel.setAttribute("aria-hidden", open ? "false" : "true");
+    panel.classList.toggle("open", open);
+    card?.classList.toggle("is-open", open);
+}
+
+function toggleDrdrIntegration() {
+    const toggle = document.getElementById("drdrIntegrationToggle");
+    if (!toggle) {
+        return;
+    }
+
+    setDrdrIntegrationPanelOpen(toggle.getAttribute("aria-expanded") !== "true");
+}
+
+function ensureDrdrPanelOpenForFlow() {
+    if (
+        appState.drdrOtpSent
+        || appState.drdrSendingOtp
+        || appState.drdrVerifyingOtp
+    ) {
+        setDrdrIntegrationPanelOpen(true);
+    }
+}
+
 function updateDrdrIntegrationUi() {
     const card = document.getElementById("drdrIntegrationCard");
     const badge = document.getElementById("drdrIntegrationBadge");
@@ -811,6 +844,8 @@ function updateDrdrIntegrationUi() {
             disconnectText.textContent = busy ? "در حال قطع…" : "قطع اتصال";
         }
     }
+
+    ensureDrdrPanelOpenForFlow();
 }
 
 function setDrdrSendOtpLoading(loading) {
@@ -1808,6 +1843,11 @@ function bindUiEvents() {
             e.stopPropagation();
             void handleDisconnectGoogleClick();
         });
+    }
+
+    const drdrIntegrationToggle = document.getElementById("drdrIntegrationToggle");
+    if (drdrIntegrationToggle) {
+        drdrIntegrationToggle.addEventListener("click", toggleDrdrIntegration);
     }
 
     const drdrLoginForm = document.getElementById("drdrLoginForm");
