@@ -59,46 +59,48 @@ final class DrDrAuthService
             throw new IntegrationException('rate_limited', 'تعداد درخواست کد زیاد است. چند دقیقه بعد دوباره تلاش کنید.');
         }
 
-        $recent = DrDrPendingLoginRepository::recentSendForMobile($doctorId, $mobile);
-        if ($recent !== null) {
+        return DrDrPendingLoginRepository::withDoctorLock($doctorId, function () use ($doctorId, $mobile, $config): array {
+            $recent = DrDrPendingLoginRepository::recentSendForMobile($doctorId, $mobile);
+            if ($recent !== null) {
+                return [
+                    'ok' => true,
+                    'retry_after' => $recent['retry_after'],
+                    'deduped' => true,
+                ];
+            }
+
+            $cooldown = DrDrPendingLoginRepository::resendCooldownRemaining($doctorId, $mobile);
+            if ($cooldown > 0) {
+                throw new IntegrationException(
+                    'otp_cooldown',
+                    'کد قبلی هنوز معتبر است. ' . $cooldown . ' ثانیه صبر کنید و همان کد پیامکی را وارد کنید.'
+                );
+            }
+
+            DrDrPendingLoginRepository::clear($doctorId);
+
+            $response = HttpClient::request(
+                'POST',
+                $config['send_otp_url'],
+                self::apiHeaders($config['api_client_id']),
+                ['mobile' => $mobile],
+                'json',
+                DrDrPendingLoginRepository::cookiePathForDoctor($doctorId)
+            );
+
+            if ($response['status'] < 200 || $response['status'] >= 300 || !self::isSuccessfulDrDrBody($response['body'])) {
+                ProviderIntegrationService::logIntegrationEvent($doctorId, 'drdr', false, 'send_otp_rejected');
+                throw new IntegrationException('send_otp_failed', self::humanizeDrDrError($response['body'], 'ارسال کد تأیید DrDr ناموفق بود.'));
+            }
+
+            DrDrPendingLoginRepository::save($doctorId, $mobile, is_array($response['body']) ? $response['body'] : null);
+            ProviderIntegrationService::logIntegrationEvent($doctorId, 'drdr', true, 'send_otp_success');
+
             return [
                 'ok' => true,
-                'retry_after' => $recent['retry_after'],
-                'deduped' => true,
+                'retry_after' => DrDrPendingLoginRepository::RESEND_COOLDOWN_SECONDS,
             ];
-        }
-
-        $cooldown = DrDrPendingLoginRepository::resendCooldownRemaining($doctorId, $mobile);
-        if ($cooldown > 0) {
-            throw new IntegrationException(
-                'otp_cooldown',
-                'کد قبلی هنوز معتبر است. ' . $cooldown . ' ثانیه صبر کنید و همان کد پیامکی را وارد کنید.'
-            );
-        }
-
-        DrDrPendingLoginRepository::clear($doctorId);
-
-        $response = HttpClient::request(
-            'POST',
-            $config['send_otp_url'],
-            self::apiHeaders($config['api_client_id']),
-            ['mobile' => $mobile],
-            'json',
-            DrDrPendingLoginRepository::cookiePathForDoctor($doctorId)
-        );
-
-        if ($response['status'] < 200 || $response['status'] >= 300 || !self::isSuccessfulDrDrBody($response['body'])) {
-            ProviderIntegrationService::logIntegrationEvent($doctorId, 'drdr', false, 'send_otp_rejected');
-            throw new IntegrationException('send_otp_failed', self::humanizeDrDrError($response['body'], 'ارسال کد تأیید DrDr ناموفق بود.'));
-        }
-
-        DrDrPendingLoginRepository::save($doctorId, $mobile, is_array($response['body']) ? $response['body'] : null);
-        ProviderIntegrationService::logIntegrationEvent($doctorId, 'drdr', true, 'send_otp_success');
-
-        return [
-            'ok' => true,
-            'retry_after' => 60,
-        ];
+        });
     }
 
     private static function isSuccessfulDrDrBody(?array $body): bool
@@ -166,13 +168,18 @@ final class DrDrAuthService
         $pending = DrDrPendingLoginRepository::getActiveForDoctor($doctorId);
         if ($pending !== null) {
             $sentAt = (int) ($pending['sent_at'] ?? 0);
-            if ($sentAt > 0 && (time() - $sentAt) > DrDrPendingLoginRepository::VERIFY_MAX_AGE_SECONDS) {
-                DrDrPendingLoginRepository::clear($doctorId);
-            } else {
-                $storedMobile = self::normalizeMobile($pending['mobile']);
-                if ($storedMobile !== null) {
-                    $mobile = $storedMobile;
+            $pendingFresh = $sentAt > 0 && (time() - $sentAt) <= DrDrPendingLoginRepository::VERIFY_MAX_AGE_SECONDS;
+            $storedMobile = self::normalizeMobile($pending['mobile']);
+
+            if ($pendingFresh && $storedMobile !== null) {
+                if ($storedMobile !== $mobile) {
+                    throw new IntegrationException(
+                        'mobile_mismatch',
+                        'شماره موبایل با کد ارسال‌شده مطابقت ندارد. همان شماره‌ای را وارد کنید که کد به آن پیامک شده.'
+                    );
                 }
+
+                $mobile = $storedMobile;
             }
         }
 
@@ -259,11 +266,13 @@ final class DrDrAuthService
     {
         return [
             'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
-            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Accept' => 'application/json, text/plain, */*',
+            'Cache-Control' => 'no-cache',
+            'Pragma' => 'no-cache',
+            'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1',
             'client-id' => $clientId,
             'Origin' => 'https://drdr.ir',
-            'Referer' => 'https://drdr.ir/login/?f=true',
+            'Referer' => 'https://drdr.ir/',
         ];
     }
 

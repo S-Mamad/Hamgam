@@ -671,6 +671,22 @@ function applyDrdrIntegrationState(data = {}) {
 
     if (appState.drdrConnected) {
         resetDrdrOtpForm(false);
+    } else if (data.otp_pending && typeof data.otp_pending === "object") {
+        const pendingMobile = normalizeDrdrMobile(String(data.otp_pending.mobile || ""));
+        const retryAfter = Number(data.otp_pending.retry_after);
+        const expiresIn = Number(data.otp_pending.expires_in);
+
+        if (pendingMobile && Number.isFinite(expiresIn) && expiresIn > 0) {
+            appState.drdrOtpSent = true;
+            appState.drdrOtpMobile = pendingMobile;
+
+            const mobileInput = document.getElementById("drdrMobileInput");
+            if (mobileInput) {
+                mobileInput.value = pendingMobile;
+            }
+
+            startDrdrOtpCountdown(Number.isFinite(retryAfter) ? retryAfter : 0);
+        }
     }
 
     updateDrdrIntegrationUi();
@@ -1013,6 +1029,10 @@ async function handleDrdrVerifyOtpClick() {
         const { response, data } = await postDrdrIntegration("verify-otp.php", token, { mobile, code });
 
         if (!response.ok || !data.ok) {
+            const reason = data.reason || "";
+            if (reason === "mobile_mismatch") {
+                throw new Error(data.error || "شماره موبایل با کد ارسال‌شده مطابقت ندارد.");
+            }
             throw new Error(mapApiError(data.error) || "تأیید کد DrDr ناموفق بود.");
         }
 

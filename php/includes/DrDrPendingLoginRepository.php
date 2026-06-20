@@ -7,7 +7,7 @@ final class DrDrPendingLoginRepository
     /** DrDr OTP is typically valid ~2–3 minutes; keep local session aligned. */
     private const TTL_SECONDS = 180;
     public const VERIFY_MAX_AGE_SECONDS = 180;
-    private const RESEND_COOLDOWN_SECONDS = 60;
+    public const RESEND_COOLDOWN_SECONDS = 60;
     private const DUPLICATE_SEND_GUARD_SECONDS = 15;
 
     public static function save(string $doctorId, string $mobile, ?array $initPayload): void
@@ -116,6 +116,55 @@ final class DrDrPendingLoginRepository
     public static function getActiveForDoctor(string $doctorId): ?array
     {
         return self::readRow($doctorId, null, false);
+    }
+
+    /**
+     * @return array{mobile: string, retry_after: int, expires_in: int}|null
+     */
+    public static function getPublicPendingState(string $doctorId): ?array
+    {
+        $row = self::getActiveForDoctor($doctorId);
+        if ($row === null) {
+            return null;
+        }
+
+        $elapsed = max(0, time() - (int) ($row['sent_at'] ?? 0));
+
+        return [
+            'mobile' => (string) ($row['mobile'] ?? ''),
+            'retry_after' => max(0, self::RESEND_COOLDOWN_SECONDS - $elapsed),
+            'expires_in' => max(0, self::TTL_SECONDS - $elapsed),
+        ];
+    }
+
+    /**
+     * @template T
+     * @param callable(): T $callback
+     * @return T
+     */
+    public static function withDoctorLock(string $doctorId, callable $callback)
+    {
+        $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
+        $safe = preg_replace('/[^a-zA-Z0-9._-]/', '_', $doctorId) ?? 'unknown';
+        $dir = __DIR__ . '/../storage/drdr_locks';
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0750, true);
+        }
+
+        $path = $dir . '/' . $safe . '.lock';
+        $handle = @fopen($path, 'c+');
+        if ($handle === false) {
+            return $callback();
+        }
+
+        try {
+            flock($handle, LOCK_EX);
+
+            return $callback();
+        } finally {
+            flock($handle, LOCK_UN);
+            fclose($handle);
+        }
     }
 
     public static function clear(string $doctorId): void

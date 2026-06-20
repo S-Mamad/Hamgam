@@ -14,6 +14,7 @@ require_once __DIR__ . '/../includes/IntegrationProviderConfig.php';
 require_once __DIR__ . '/../includes/DoctorExternalConnectionsRepository.php';
 require_once __DIR__ . '/../includes/ProviderIntegrationService.php';
 require_once __DIR__ . '/../includes/IntegrationAuth.php';
+require_once __DIR__ . '/../includes/DrDrPendingLoginRepository.php';
 
 Request::applyCors();
 
@@ -30,6 +31,9 @@ try {
     $doctorId = IntegrationAuth::requireDoctorId();
     $oauthReady = IntegrationProviderConfig::isOAuthReady($provider);
     $status = DoctorExternalConnectionsRepository::getPublicStatus($doctorId, $provider);
+    $otpPending = $provider === 'drdr' && $status === null
+        ? DrDrPendingLoginRepository::getPublicPendingState($doctorId)
+        : null;
 
     Response::json([
         'ok' => true,
@@ -40,6 +44,7 @@ try {
         'connected' => $status !== null,
         'expires_at' => $status['expires_at'] ?? null,
         'has_refresh_token' => $status['has_refresh_token'] ?? false,
+        'otp_pending' => $otpPending,
     ]);
 } catch (IntegrationException $e) {
     Response::jsonError(
