@@ -110,7 +110,7 @@ final class DrDrAuthService
         }
 
         $payload = self::unwrapDrDrPayload($body);
-        if (self::extractAccessToken($payload) !== null) {
+        if (self::extractAccessToken($payload) !== null || self::findJwtTokenInBody($body) !== null) {
             return true;
         }
 
@@ -179,11 +179,23 @@ final class DrDrAuthService
             $accessToken = self::extractAccessToken($body);
         }
 
+        if ($accessToken === null) {
+            $accessToken = self::findJwtTokenInBody($body);
+        }
+
         if ($accessToken === null && !self::isSuccessfulDrDrBody($body)) {
             throw new IntegrationException('invalid_token', 'توکن DrDr دریافت نشد.');
         }
 
         if ($accessToken === null) {
+            $hint = self::extractDrDrErrorMessage($body);
+            if ($hint !== '' && str_contains($hint, 'ارسال شد')) {
+                throw new IntegrationException(
+                    'verify_otp_failed',
+                    'پاسخ DrDr مربوط به ارسال کد بود نه تأیید. دوباره «ارسال کد» بزنید و کد جدید را وارد کنید.'
+                );
+            }
+
             throw new IntegrationException('invalid_token', 'DrDr توکن دسترسی برنگرداند.');
         }
 
@@ -560,6 +572,54 @@ final class DrDrAuthService
         }
 
         return null;
+    }
+
+    /**
+     * DrDr stores a JWT in `token` (see drdr.ir localStorage user.state.token).
+     *
+     * @param array<string, mixed>|null $body
+     */
+    private static function findJwtTokenInBody(?array $body): ?string
+    {
+        if (!is_array($body)) {
+            return null;
+        }
+
+        $walker = static function (mixed $node) use (&$walker): ?string {
+            if (is_string($node)) {
+                $trimmed = trim($node);
+                if (str_starts_with($trimmed, 'eyJ') && substr_count($trimmed, '.') >= 2) {
+                    return $trimmed;
+                }
+
+                return null;
+            }
+
+            if (!is_array($node)) {
+                return null;
+            }
+
+            foreach (['token', 'access_token', 'accessToken'] as $key) {
+                $value = $node[$key] ?? null;
+                if (is_string($value)) {
+                    $trimmed = trim($value);
+                    if (str_starts_with($trimmed, 'eyJ') && substr_count($trimmed, '.') >= 2) {
+                        return $trimmed;
+                    }
+                }
+            }
+
+            foreach ($node as $value) {
+                $found = $walker($value);
+                if ($found !== null) {
+                    return $found;
+                }
+            }
+
+            return null;
+        };
+
+        return $walker($body);
     }
 
     /**

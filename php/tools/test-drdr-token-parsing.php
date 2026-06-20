@@ -54,6 +54,24 @@ $bodies = [
             ],
         ],
     ],
+    'drdr_jwt_result' => [
+        'ok' => true,
+        'code' => 2001,
+        'result' => [
+            'token' => 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiI3OTMwNzc4In0.sig',
+            'user' => ['id' => 7930778, 'mobile' => '+989351925900'],
+            'username' => '09351925900',
+        ],
+    ],
+    'init_false_positive' => [
+        'ok' => true,
+        'code' => 2001,
+        'meta' => [
+            'message' => [
+                'body' => 'کد تأیید ارسال شد',
+            ],
+        ],
+    ],
 ];
 
 foreach ($bodies as $name => $body) {

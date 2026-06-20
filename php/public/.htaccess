@@ -11,6 +11,9 @@ RewriteRule ^integrations/([a-z0-9_-]+)/connect/?$ ../integrations/connect.php?p
 RewriteRule ^integrations/([a-z0-9_-]+)/callback/?$ ../integrations/callback.php?provider=$1 [L,QSA]
 RewriteRule ^integrations/([a-z0-9_-]+)/status/?$ ../integrations/status.php?provider=$1 [L,QSA]
 RewriteRule ^integrations/([a-z0-9_-]+)/disconnect/?$ ../integrations/disconnect.php?provider=$1 [L,QSA]
+RewriteRule ^integrations/([a-z0-9_-]+)/send-otp/?$ ../integrations/send-otp.php?provider=$1 [L,QSA]
+RewriteRule ^integrations/([a-z0-9_-]+)/verify-otp/?$ ../integrations/verify-otp.php?provider=$1 [L,QSA]
+RewriteRule ^integrations/([a-z0-9_-]+)/complete-otp/?$ ../integrations/complete-otp.php?provider=$1 [L,QSA]
 
 # سازگاری با URLهای قدیمی zamanak
 RewriteRule ^zamanak/button/?$ ../hamgam/button.php [L,QSA]

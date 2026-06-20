@@ -626,6 +626,46 @@ function drdrDirectApiHeaders(client) {
     };
 }
 
+function deepFindJwtToken(node, depth = 0, seen = new Set()) {
+    if (!node || depth > 14) {
+        return null;
+    }
+
+    if (typeof node === "string") {
+        const trimmed = node.trim();
+        if (trimmed.startsWith("eyJ") && trimmed.split(".").length >= 3) {
+            return trimmed;
+        }
+
+        return null;
+    }
+
+    if (typeof node !== "object" || seen.has(node)) {
+        return null;
+    }
+
+    seen.add(node);
+
+    for (const key of ["token", "access_token", "accessToken"]) {
+        const value = node[key];
+        if (typeof value === "string") {
+            const trimmed = value.trim();
+            if (trimmed.startsWith("eyJ") && trimmed.split(".").length >= 3) {
+                return trimmed;
+            }
+        }
+    }
+
+    for (const value of Object.values(node)) {
+        const found = deepFindJwtToken(value, depth + 1, seen);
+        if (found) {
+            return found;
+        }
+    }
+
+    return null;
+}
+
 function unwrapDrdrPayload(body) {
     if (!body || typeof body !== "object") {
         return null;
@@ -691,7 +731,8 @@ function extractDrdrAccessToken(body) {
 
     return (
         extractDrdrTokenField(unwrapDrdrPayload(body), ["access_token", "accessToken", "token"]) ||
-        extractDrdrTokenField(body, ["access_token", "accessToken", "token"])
+        extractDrdrTokenField(body, ["access_token", "accessToken", "token"]) ||
+        deepFindJwtToken(body)
     );
 }
 
@@ -815,6 +856,12 @@ async function drdrDirectVerifyOtp(mobile, code) {
     }
 
     const accessToken = extractDrdrAccessToken(body);
+    if (!accessToken && body?.ok === true) {
+        const hint = String(body?.meta?.message?.body ?? body?.message ?? "");
+        if (hint.includes("ارسال شد")) {
+            throw new Error("پاسخ DrDr مربوط به ارسال کد بود نه تأیید. دوباره «ارسال کد» بزنید و کد جدید را وارد کنید.");
+        }
+    }
     if (!accessToken && body?.ok !== true && !extractDrdrRefreshToken(body)) {
         throw new Error(humanizeDrdrDirectError(body, "کد تأیید DrDr نامعتبر است یا منقضی شده."));
     }
@@ -825,6 +872,35 @@ async function drdrDirectVerifyOtp(mobile, code) {
         refresh_token: extractDrdrRefreshToken(body),
         expires_in: extractDrdrExpiresIn(body)
     };
+}
+
+async function finishDrdrConnectionFromVerifyData(hamgamToken, verifyData) {
+    const payload = {
+        drdr_response: verifyData.raw
+    };
+
+    if (verifyData.access_token) {
+        payload.drdr_access_token = verifyData.access_token;
+    }
+    if (verifyData.refresh_token) {
+        payload.drdr_refresh_token = verifyData.refresh_token;
+    }
+    if (verifyData.expires_in !== null && verifyData.expires_in !== undefined) {
+        payload.expires_in = verifyData.expires_in;
+    }
+
+    const { response, data } = await postDrdrIntegration("complete-otp.php", hamgamToken, payload);
+    if (!response.ok || !data.ok) {
+        throw new Error(mapApiError(data.error) || "ذخیره اتصال DrDr ناموفق بود.");
+    }
+
+    applyDrdrIntegrationState({
+        connected: true,
+        expires_at: data.expires_at,
+        has_refresh_token: data.has_refresh_token
+    });
+    resetDrdrOtpForm(true);
+    showToast("اتصال DrDr با موفقیت برقرار شد.");
 }
 
 function saveDrdrOtpSession(mobile) {
@@ -1320,6 +1396,14 @@ async function handleDrdrVerifyOtpClick() {
         const token = window.hamdast
             ? await ensureFreshAccessToken().catch(() => localStorage.getItem("access_token"))
             : localStorage.getItem("access_token");
+
+        try {
+            const drdrTokens = await drdrDirectVerifyOtp(mobile, code);
+            await finishDrdrConnectionFromVerifyData(token, drdrTokens);
+            return;
+        } catch (browserError) {
+            console.warn("[Hamgam] drdr browser verify failed, trying server:", browserError);
+        }
 
         const { response, data } = await postDrdrIntegration("verify-otp.php", token, { mobile, code });
 
