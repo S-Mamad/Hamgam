@@ -1091,9 +1091,9 @@ body {
 
 .sync-backfill-action {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
     margin: 4px 8px 10px;
     padding: 12px 14px;
     border-radius: 13px;
@@ -1140,14 +1140,13 @@ body {
 }
 
 .sync-backfill-action__btn {
-    flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 7px;
-    min-width: 96px;
-    min-height: 36px;
-    padding: 8px 16px;
+    width: 100%;
+    min-height: 38px;
+    padding: 9px 16px;
     border: 1px solid #4a7fd6;
     border-radius: 10px;
     background: #4a7fd6;
@@ -1163,6 +1162,7 @@ body {
         background 0.18s ease,
         border-color 0.18s ease,
         box-shadow 0.18s ease,
+        transform 0.2s var(--ease-out),
         opacity 0.15s ease;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
@@ -1172,6 +1172,7 @@ body {
     background: #3f72c8;
     border-color: #3f72c8;
     color: #ffffff;
+    transform: translateY(-1px);
     box-shadow: 0 2px 6px rgba(59, 99, 170, 0.22);
 }
 
@@ -1228,21 +1229,6 @@ body {
 .vacation-sub-options-block--inactive .sync-backfill-action {
     opacity: 0.52;
     pointer-events: none;
-}
-
-@media (max-width: 380px) {
-    .sync-backfill-action {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
-        padding: 12px;
-    }
-
-    .sync-backfill-action__btn {
-        width: 100%;
-        min-height: 38px;
-        padding: 9px 16px;
-    }
 }
 
 .import-future-reenable {
