@@ -1089,132 +1089,156 @@ body {
     pointer-events: auto;
 }
 
-.import-future-backfill-wrap {
-    margin: 0 0 4px;
+.sync-control-wrap {
+    margin: 8px 0 4px;
 }
 
-.import-future-backfill-wrap[hidden] {
+.sync-control-wrap[hidden] {
     display: none !important;
 }
 
-.import-future-backfill {
-    margin: 0;
+.sync-control-card {
+    display: flex;
     align-items: center;
-    gap: 14px;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 16px 18px;
+    border-radius: 16px;
+    background: linear-gradient(165deg, #ffffff 0%, #eff6ff 100%);
+    border: 1px solid #dbeafe;
+    box-shadow:
+        0 1px 2px rgba(59, 130, 246, 0.05),
+        0 6px 20px rgba(59, 130, 246, 0.07);
 }
 
-.import-future-backfill__btn {
+.sync-control-card__content {
+    flex: 1;
+    min-width: 0;
+    text-align: right;
+}
+
+.sync-control-card__title {
+    margin: 0 0 5px;
+    font-size: 13px;
+    font-weight: 700;
+    font-variation-settings: "wght" 700;
+    line-height: 1.6;
+    color: var(--slate-900);
+    letter-spacing: -0.01em;
+}
+
+.sync-control-card__desc {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 400;
+    font-variation-settings: "wght" 400;
+    line-height: 1.7;
+    color: var(--slate-500);
+    text-align: justify;
+    text-align-last: right;
+}
+
+.sync-control-card__btn {
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 84px;
-    height: 34px;
-    padding: 0 14px;
-    border: 1px solid #cbd5e1;
-    border-radius: 999px;
-    background: #ffffff;
-    color: #0f172a;
+    min-width: 96px;
+    height: 38px;
+    padding: 0 18px;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    color: var(--slate-800);
     font-family: inherit;
-    font-size: 11px;
-    font-weight: 700;
+    font-size: 12px;
+    font-weight: 600;
+    font-variation-settings: "wght" 600;
     line-height: 1;
     cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
+    white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
     -webkit-tap-highlight-color: transparent;
 }
 
-.import-future-backfill__btn:hover:not(:disabled):not(.is-loading):not([aria-busy="true"]) {
-    background: #f8fafc;
-    border-color: #94a3b8;
+.sync-control-card__btn:hover:not(:disabled):not(.is-loading):not([aria-busy="true"]) {
+    background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%);
+    border-color: #93c5fd;
+    color: var(--slate-900);
     transform: translateY(-1px);
 }
 
-.import-future-backfill__btn:active:not(:disabled):not(.is-loading):not([aria-busy="true"]) {
-    transform: translateY(0);
+.sync-control-card__btn:active:not(:disabled):not(.is-loading):not([aria-busy="true"]) {
+    transform: scale(0.98);
 }
 
-.import-future-backfill__btn:focus-visible {
+.sync-control-card__btn:focus-visible {
     outline: 2px solid #93c5fd;
     outline-offset: 2px;
 }
 
-.import-future-backfill__btn:disabled:not(.is-loading):not([aria-busy="true"]) {
-    opacity: 0.62;
+.sync-control-card__btn:disabled:not(.is-loading):not([aria-busy="true"]) {
+    opacity: 0.65;
     cursor: not-allowed;
     transform: none;
 }
 
-.import-future-backfill__btn.is-loading,
-.import-future-backfill__btn[aria-busy="true"] {
-    opacity: 0.85;
+.sync-control-card__btn.is-loading,
+.sync-control-card__btn[aria-busy="true"] {
+    opacity: 0.88;
     cursor: wait;
 }
 
-.import-future-backfill__btn-spinner {
+.sync-control-card__btn-spinner {
     display: none;
-    width: 14px;
-    height: 14px;
-    border: 2px solid rgba(15, 23, 42, 0.12);
-    border-top-color: #334155;
+    width: 15px;
+    height: 15px;
+    border: 2px solid rgba(59, 130, 246, 0.18);
+    border-top-color: #3b82f6;
     border-radius: 50%;
     animation: btnSpin 0.7s linear infinite;
 }
 
-.import-future-backfill__btn.is-loading .import-future-backfill__btn-text,
-.import-future-backfill__btn[aria-busy="true"] .import-future-backfill__btn-text {
+.sync-control-card__btn.is-loading .sync-control-card__btn-text,
+.sync-control-card__btn[aria-busy="true"] .sync-control-card__btn-text {
     display: none;
 }
 
-.import-future-backfill__btn.is-loading .import-future-backfill__btn-spinner,
-.import-future-backfill__btn[aria-busy="true"] .import-future-backfill__btn-spinner {
+.sync-control-card__btn.is-loading .sync-control-card__btn-spinner,
+.sync-control-card__btn[aria-busy="true"] .sync-control-card__btn-spinner {
     display: inline-block;
 }
 
-.import-future-backfill.is-pending .field-title1 {
-    color: var(--slate-600);
+.sync-control-card.is-pending .sync-control-card__title {
+    color: var(--slate-700);
 }
 
-.vacation-sub-options-block--inactive .import-future-backfill-wrap {
+.sync-control-card.is-pending .sync-control-card__desc {
+    color: var(--slate-400);
+}
+
+.vacation-sub-options-block--inactive .sync-control-wrap {
     opacity: 0.52;
     pointer-events: none;
 }
 
-@media (max-width: 520px) {
-    .import-future-backfill {
-        align-items: flex-start;
-        gap: 12px;
+@media (max-width: 600px) {
+    .sync-control-card {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px;
+        padding: 16px;
     }
 
-    .import-future-backfill__btn {
-        align-self: flex-end;
+    .sync-control-card__content {
+        text-align: right;
     }
-}
 
-.vacation-conflict-block {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin: 6px 0 2px;
-}
-
-.vacation-conflict-block__title {
-    margin: 0 4px 2px;
-    padding: 0 2px;
-    font-size: 11px;
-    font-weight: 600;
-    font-variation-settings: "wght" 600;
-    line-height: 1.65;
-    color: var(--slate-500);
-}
-
-.vacation-conflict-block .vacation-conflict-field {
-    margin: 0;
-}
-
-.vacation-sub-options-block--inactive .vacation-conflict-block {
-    opacity: 0.52;
-    pointer-events: none;
+    .sync-control-card__btn {
+        width: 100%;
+        min-height: 40px;
+    }
 }
 
 .import-future-reenable {
@@ -1308,35 +1332,12 @@ body {
     margin-top: 0;
 }
 
-.settings-section--appointment-cancel {
-    margin-top: 12px;
-}
-
-.settings-card--appointment-cancel {
-    background: linear-gradient(160deg, var(--blue-50) 0%, #f8fafc 100%);
-    border: 1px solid #dbeafe;
-    border-radius: var(--radius);
-    padding: 3px;
-    gap: 0;
-}
-
-.settings-card--appointment-cancel .field {
-    background: transparent;
-    border-color: transparent;
-    margin: 0;
-}
-
-.settings-card--appointment-cancel .field:hover {
-    background: rgba(255, 255, 255, 0.65);
-    border-color: #dbeafe;
-}
-
-.settings-card--appointment-cancel .field.row {
-    align-items: center;
-}
-
-.settings-card--appointment-cancel .switch {
+.settings-card--vacation > .field.row[data-toggle-field="cancelAppointmentOnEventDelete"] {
     margin-top: 2px;
+}
+
+.settings-card--vacation > .field.row[data-toggle-field="cancelAppointmentOnEventDelete"] .field-title1 {
+    line-height: 1.55;
 }
 
 .settings-card--vacation {

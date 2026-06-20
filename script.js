@@ -214,7 +214,7 @@ function applyImportFutureBackfillCardUiState() {
     const wrap = document.getElementById("importFutureBackfillWrap");
     const card = document.getElementById("importFutureBackfillCard");
     const btn = document.getElementById("importFutureBackfillBtn");
-    const btnText = btn?.querySelector(".import-future-backfill__btn-text");
+    const btnText = btn?.querySelector(".sync-control-card__btn-text");
     if (!wrap || !btn) {
         return;
     }
@@ -237,11 +237,11 @@ function applyImportFutureBackfillCardUiState() {
 
     if (btnText) {
         if (starting) {
-            btnText.textContent = "شروع";
+            btnText.textContent = "درون‌ریزی";
         } else if (pending) {
             btnText.textContent = "در حال انجام…";
         } else {
-            btnText.textContent = "شروع";
+            btnText.textContent = "درون‌ریزی";
         }
     }
 }
@@ -1740,7 +1740,7 @@ function bindUiEvents() {
         });
     });
 
-    document.querySelectorAll(".field.row:not(.vacation-conflict-field)").forEach(row => {
+    document.querySelectorAll(".field.row:not([data-conflict-mode])").forEach(row => {
         row.addEventListener("click", (e) => {
             e.stopPropagation();
             if (e.target.closest(".switch")) return;
@@ -2237,7 +2237,7 @@ function bindVacationConflictSwitches() {
     cancelSwitch.addEventListener("change", () => {
         if (cancelSwitch.checked) {
             setVacationConflictMode("cancel");
-            pulseField(cancelSwitch.closest(".vacation-conflict-field"));
+            pulseField(cancelSwitch.closest(".field.row"));
             return;
         }
 
@@ -2249,7 +2249,7 @@ function bindVacationConflictSwitches() {
     rescheduleSwitch.addEventListener("change", () => {
         if (rescheduleSwitch.checked) {
             setVacationConflictMode("reschedule");
-            pulseField(rescheduleSwitch.closest(".vacation-conflict-field"));
+            pulseField(rescheduleSwitch.closest(".field.row"));
             return;
         }
 
@@ -2258,7 +2258,7 @@ function bindVacationConflictSwitches() {
         }
     });
 
-    document.querySelectorAll(".vacation-conflict-field").forEach(row => {
+    document.querySelectorAll(".field.row[data-conflict-mode]").forEach(row => {
         row.addEventListener("click", (e) => {
             e.stopPropagation();
             if (e.target.closest(".switch")) {
