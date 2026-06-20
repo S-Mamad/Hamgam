@@ -212,9 +212,8 @@ function setImportFutureBackfillPending(pending, options = {}) {
 
 function applyImportFutureBackfillCardUiState() {
     const wrap = document.getElementById("importFutureBackfillWrap");
-    const card = document.getElementById("importFutureBackfillCard");
     const btn = document.getElementById("importFutureBackfillBtn");
-    const btnText = btn?.querySelector(".sync-control-card__btn-text");
+    const btnText = btn?.querySelector(".sync-backfill-action__btn-text");
     if (!wrap || !btn) {
         return;
     }
@@ -229,7 +228,7 @@ function applyImportFutureBackfillCardUiState() {
 
     wrap.hidden = !panelOpen || hideCard;
 
-    card?.classList.toggle("is-pending", pending);
+    wrap?.classList.toggle("is-pending", pending);
 
     btn.disabled = starting || pending || used || inactive || !appState.connected;
     btn.classList.toggle("is-loading", starting);
@@ -2201,6 +2200,8 @@ function setVacationConflictMode(mode) {
     const cancelSwitch = document.getElementById("vacationConflictCancelSwitch");
     const rescheduleSwitch = document.getElementById("vacationConflictRescheduleSwitch");
     const hidden = document.getElementById("cancelConflictingAppointments");
+    const cancelBtn = document.getElementById("vacationConflictCancelBtn");
+    const rescheduleBtn = document.getElementById("vacationConflictRescheduleBtn");
     if (!cancelSwitch || !rescheduleSwitch || !hidden) {
         return;
     }
@@ -2209,70 +2210,54 @@ function setVacationConflictMode(mode) {
     cancelSwitch.checked = isCancel;
     rescheduleSwitch.checked = !isCancel;
     hidden.checked = isCancel;
+
+    cancelBtn?.classList.toggle("is-active", isCancel);
+    rescheduleBtn?.classList.toggle("is-active", !isCancel);
+    cancelBtn?.setAttribute("aria-pressed", isCancel ? "true" : "false");
+    rescheduleBtn?.setAttribute("aria-pressed", !isCancel ? "true" : "false");
+
     updateVacationConflictOptionStates();
 }
 
 function updateVacationConflictOptionStates() {
-    const cancelSwitch = document.getElementById("vacationConflictCancelSwitch");
-    const rescheduleSwitch = document.getElementById("vacationConflictRescheduleSwitch");
+    const cancelBtn = document.getElementById("vacationConflictCancelBtn");
+    const rescheduleBtn = document.getElementById("vacationConflictRescheduleBtn");
+    const segment = document.getElementById("vacationConflictSegment");
     const subOptionsBlock = document.getElementById("vacationSubOptionsBlock");
-    if (!cancelSwitch || !rescheduleSwitch) {
+    if (!cancelBtn || !rescheduleBtn) {
         return;
     }
 
     const inactive = subOptionsBlock?.classList.contains("vacation-sub-options-block--inactive") ?? false;
-    cancelSwitch.disabled = inactive;
-    rescheduleSwitch.disabled = inactive;
-    cancelSwitch.setAttribute("aria-disabled", inactive ? "true" : "false");
-    rescheduleSwitch.setAttribute("aria-disabled", inactive ? "true" : "false");
+    cancelBtn.disabled = inactive;
+    rescheduleBtn.disabled = inactive;
+    cancelBtn.setAttribute("aria-disabled", inactive ? "true" : "false");
+    rescheduleBtn.setAttribute("aria-disabled", inactive ? "true" : "false");
+    segment?.classList.toggle("is-disabled", inactive);
 }
 
 function bindVacationConflictSwitches() {
-    const cancelSwitch = document.getElementById("vacationConflictCancelSwitch");
-    const rescheduleSwitch = document.getElementById("vacationConflictRescheduleSwitch");
-    if (!cancelSwitch || !rescheduleSwitch) {
+    const cancelBtn = document.getElementById("vacationConflictCancelBtn");
+    const rescheduleBtn = document.getElementById("vacationConflictRescheduleBtn");
+    const segment = document.getElementById("vacationConflictSegment");
+    if (!cancelBtn || !rescheduleBtn) {
         return;
     }
 
-    cancelSwitch.addEventListener("change", () => {
-        if (cancelSwitch.checked) {
-            setVacationConflictMode("cancel");
-            pulseField(cancelSwitch.closest(".field.row"));
+    cancelBtn.addEventListener("click", () => {
+        if (cancelBtn.disabled || cancelBtn.classList.contains("is-active")) {
             return;
         }
-
-        if (!rescheduleSwitch.checked) {
-            setVacationConflictMode("reschedule");
-        }
+        setVacationConflictMode("cancel");
+        pulseField(segment);
     });
 
-    rescheduleSwitch.addEventListener("change", () => {
-        if (rescheduleSwitch.checked) {
-            setVacationConflictMode("reschedule");
-            pulseField(rescheduleSwitch.closest(".field.row"));
+    rescheduleBtn.addEventListener("click", () => {
+        if (rescheduleBtn.disabled || rescheduleBtn.classList.contains("is-active")) {
             return;
         }
-
-        if (!cancelSwitch.checked) {
-            setVacationConflictMode("cancel");
-        }
-    });
-
-    document.querySelectorAll(".field.row[data-conflict-mode]").forEach(row => {
-        row.addEventListener("click", (e) => {
-            e.stopPropagation();
-            if (e.target.closest(".switch")) {
-                return;
-            }
-
-            const mode = row.dataset.conflictMode;
-            if (!mode) {
-                return;
-            }
-
-            setVacationConflictMode(mode);
-            pulseField(row);
-        });
+        setVacationConflictMode("reschedule");
+        pulseField(segment);
     });
 }
 
