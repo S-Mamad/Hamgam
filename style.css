@@ -1139,7 +1139,31 @@ body {
     color: var(--slate-400);
 }
 
+.sync-backfill-action.is-pending:not(.is-success-card) {
+    border-color: #93c5fd;
+    box-shadow:
+        0 1px 3px rgba(59, 130, 246, 0.08),
+        0 0 0 1px rgba(147, 197, 253, 0.35);
+    animation: backfillCardPulse 2.6s ease-in-out infinite;
+}
+
+@keyframes backfillCardPulse {
+    0%,
+    100% {
+        box-shadow:
+            0 1px 3px rgba(59, 130, 246, 0.08),
+            0 0 0 1px rgba(147, 197, 253, 0.35);
+    }
+    50% {
+        box-shadow:
+            0 2px 10px rgba(59, 130, 246, 0.14),
+            0 0 0 1px rgba(96, 165, 250, 0.55);
+    }
+}
+
 .sync-backfill-action__btn {
+    --backfill-fill: 0%;
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1157,18 +1181,159 @@ body {
     line-height: 1.35;
     letter-spacing: 0.01em;
     cursor: pointer;
+    overflow: hidden;
+    isolation: isolate;
     box-shadow: 0 1px 3px rgba(59, 99, 170, 0.18);
     transition:
-        background 0.18s ease,
-        border-color 0.18s ease,
-        box-shadow 0.18s ease,
+        background 0.28s ease,
+        border-color 0.28s ease,
+        box-shadow 0.28s ease,
+        color 0.28s ease,
         transform 0.2s var(--ease-out),
         opacity 0.15s ease;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
 }
 
-.sync-backfill-action__btn:hover:not(:disabled):not(.is-loading):not([aria-busy="true"]) {
+.sync-backfill-action__btn-fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: var(--backfill-fill);
+    background: linear-gradient(90deg, #1d4ed8 0%, #2563eb 38%, #3b82f6 72%, #60a5fa 100%);
+    opacity: 0;
+    z-index: 0;
+    transition: width 0.55s var(--ease-out), opacity 0.22s ease;
+}
+
+.sync-backfill-action__btn-glow {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: calc(var(--backfill-fill) - 2px);
+    width: 18px;
+    transform: translateX(50%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+    opacity: 0;
+    z-index: 1;
+    pointer-events: none;
+    filter: blur(0.5px);
+}
+
+.sync-backfill-action__btn-content {
+    position: relative;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    width: 100%;
+}
+
+.sync-backfill-action__btn-done {
+    position: relative;
+    z-index: 2;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    color: #ffffff;
+}
+
+.sync-backfill-action__btn-done svg {
+    width: 18px;
+    height: 18px;
+}
+
+.sync-backfill-action__btn.is-loading,
+.sync-backfill-action__btn.is-running {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    color: #1e3a8a;
+    cursor: wait;
+    transform: none;
+    pointer-events: none;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.sync-backfill-action__btn.is-loading .sync-backfill-action__btn-fill,
+.sync-backfill-action__btn.is-running .sync-backfill-action__btn-fill,
+.sync-backfill-action__btn.is-success .sync-backfill-action__btn-fill {
+    opacity: 1;
+}
+
+.sync-backfill-action__btn.is-loading .sync-backfill-action__btn-glow,
+.sync-backfill-action__btn.is-running .sync-backfill-action__btn-glow {
+    opacity: 1;
+    animation: backfillEdgeGlow 1.35s ease-in-out infinite;
+}
+
+.sync-backfill-action__btn.is-fill-deep {
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
+}
+
+.sync-backfill-action__btn.is-fill-deep .sync-backfill-action__btn-pct {
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+}
+
+.sync-backfill-action__btn.is-success {
+    background: #ecfdf5;
+    border-color: #6ee7b7;
+    color: #047857;
+    pointer-events: none;
+    box-shadow:
+        0 0 0 1px rgba(16, 185, 129, 0.18),
+        0 4px 16px rgba(16, 185, 129, 0.16);
+}
+
+.sync-backfill-action__btn.is-success .sync-backfill-action__btn-fill {
+    width: 100%;
+    background: linear-gradient(90deg, #047857 0%, #059669 45%, #10b981 78%, #34d399 100%);
+}
+
+.sync-backfill-action__btn.is-success .sync-backfill-action__btn-glow {
+    opacity: 0;
+}
+
+.sync-backfill-action__btn.is-success .sync-backfill-action__btn-done {
+    display: inline-flex;
+    animation: backfillSuccessPop 0.5s var(--ease-spring);
+}
+
+.sync-backfill-action__btn.is-success .sync-backfill-action__btn-text {
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(4, 120, 87, 0.25);
+}
+
+@keyframes backfillEdgeGlow {
+    0%,
+    100% {
+        opacity: 0.55;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+@keyframes backfillSuccessPop {
+    0% {
+        opacity: 0;
+        transform: scale(0.55) rotate(-8deg);
+    }
+    70% {
+        transform: scale(1.12) rotate(0deg);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+    }
+}
+
+.sync-backfill-action__btn:hover:not(:disabled):not(.is-loading):not(.is-running):not(.is-success):not([aria-busy="true"]) {
     background: #3f72c8;
     border-color: #3f72c8;
     color: #ffffff;
@@ -1176,7 +1341,7 @@ body {
     box-shadow: 0 2px 6px rgba(59, 99, 170, 0.22);
 }
 
-.sync-backfill-action__btn:active:not(:disabled):not(.is-loading):not([aria-busy="true"]) {
+.sync-backfill-action__btn:active:not(:disabled):not(.is-loading):not(.is-running):not(.is-success):not([aria-busy="true"]) {
     background: #3868b8;
     border-color: #3868b8;
     box-shadow: none;
@@ -1187,43 +1352,33 @@ body {
     outline-offset: 2px;
 }
 
-.sync-backfill-action__btn:disabled:not(.is-loading):not([aria-busy="true"]) {
+.sync-backfill-action__btn:disabled:not(.is-loading):not(.is-running):not(.is-success):not([aria-busy="true"]) {
     opacity: 0.68;
     cursor: wait;
     transform: none;
-}
-
-.sync-backfill-action__btn.is-loading,
-.sync-backfill-action__btn[aria-busy="true"] {
-    opacity: 0.92;
-    cursor: wait;
-    transform: none;
-    pointer-events: none;
 }
 
 .sync-backfill-action__btn-text {
     white-space: nowrap;
 }
 
-.sync-backfill-action__btn-spinner {
-    display: none;
-    width: 14px;
-    height: 14px;
-    flex-shrink: 0;
-    border: 2px solid rgba(255, 255, 255, 0.35);
-    border-top-color: #ffffff;
-    border-radius: 50%;
-    animation: btnSpin 0.7s linear infinite;
+.sync-backfill-action__btn-pct {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(29, 78, 216, 0.1);
+    color: #1d4ed8;
+    font-size: 9.5px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
 }
 
-.sync-backfill-action__btn.is-loading .sync-backfill-action__btn-text,
-.sync-backfill-action__btn[aria-busy="true"] .sync-backfill-action__btn-text {
-    display: none;
-}
-
-.sync-backfill-action__btn.is-loading .sync-backfill-action__btn-spinner,
-.sync-backfill-action__btn[aria-busy="true"] .sync-backfill-action__btn-spinner {
-    display: block;
+.sync-backfill-action__btn-pct[hidden] {
+    display: none !important;
 }
 
 .vacation-sub-options-block--inactive .sync-backfill-action {

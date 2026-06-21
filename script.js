@@ -198,14 +198,175 @@ function showImportFutureBackfillCompletionFeedback(status) {
     showToast("رویداد شخصی جدیدی در ۳۰ روز آینده یافت نشد.");
 }
 
+const backfillFillState = {
+    progress: 0,
+    timer: null,
+    raf: null,
+    successTimer: null
+};
+
+function setBackfillFillProgress(percent) {
+    const value = Math.max(0, Math.min(100, Number(percent) || 0));
+    backfillFillState.progress = value;
+
+    const btn = document.getElementById("importFutureBackfillBtn");
+    const pctEl = btn?.querySelector(".sync-backfill-action__btn-pct");
+    if (!btn) {
+        return;
+    }
+
+    btn.style.setProperty("--backfill-fill", `${value}%`);
+    btn.classList.toggle("is-fill-deep", value >= 38);
+
+    if (pctEl) {
+        const showPct = btn.classList.contains("is-loading") || btn.classList.contains("is-running");
+        pctEl.textContent = showPct ? `${Math.round(value)}٪` : "";
+        pctEl.hidden = !showPct;
+    }
+}
+
+function stopBackfillFillAnimation() {
+    if (backfillFillState.timer) {
+        clearInterval(backfillFillState.timer);
+        backfillFillState.timer = null;
+    }
+    if (backfillFillState.raf) {
+        cancelAnimationFrame(backfillFillState.raf);
+        backfillFillState.raf = null;
+    }
+}
+
+function resetBackfillFillProgress() {
+    stopBackfillFillAnimation();
+
+    if (backfillFillState.successTimer) {
+        clearTimeout(backfillFillState.successTimer);
+        backfillFillState.successTimer = null;
+    }
+
+    const btn = document.getElementById("importFutureBackfillBtn");
+    const wrap = document.getElementById("importFutureBackfillWrap");
+    if (btn) {
+        btn.classList.remove("is-success", "is-fill-deep");
+    }
+    if (wrap) {
+        wrap.classList.remove("is-success-card");
+    }
+
+    setBackfillFillProgress(0);
+}
+
+function animateBackfillFillTo(target, durationMs = 600) {
+    stopBackfillFillAnimation();
+
+    const start = backfillFillState.progress;
+    const delta = target - start;
+    if (delta <= 0) {
+        setBackfillFillProgress(target);
+        return;
+    }
+
+    const startTime = performance.now();
+    const tick = (now) => {
+        const elapsed = now - startTime;
+        const t = Math.min(1, elapsed / durationMs);
+        const eased = 1 - Math.pow(1 - t, 3);
+        setBackfillFillProgress(start + delta * eased);
+
+        if (t < 1) {
+            backfillFillState.raf = requestAnimationFrame(tick);
+        } else {
+            backfillFillState.raf = null;
+        }
+    };
+
+    backfillFillState.raf = requestAnimationFrame(tick);
+}
+
+function startBackfillFillAnimation(phase) {
+    if (phase === "starting") {
+        setBackfillFillProgress(0);
+        animateBackfillFillTo(24, 650);
+        return;
+    }
+
+    if (phase === "running") {
+        stopBackfillFillAnimation();
+
+        if (backfillFillState.progress < 24) {
+            setBackfillFillProgress(24);
+        }
+
+        backfillFillState.timer = setInterval(() => {
+            const current = backfillFillState.progress;
+            if (current >= 88) {
+                return;
+            }
+
+            const step = current < 45 ? 0.65 : current < 70 ? 0.28 : 0.1;
+            setBackfillFillProgress(current + step);
+        }, 900);
+    }
+}
+
+function playBackfillFillSuccess() {
+    return new Promise((resolve) => {
+        stopBackfillFillAnimation();
+
+        const btn = document.getElementById("importFutureBackfillBtn");
+        const wrap = document.getElementById("importFutureBackfillWrap");
+        const btnText = btn?.querySelector(".sync-backfill-action__btn-text");
+        const pctEl = btn?.querySelector(".sync-backfill-action__btn-pct");
+
+        if (!btn) {
+            resolve();
+            return;
+        }
+
+        setBackfillFillProgress(100);
+        btn.classList.remove("is-loading", "is-running");
+        btn.classList.add("is-success");
+        btn.setAttribute("aria-busy", "false");
+
+        if (wrap) {
+            wrap.classList.add("is-success-card");
+        }
+
+        if (btnText) {
+            btnText.textContent = "همگام‌سازی انجام شد";
+        }
+
+        if (pctEl) {
+            pctEl.hidden = true;
+        }
+
+        backfillFillState.successTimer = window.setTimeout(() => {
+            btn.classList.remove("is-success");
+            if (wrap) {
+                wrap.classList.remove("is-success-card");
+            }
+            backfillFillState.successTimer = null;
+            resolve();
+        }, 1500);
+    });
+}
+
 function setImportFutureBackfillStarting(starting) {
     appState.importFutureBackfillStarting = !!starting;
+    if (starting) {
+        startBackfillFillAnimation("starting");
+    }
     applyImportFutureBackfillCardUiState();
 }
 
 function setImportFutureBackfillPending(pending, options = {}) {
     const wasPending = appState.importFutureBackfillPending;
     appState.importFutureBackfillPending = !!pending;
+    if (pending && !wasPending) {
+        startBackfillFillAnimation("running");
+    } else if (!pending && wasPending) {
+        stopBackfillFillAnimation();
+    }
     applyImportFutureBackfillCardUiState();
     applyImportFutureBackfillUndoUiState();
     if (pending && !wasPending && options.notify) {
@@ -228,23 +389,31 @@ function applyImportFutureBackfillCardUiState() {
     const hasSelection = hasVacationCenterSelection();
     const inactive = panelOpen && !hasSelection;
     const hideCard = used && !pending;
+    const isSuccess = btn.classList.contains("is-success");
 
     wrap.hidden = !panelOpen || hideCard;
 
-    wrap?.classList.toggle("is-pending", pending);
+    wrap.classList.toggle("is-pending", pending && !isSuccess);
 
-    btn.disabled = starting || pending || used || inactive || !appState.connected;
-    btn.classList.toggle("is-loading", starting);
-    btn.setAttribute("aria-busy", starting ? "true" : "false");
+    btn.classList.toggle("is-loading", starting && !isSuccess);
+    btn.classList.toggle("is-running", pending && !starting && !isSuccess);
+    btn.disabled = starting || pending || used || inactive || !appState.connected || isSuccess;
+    btn.setAttribute("aria-busy", (starting || pending) && !isSuccess ? "true" : "false");
 
-    if (btnText) {
+    if (btnText && !isSuccess) {
         if (starting) {
-            btnText.textContent = "شروع فرآیند";
+            btnText.textContent = "در حال ارسال…";
         } else if (pending) {
-            btnText.textContent = "در حال انجام…";
+            btnText.textContent = "همگام‌سازی ۳۰ روز…";
         } else {
             btnText.textContent = "شروع فرآیند";
         }
+    }
+
+    if (!starting && !pending && !isSuccess) {
+        setBackfillFillProgress(0);
+    } else {
+        setBackfillFillProgress(backfillFillState.progress);
     }
 }
 
@@ -260,9 +429,9 @@ async function startImportFutureBackfillPoll() {
         return status;
     }
 
-    setImportFutureBackfillPending(false);
-
     if (status && !status.pending) {
+        await playBackfillFillSuccess();
+        setImportFutureBackfillPending(false);
         showImportFutureBackfillCompletionFeedback(status);
         try {
             await openSettings();
@@ -271,6 +440,9 @@ async function startImportFutureBackfillPoll() {
         }
         return status;
     }
+
+    setImportFutureBackfillPending(false);
+    resetBackfillFillProgress();
 
     showToast(
         "همگام سازی در پس‌زمینه ادامه دارد. چند دقیقه بعد نتیجه را در همین صفحه بررسی کنید.",
@@ -343,6 +515,7 @@ async function handleImportFutureBackfillClick() {
         }
 
         if (data.backfill?.ran) {
+            await playBackfillFillSuccess();
             showImportFutureBackfillCompletionFeedback({
                 pending: false,
                 ok: true,
@@ -352,9 +525,16 @@ async function handleImportFutureBackfillClick() {
         }
     } catch (error) {
         console.error("[Hamgam] import future backfill failed:", error);
+        resetBackfillFillProgress();
         showToast(error.message || "شروع همگام سازی ناموفق بود. دوباره تلاش کنید.", "error");
     } finally {
         setImportFutureBackfillStarting(false);
+        if (
+            !appState.importFutureBackfillPending
+            && !document.getElementById("importFutureBackfillBtn")?.classList.contains("is-success")
+        ) {
+            resetBackfillFillProgress();
+        }
     }
 }
 
@@ -470,7 +650,9 @@ async function checkRecentSyncStatus() {
     }
 
     if (status.pending && status.operation === "backfill") {
+        setBackfillFillProgress(30);
         setImportFutureBackfillPending(true);
+        startBackfillFillAnimation("running");
         void startImportFutureBackfillPoll();
         return;
     }
@@ -3153,7 +3335,7 @@ function validateVacationCentersBeforeSave(autoVacation) {
     }
 
     showVacationCentersValidation();
-    showToast("شما مرکز درمانیتو انتخاب نکردی", "error");
+    showToast("مرکز درمانی انتخاب نشده است", "error");
     return false;
 }
 

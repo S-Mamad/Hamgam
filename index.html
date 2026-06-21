@@ -11,10 +11,10 @@
     <meta name="description" content="شخصی‌سازی نحوه ثبت نوبت‌های پذیرش۲۴ در Google Calendar">
     <link rel="dns-prefetch" href="https://accounts.google.com">
     <link rel="preconnect" href="https://accounts.google.com" crossorigin>
-    <link rel="stylesheet" href="style.css?v=f385787b">
+    <link rel="stylesheet" href="style.css?v=acf8c028">
     <link href="https://fonts.paziresh24.com/iran-sans-x.css" rel="stylesheet">
     <script src="https://hamdast.paziresh24.com/sdk/hamdast.js"></script>
-    <script src="script.js?v=f385787b" defer></script>
+    <script src="script.js?v=acf8c028" defer></script>
 </head>
 
 <body>
@@ -123,8 +123,18 @@
                             <span class="sync-backfill-action__desc">رویدادهای ایجاد شده در گوگل کلندر در بازه ۳۰ روز آینده به عنوان مرخصی در پذیرش۲۴ اعمال خواهد شد.</span>
                         </div>
                         <button type="button" id="importFutureBackfillBtn" class="sync-backfill-action__btn" aria-label="همگام‌سازی رویدادهای ۳۰ روز آینده" aria-busy="false">
-                            <span class="sync-backfill-action__btn-text">شروع فرآیند</span>
-                            <span class="sync-backfill-action__btn-spinner" aria-hidden="true"></span>
+                            <span class="sync-backfill-action__btn-fill" aria-hidden="true"></span>
+                            <span class="sync-backfill-action__btn-glow" aria-hidden="true"></span>
+                            <span class="sync-backfill-action__btn-content">
+                                <span class="sync-backfill-action__btn-text">شروع فرآیند</span>
+                                <span class="sync-backfill-action__btn-pct" hidden aria-hidden="true"></span>
+                            </span>
+                            <span class="sync-backfill-action__btn-done" aria-hidden="true">
+                                <svg viewBox="0 0 16 16" fill="none">
+                                    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.4"/>
+                                    <path d="M5 8.2l2 2 4.2-4.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </span>
                         </button>
                     </div>
 
