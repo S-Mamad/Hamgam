@@ -3513,6 +3513,11 @@ function showApp() {
             requestAnimationFrame(() => refreshMainTabPill());
         });
         setTimeout(() => refreshMainTabPill(), 120);
+        const badge = document.getElementById("vacationInfoBadge");
+        if (badge) {
+            badge.classList.add("show");
+            setTimeout(() => badge.classList.remove("show"), 3000);
+        }
     }, 280);
 }
 
