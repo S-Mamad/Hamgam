@@ -66,6 +66,7 @@
 
                 <div class="field row field--with-guide" data-toggle-field="autoVacation">
                     <div class="field-label-group">
+<<<<<<< HEAD
                         <div class="field-title-row">
                             <span class="field-title1">ثبت خودکار مرخصی</span>
                             <span class="vacation-guide-anchor">
@@ -79,13 +80,20 @@
                                 <span id="vacationGuideHint" class="vacation-guide-hint" role="status" aria-live="polite" hidden>راهنما</span>
                             </span>
                         </div>
+=======
+                        <div class="field-title1">ثبت خودکار مرخصی</div>
+                        <button type="button" class="vacation-info-btn" id="vacationInfoBtn" aria-label="راهنمای نحوه کار">
+                            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.25"/><path d="M8 4v.65M8 7v3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                            <span class="vacation-info-badge" id="vacationInfoBadge">راهنما</span>
+                        </button>
+>>>>>>> 7b29ae5ab561cd63ef99e6be158e6dbfd2817b09
                     </div>
                     <label class="switch">
                         <input type="checkbox" data-field="autoVacation" id="autoVacationToggle" aria-controls="vacationSubPanel">
                         <span></span>
                     </label>
                 </div>
-
+                
                 <div id="vacationSubPanel" class="vacation-sub-panel" aria-hidden="true">
                     <section id="vacationCentersSection" class="vacation-centers-section" aria-labelledby="vacationCentersTitle">
                         <div class="vacation-centers-header">
@@ -196,6 +204,7 @@
 
         </section>
 
+        <!-- DrDr section — temporarily hidden
         <section class="integration-section" id="drdrIntegrationSection" aria-label="اتصال DrDr">
             <div class="integration-card" id="drdrIntegrationCard">
                 <button type="button" class="integration-card__toggle" id="drdrIntegrationToggle" aria-expanded="false" aria-controls="drdrIntegrationPanel">
@@ -293,6 +302,7 @@
                 </div>
             </div>
         </section>
+        -->
 
         </div>
 
@@ -457,6 +467,45 @@
                     <button type="button" id="hamgamConfirmCancel" class="hamgam-confirm-dialog__btn hamgam-confirm-dialog__btn--ghost">انصراف</button>
                     <button type="button" id="hamgamConfirmAccept" class="hamgam-confirm-dialog__btn hamgam-confirm-dialog__btn--primary">تأیید</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="vacationInfoModal" class="vacation-modal-overlay" hidden aria-hidden="true">
+        <div class="vacation-modal" role="dialog" aria-modal="true" aria-labelledby="vacationModalTitle">
+            <div class="vacation-modal__header">
+                <span class="vacation-modal__icon" aria-hidden="true">
+                    <svg viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M9 4.5v.65M9 7v3.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </span>
+                <span id="vacationModalTitle" class="vacation-modal__title">نحوه کار</span>
+                <button type="button" class="vacation-modal__close" id="vacationModalClose" aria-label="بستن">
+                    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </button>
+            </div>
+            <div class="vacation-modal__body">
+                <p class="vacation-modal__sub">با ثبت خودکار مرخصی، همگام‌سازی به این صورت انجام می‌شود:</p>
+                <ol class="vacation-modal__steps">
+                    <li class="vacation-modal__step">
+                        <span class="vacation-modal__step-line"></span>
+                        <span class="vacation-modal__step-badge" aria-hidden="true">۱</span>
+                        <span class="vacation-modal__step-text">در Google Calendar یک رویداد با تاریخ و ساعت دلخواه ایجاد کنید.</span>
+                    </li>
+                    <li class="vacation-modal__step">
+                        <span class="vacation-modal__step-line"></span>
+                        <span class="vacation-modal__step-badge" aria-hidden="true">۲</span>
+                        <span class="vacation-modal__step-text">همان بازه زمانی به‌صورت خودکار به‌عنوان مرخصی در پذیرش۲۴ ثبت می‌شود.</span>
+                    </li>
+                    <li class="vacation-modal__step">
+                        <span class="vacation-modal__step-line"></span>
+                        <span class="vacation-modal__step-badge" aria-hidden="true">۳</span>
+                        <span class="vacation-modal__step-text">اگر چند مرکز درمانی دارید، مرخصی فقط برای مرکز(های) انتخاب‌شده ثبت می‌شود و در صورت تداخل، فقط نوبت‌های همان مرکز لغو یا منتقل می‌شوند.</span>
+                    </li>
+                    <li class="vacation-modal__step">
+                        <span class="vacation-modal__step-line"></span>
+                        <span class="vacation-modal__step-badge" aria-hidden="true">۴</span>
+                        <span class="vacation-modal__step-text">در صورت ویرایش یا حذف رویداد در Google Calendar، مرخصی ثبت‌شده در پذیرش۲۴ نیز به‌روزرسانی یا حذف خواهد شد.</span>
+                    </li>
+                </ol>
             </div>
         </div>
     </div>
