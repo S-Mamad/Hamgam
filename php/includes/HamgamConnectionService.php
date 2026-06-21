@@ -106,6 +106,13 @@ final class HamgamConnectionService
 
         if ($runBackfillWhenEligible) {
             try {
+                GoogleTokensRepository::updateSyncProgress($userId, [
+                    'phase' => 'preparing',
+                    'processed' => 0,
+                    'total' => 0,
+                    'percent' => 5,
+                ]);
+
                 $tokenRow = GoogleTokensRepository::findByUserId($userId);
                 if ($tokenRow !== null && GoogleTokensRepository::shouldRunFutureVacationsBackfill($tokenRow)) {
                     if (

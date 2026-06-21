@@ -141,6 +141,48 @@ assertTest(
 );
 
 assertTest(
+    'Paziresh24AppointmentApi has getFirstAvailableSlot',
+    method_exists(Paziresh24AppointmentApi::class, 'getFirstAvailableSlot')
+);
+
+assertTest(
+    'Paziresh24AppointmentApi has moveAppointmentResult',
+    method_exists(Paziresh24AppointmentApi::class, 'moveAppointmentResult')
+);
+
+assertTest(
+    'extractFirstWorkhourTurnNum picks earliest future slot',
+    Paziresh24AppointmentApi::extractFirstWorkhourTurnNum([
+        'data' => [
+            ['workhour_turn_num' => 100],
+            ['workhour_turn_num' => 200],
+        ],
+    ], 150) === 200
+);
+
+assertTest(
+    'extractUserCenterId reads user_center_id from booking payload',
+    BookingAppointmentResolver::extractUserCenterId([
+        'user_center_id' => 'uc-test-123',
+    ]) === 'uc-test-123'
+);
+
+assertTest(
+    'VacationSyncService has resolveOverlappingAppointments',
+    $syncRef->hasMethod('resolveOverlappingAppointments')
+);
+
+assertTest(
+    'VacationSyncService has rescheduleOverlappingAppointments',
+    $syncRef->hasMethod('rescheduleOverlappingAppointments')
+);
+
+assertTest(
+    'default cancel conflict is reschedule (false)',
+    !GoogleTokensRepository::isCancelConflictingAppointmentsEnabled(null)
+);
+
+assertTest(
     'isBookConflictResponse detects HTTP 409',
     Paziresh24VacationApi::isBookConflictResponse(409, null)
 );

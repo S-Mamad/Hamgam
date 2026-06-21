@@ -11,10 +11,10 @@
     <meta name="description" content="شخصی‌سازی نحوه ثبت نوبت‌های پذیرش۲۴ در Google Calendar">
     <link rel="dns-prefetch" href="https://accounts.google.com">
     <link rel="preconnect" href="https://accounts.google.com" crossorigin>
-    <link rel="stylesheet" href="style.css?v=b8b85e2c">
+    <link rel="stylesheet" href="style.css?v=65f07a65">
     <link href="https://fonts.paziresh24.com/iran-sans-x.css" rel="stylesheet">
     <script src="https://hamdast.paziresh24.com/sdk/hamdast.js"></script>
-    <script src="script.js?v=b8b85e2c" defer></script>
+    <script src="script.js?v=65f07a65" defer></script>
 </head>
 
 <body>
@@ -64,9 +64,21 @@
                     </button>
                 </div>
 
-                <div class="field row" data-toggle-field="autoVacation">
+                <div class="field row field--with-guide" data-toggle-field="autoVacation">
                     <div class="field-label-group">
-                        <div class="field-title1">ثبت خودکار مرخصی</div>
+                        <div class="field-title-row">
+                            <span class="field-title1">ثبت خودکار مرخصی</span>
+                            <span class="vacation-guide-anchor">
+                                <button type="button" id="vacationGuideBtn" class="vacation-guide-btn" aria-label="راهنمای ثبت خودکار مرخصی" aria-haspopup="dialog" aria-controls="vacationGuideOverlay">
+                                    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                                        <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.35"/>
+                                        <path d="M8 7.1V11" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/>
+                                        <circle cx="8" cy="5.15" r="0.85" fill="currentColor"/>
+                                    </svg>
+                                </button>
+                                <span id="vacationGuideHint" class="vacation-guide-hint" role="status" aria-live="polite" hidden>راهنما</span>
+                            </span>
+                        </div>
                     </div>
                     <label class="switch">
                         <input type="checkbox" data-field="autoVacation" id="autoVacationToggle" aria-controls="vacationSubPanel">
@@ -169,21 +181,6 @@
                     </button>
                 </div>
 
-                <button type="button" class="vacation-info-toggle" id="vacationInfoToggle" aria-expanded="false" aria-controls="vacationInfoPanel">
-                    <svg class="vacation-info-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 3a1 1 0 110 2 1 1 0 010-2zm1 8H7V7h2v5z"/></svg>
-                    <span>چگونه کار می‌کند؟</span>
-                    <span class="vacation-info-chevron" aria-hidden="true"></span>
-                </button>
-
-                <div id="vacationInfoPanel" class="vacation-info-panel" aria-hidden="true">
-                    <ol class="vacation-info-steps">
-                        <li>در Google Calendar یک رویداد با تاریخ و ساعت دلخواه ایجاد کنید.</li>
-                        <li>همان بازه زمانی به‌صورت خودکار به‌عنوان مرخصی در پذیرش۲۴ ثبت می‌شود.</li>
-                        <li>اگر چند مرکز درمانی دارید، مرخصی فقط برای مرکز(های) انتخاب‌شده ثبت می‌شود و در صورت تداخل، فقط نوبت‌های همان مرکز لغو یا منتقل می‌شوند.</li>
-                        <li>در صورت ویرایش یا حذف رویداد در Google Calendar، مرخصی ثبت‌شده در پذیرش۲۴ نیز به‌روزرسانی یا حذف خواهد شد.</li>
-                    </ol>
-                </div>
-
                 <div class="vacation-footer-divider" aria-hidden="true"></div>
 
                 <div class="vacation-event-delete field row" data-toggle-field="cancelAppointmentOnEventDelete">
@@ -202,59 +199,92 @@
         <section class="integration-section" id="drdrIntegrationSection" aria-label="اتصال DrDr">
             <div class="integration-card" id="drdrIntegrationCard">
                 <button type="button" class="integration-card__toggle" id="drdrIntegrationToggle" aria-expanded="false" aria-controls="drdrIntegrationPanel">
-                    <span class="integration-card__icon" aria-hidden="true">
-                        <img src="assets/images/drdr-logo.png" alt="" class="integration-card__logo" decoding="async">
+                    <span class="integration-card__brand">
+                        <span class="integration-card__icon" aria-hidden="true">
+                            <img src="assets/images/drdr-logo.png" alt="" class="integration-card__logo" decoding="async">
+                        </span>
+                        <span class="integration-card__headings">
+                            <span class="integration-card__title">اتصال DrDr</span>
+                            <span id="drdrIntegrationSubtitle" class="integration-card__subtitle">در حال بررسی وضعیت…</span>
+                        </span>
                     </span>
-                    <span id="drdrIntegrationBadge" class="integration-card__badge integration-card__badge--idle" aria-live="polite">در حال بررسی…</span>
-                    <span class="integration-card__chevron" aria-hidden="true"></span>
+                    <span class="integration-card__status">
+                        <span id="drdrIntegrationBadge" class="integration-card__badge integration-card__badge--loading" aria-live="polite">
+                            <span class="integration-card__badge-dot" aria-hidden="true"></span>
+                            <span class="integration-card__badge-text">در حال بررسی…</span>
+                        </span>
+                        <span class="integration-card__chevron" aria-hidden="true"></span>
+                    </span>
                 </button>
 
                 <div id="drdrIntegrationPanel" class="integration-card__panel" aria-hidden="true">
-                    <form id="drdrLoginForm" class="integration-login" autocomplete="one-time-code" novalidate>
-                        <label class="integration-login__field">
-                            <span class="integration-login__label">شماره موبایل</span>
-                            <input
-                                type="tel"
-                                id="drdrMobileInput"
-                                class="integration-login__input"
-                                inputmode="numeric"
-                                dir="ltr"
-                                placeholder="09123456789"
-                                maxlength="11"
-                                autocomplete="tel"
-                            />
-                        </label>
+                    <div id="drdrLoginWrap" class="integration-flow">
+                        <div id="drdrFlowSteps" class="integration-flow__steps" aria-hidden="true">
+                            <span class="integration-flow__step is-active" data-drdr-step="mobile">۱. شماره موبایل</span>
+                            <span class="integration-flow__step" data-drdr-step="otp">۲. کد تأیید</span>
+                        </div>
 
-                        <div id="drdrOtpStep" class="integration-login__otp" hidden>
+                        <form id="drdrLoginForm" class="integration-login" autocomplete="one-time-code" novalidate>
+                            <p id="drdrLoginIntro" class="integration-login__intro">برای همگام‌سازی نوبت‌ها، با شماره موبایل حساب DrDr وارد شوید.</p>
+
                             <label class="integration-login__field">
-                                <span class="integration-login__label">کد تأیید</span>
+                                <span class="integration-login__label">شماره موبایل</span>
                                 <input
-                                    type="text"
-                                    id="drdrOtpInput"
-                                    class="integration-login__input integration-login__input--otp"
+                                    type="tel"
+                                    id="drdrMobileInput"
+                                    class="integration-login__input"
                                     inputmode="numeric"
                                     dir="ltr"
-                                    placeholder="12345"
-                                    maxlength="8"
-                                    autocomplete="one-time-code"
+                                    placeholder="09123456789"
+                                    maxlength="11"
+                                    autocomplete="tel"
                                 />
                             </label>
-                            <p id="drdrOtpHint" class="integration-login__hint" aria-live="polite"></p>
-                        </div>
 
-                        <div class="integration-login__actions">
-                            <button type="button" id="drdrSendOtpBtn" class="integration-card__btn integration-card__btn--primary" aria-busy="false">
-                                <span class="integration-card__btn-text">ارسال کد</span>
-                                <span class="integration-card__btn-spinner" aria-hidden="true"></span>
-                            </button>
-                            <button type="button" id="drdrVerifyOtpBtn" class="integration-card__btn integration-card__btn--primary" hidden aria-busy="false">
-                                <span class="integration-card__btn-text">تأیید و اتصال</span>
-                                <span class="integration-card__btn-spinner" aria-hidden="true"></span>
-                            </button>
-                        </div>
-                    </form>
+                            <div id="drdrOtpStep" class="integration-login__otp" hidden>
+                                <label class="integration-login__field">
+                                    <span class="integration-login__label">کد تأیید پیامکی</span>
+                                    <input
+                                        type="text"
+                                        id="drdrOtpInput"
+                                        class="integration-login__input integration-login__input--otp"
+                                        inputmode="numeric"
+                                        dir="ltr"
+                                        placeholder="• • • • •"
+                                        maxlength="8"
+                                        autocomplete="one-time-code"
+                                    />
+                                </label>
+                                <p id="drdrOtpHint" class="integration-login__hint" aria-live="polite"></p>
+                                <button type="button" id="drdrChangeMobileBtn" class="integration-flow__link">تغییر شماره موبایل</button>
+                            </div>
+
+                            <div class="integration-login__actions">
+                                <button type="button" id="drdrSendOtpBtn" class="integration-card__btn integration-card__btn--primary" aria-busy="false">
+                                    <span class="integration-card__btn-text">ارسال کد</span>
+                                    <span class="integration-card__btn-spinner" aria-hidden="true"></span>
+                                </button>
+                                <button type="button" id="drdrVerifyOtpBtn" class="integration-card__btn integration-card__btn--primary" hidden aria-busy="false">
+                                    <span class="integration-card__btn-text">تأیید و اتصال</span>
+                                    <span class="integration-card__btn-spinner" aria-hidden="true"></span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
 
                     <div id="drdrConnectedWrap" class="integration-connected" hidden>
+                        <div class="integration-connected__banner">
+                            <span class="integration-connected__icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none">
+                                    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>
+                                    <path d="M8.2 12.2l2.4 2.4 5.2-5.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </span>
+                            <div class="integration-connected__copy">
+                                <p class="integration-connected__title">اتصال برقرار است</p>
+                                <p id="drdrConnectedDesc" class="integration-connected__desc">نوبت‌های DrDr با پذیرش۲۴ همگام می‌شوند.</p>
+                            </div>
+                        </div>
                         <button type="button" id="drdrDisconnectBtn" class="integration-card__btn integration-card__btn--disconnect" hidden aria-busy="false">
                             <span class="integration-card__btn-text">قطع اتصال</span>
                             <span class="integration-card__btn-spinner" aria-hidden="true"></span>
@@ -371,6 +401,43 @@
     </footer>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <div id="vacationGuideOverlay" class="vacation-guide-overlay" hidden>
+        <div class="vacation-guide-dialog" role="dialog" aria-modal="true" aria-labelledby="vacationGuideTitle">
+            <div class="vacation-guide-dialog__shell">
+                <div class="vacation-guide-dialog__head">
+                    <div class="vacation-guide-dialog__head-copy">
+                        <h3 id="vacationGuideTitle" class="vacation-guide-dialog__title">راهنما</h3>
+                        <p class="vacation-guide-dialog__lead">ثبت خودکار مرخصی از Google Calendar</p>
+                    </div>
+                    <button type="button" id="vacationGuideClose" class="vacation-guide-dialog__close" aria-label="بستن">
+                        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                            <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+                <ol class="vacation-guide-steps">
+                    <li>
+                        <span class="vacation-guide-steps__num" aria-hidden="true">۱</span>
+                        <span class="vacation-guide-steps__text">در Google Calendar یک رویداد با تاریخ و ساعت دلخواه ایجاد کنید.</span>
+                    </li>
+                    <li>
+                        <span class="vacation-guide-steps__num" aria-hidden="true">۲</span>
+                        <span class="vacation-guide-steps__text">همان بازه زمانی به‌صورت خودکار به‌عنوان مرخصی در پذیرش۲۴ ثبت می‌شود.</span>
+                    </li>
+                    <li>
+                        <span class="vacation-guide-steps__num" aria-hidden="true">۳</span>
+                        <span class="vacation-guide-steps__text">اگر چند مرکز درمانی دارید، مرخصی فقط برای مرکز(های) انتخاب‌شده ثبت می‌شود و در صورت تداخل، فقط نوبت‌های همان مرکز لغو یا منتقل می‌شوند.</span>
+                    </li>
+                    <li>
+                        <span class="vacation-guide-steps__num" aria-hidden="true">۴</span>
+                        <span class="vacation-guide-steps__text">در صورت ویرایش یا حذف رویداد در Google Calendar، مرخصی ثبت‌شده در پذیرش۲۴ نیز به‌روزرسانی یا حذف خواهد شد.</span>
+                    </li>
+                </ol>
+                <button type="button" id="vacationGuideDismiss" class="vacation-guide-dialog__btn">متوجه شدم</button>
+            </div>
+        </div>
+    </div>
 
     <div id="hamgamConfirmOverlay" class="hamgam-confirm-overlay" hidden>
         <div class="hamgam-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="hamgamConfirmTitle" aria-describedby="hamgamConfirmMessage">

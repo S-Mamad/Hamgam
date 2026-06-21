@@ -507,7 +507,7 @@ final class GoogleTokensRepository
             'import_future_backfill_slot_count' => $trackedVacationCount,
             'synced_vacation_count' => $trackedVacationCount,
             'cancel_appointment_on_event_delete' => self::toBool($row['cancel_appointment_on_event_delete'] ?? true),
-            'cancel_conflicting_appointments' => self::toBool($row['cancel_conflicting_appointments'] ?? true),
+            'cancel_conflicting_appointments' => self::toBool($row['cancel_conflicting_appointments'] ?? false),
             'google_account_email' => is_string($email) && trim($email) !== '' ? trim($email) : null,
             'vacation_sync_centers' => self::parseVacationSyncCentersFromRow($row, false),
         ];
@@ -786,10 +786,10 @@ final class GoogleTokensRepository
     public static function isCancelConflictingAppointmentsEnabled(?array $row): bool
     {
         if ($row === null) {
-            return true;
+            return false;
         }
 
-        return self::toBool($row['cancel_conflicting_appointments'] ?? true);
+        return self::toBool($row['cancel_conflicting_appointments'] ?? false);
     }
 
     public static function hasCompletedImportFutureVacations(?array $row): bool
@@ -1193,7 +1193,36 @@ final class GoogleTokensRepository
             'ok' => null,
             'warnings' => [],
             'backfill' => null,
+            'progress' => [
+                'phase' => 'preparing',
+                'processed' => 0,
+                'total' => 0,
+                'percent' => 0,
+            ],
         ]);
+    }
+
+    /**
+     * @param array{phase?: string, processed?: int, total?: int, percent?: int|float} $progress
+     */
+    public static function updateSyncProgress(string $userId, array $progress): void
+    {
+        $current = self::getSyncStatus($userId);
+        if ($current === null || ($current['pending'] ?? false) !== true) {
+            return;
+        }
+
+        $merged = array_merge(
+            is_array($current['progress'] ?? null) ? $current['progress'] : [],
+            $progress
+        );
+
+        if (isset($merged['percent'])) {
+            $merged['percent'] = (int) max(0, min(99, round((float) $merged['percent'])));
+        }
+
+        $current['progress'] = $merged;
+        self::saveSyncStatus($userId, $current);
     }
 
     /**

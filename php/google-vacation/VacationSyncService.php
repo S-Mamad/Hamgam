@@ -214,6 +214,13 @@ final class VacationSyncService
 
         }
 
+        GoogleTokensRepository::updateSyncProgress($userId, [
+            'phase' => 'fetching',
+            'processed' => 0,
+            'total' => 0,
+            'percent' => 8,
+        ]);
+
 
 
         $timeMin = gmdate('Y-m-d\TH:i:s\Z', $now);
@@ -236,6 +243,17 @@ final class VacationSyncService
 
 
 
+        $eventTotal = count($events);
+
+        GoogleTokensRepository::updateSyncProgress($userId, [
+            'phase' => 'processing',
+            'processed' => 0,
+            'total' => $eventTotal,
+            'percent' => 12,
+        ]);
+
+
+
         $imported = 0;
 
         $skipped = 0;
@@ -249,10 +267,11 @@ final class VacationSyncService
 
 
 
-        foreach ($events as $event) {
+        foreach ($events as $eventIndex => $event) {
 
             if (!is_array($event)) {
 
+                self::reportBackfillProgress($userId, (int) $eventIndex + 1, $eventTotal);
                 continue;
 
             }
@@ -260,6 +279,7 @@ final class VacationSyncService
             $parsedForCutoff = GoogleEventParser::parseEvent($event);
             if ($parsedForCutoff === null) {
                 $skipped++;
+                self::reportBackfillProgress($userId, (int) $eventIndex + 1, $eventTotal);
                 continue;
             }
 
@@ -268,6 +288,7 @@ final class VacationSyncService
                 && !GoogleEventParser::isEventNewerThanCutoff($parsedForCutoff, $cutoffTs)
             ) {
                 $skipped++;
+                self::reportBackfillProgress($userId, (int) $eventIndex + 1, $eventTotal);
                 continue;
             }
 
@@ -302,6 +323,8 @@ final class VacationSyncService
                 $skipped++;
 
             }
+
+            self::reportBackfillProgress($userId, (int) $eventIndex + 1, $eventTotal);
 
         }
 
@@ -395,6 +418,42 @@ final class VacationSyncService
         $result['tracked_count'] = $trackedCount;
 
         return $result;
+    }
+
+    private static function reportBackfillProgress(string $userId, int $processed, int $total): void
+    {
+        static $lastByUser = [];
+
+        if ($total <= 0) {
+            GoogleTokensRepository::updateSyncProgress($userId, [
+                'phase' => 'processing',
+                'processed' => 0,
+                'total' => 0,
+                'percent' => 90,
+            ]);
+
+            return;
+        }
+
+        $percent = (int) min(95, max(12, round(12 + ($processed / $total) * 83)));
+        $prev = $lastByUser[$userId] ?? ['percent' => 0, 'at' => 0.0];
+        $now = microtime(true);
+        $isDone = $processed >= $total;
+        $percentJump = $percent - (int) ($prev['percent'] ?? 0) >= 2;
+        $timeElapsed = ($now - (float) ($prev['at'] ?? 0.0)) >= 0.3;
+
+        if (!$isDone && !$percentJump && !$timeElapsed && $processed > 1) {
+            return;
+        }
+
+        $lastByUser[$userId] = ['percent' => $percent, 'at' => $now];
+
+        GoogleTokensRepository::updateSyncProgress($userId, [
+            'phase' => 'processing',
+            'processed' => $processed,
+            'total' => $total,
+            'percent' => $percent,
+        ]);
     }
 
 
@@ -1752,31 +1811,7 @@ final class VacationSyncService
 
 
 
-        if (!GoogleTokensRepository::isCancelConflictingAppointmentsEnabled($tokenRow)) {
-
-            error_log(
-
-                '[google-vacation] book conflict: cancel_conflicting_appointments disabled from='
-
-                . $from
-
-                . ' to='
-
-                . $to
-
-                . ' center='
-
-                . $vacationCenter['medical_center_id']
-
-            );
-
-            return null;
-
-        }
-
-
-
-        $cancelled = self::cancelOverlappingAppointments(
+        $resolved = self::resolveOverlappingAppointments(
 
             $userId,
 
@@ -1786,7 +1821,7 @@ final class VacationSyncService
 
             $to,
 
-            $vacationCenter['medical_center_id'],
+            $vacationCenter,
 
             $hamdastAccessToken
 
@@ -1794,21 +1829,7 @@ final class VacationSyncService
 
 
 
-        error_log(
-
-            '[google-vacation] book conflict resolved cancelled=' . $cancelled
-
-            . ' from=' . $from
-
-            . ' to=' . $to
-
-            . ' center=' . $vacationCenter['medical_center_id']
-
-        );
-
-
-
-        if ($cancelled <= 0) {
+        if ($resolved <= 0) {
 
             return null;
 
@@ -1926,31 +1947,7 @@ final class VacationSyncService
 
 
 
-        if (!GoogleTokensRepository::isCancelConflictingAppointmentsEnabled($tokenRow)) {
-
-            error_log(
-
-                '[google-vacation] book conflict on update: cancel_conflicting_appointments disabled from='
-
-                . $from
-
-                . ' to='
-
-                . $to
-
-                . ' center='
-
-                . $medicalCenterId
-
-            );
-
-            return null;
-
-        }
-
-
-
-        $cancelled = self::cancelOverlappingAppointments(
+        $resolved = self::resolveOverlappingAppointments(
 
             $userId,
 
@@ -1960,7 +1957,7 @@ final class VacationSyncService
 
             $to,
 
-            $medicalCenterId,
+            $vacationCenter,
 
             $hamdastAccessToken
 
@@ -1968,21 +1965,7 @@ final class VacationSyncService
 
 
 
-        error_log(
-
-            '[google-vacation] book conflict on update resolved cancelled=' . $cancelled
-
-            . ' from=' . $from
-
-            . ' to=' . $to
-
-            . ' center=' . $medicalCenterId
-
-        );
-
-
-
-        if ($cancelled <= 0) {
+        if ($resolved <= 0) {
 
             return null;
 
@@ -2069,6 +2052,698 @@ final class VacationSyncService
 
 
         return null;
+
+    }
+
+
+
+    /**
+
+     * @param array<string, mixed> $tokenRow
+
+     * @param array{medical_center_id: string, user_center_id: ?string, name: string} $vacationCenter
+
+     */
+
+    private static function resolveOverlappingAppointments(
+
+        string $userId,
+
+        array $tokenRow,
+
+        int $from,
+
+        int $to,
+
+        array $vacationCenter,
+
+        string $hamdastAccessToken
+
+    ): int {
+
+        if (GoogleTokensRepository::isCancelConflictingAppointmentsEnabled($tokenRow)) {
+
+            $cancelled = self::cancelOverlappingAppointments(
+
+                $userId,
+
+                $tokenRow,
+
+                $from,
+
+                $to,
+
+                $vacationCenter['medical_center_id'],
+
+                $hamdastAccessToken
+
+            );
+
+
+
+            error_log(
+
+                '[google-vacation] book conflict resolved cancelled=' . $cancelled
+
+                . ' from=' . $from
+
+                . ' to=' . $to
+
+                . ' center=' . $vacationCenter['medical_center_id']
+
+            );
+
+
+
+            return $cancelled;
+
+        }
+
+
+
+        $rescheduled = self::rescheduleOverlappingAppointments(
+
+            $userId,
+
+            $tokenRow,
+
+            $from,
+
+            $to,
+
+            $vacationCenter,
+
+            $hamdastAccessToken
+
+        );
+
+
+
+        error_log(
+
+            '[google-vacation] book conflict resolved rescheduled=' . $rescheduled
+
+            . ' from=' . $from
+
+            . ' to=' . $to
+
+            . ' center=' . $vacationCenter['medical_center_id']
+
+        );
+
+
+
+        return $rescheduled;
+
+    }
+
+
+
+    /**
+
+     * @param array<string, mixed> $tokenRow
+
+     * @param array{medical_center_id: string, user_center_id: ?string, name: string} $vacationCenter
+
+     */
+
+    private static function rescheduleOverlappingAppointments(
+
+        string $userId,
+
+        array $tokenRow,
+
+        int $from,
+
+        int $to,
+
+        array $vacationCenter,
+
+        string $hamdastAccessToken
+
+    ): int {
+
+        $refreshToken = (string) ($tokenRow['google_refresh_token'] ?? '');
+
+        if ($refreshToken === '') {
+
+            return 0;
+
+        }
+
+
+
+        $googleTokenData = GoogleCalendar::refreshAccessToken($refreshToken);
+
+        $googleAccessToken = is_array($googleTokenData) ? ($googleTokenData['access_token'] ?? '') : '';
+
+        if (!is_string($googleAccessToken) || $googleAccessToken === '') {
+
+            return 0;
+
+        }
+
+
+
+        $timeMin = gmdate('Y-m-d\TH:i:s\Z', $from - 3600);
+
+        $timeMax = gmdate('Y-m-d\TH:i:s\Z', $to + 3600);
+
+        $events = GoogleCalendarWatch::listEventsInRange($googleAccessToken, $timeMin, $timeMax);
+
+        $rescheduled = 0;
+
+        $medicalCenterId = $vacationCenter['medical_center_id'];
+
+
+
+        foreach ($events as $event) {
+
+            if (!is_array($event)) {
+
+                continue;
+
+            }
+
+
+
+            if (!GoogleEventParser::isHamgamAppointmentEvent($event)) {
+
+                continue;
+
+            }
+
+
+
+            $parsed = GoogleEventParser::parseEvent($event);
+
+            if ($parsed === null) {
+
+                continue;
+
+            }
+
+
+
+            if (!self::rangesOverlap($parsed['start_ts'], $parsed['end_ts'], $from, $to)) {
+
+                continue;
+
+            }
+
+
+
+            $bookId = GoogleEventParser::extractBookId($event);
+
+            if ($bookId === null || $bookId === '') {
+
+                continue;
+
+            }
+
+
+
+            $appointmentCenterId = BookingAppointmentResolver::resolveAppointmentMedicalCenterId(
+
+                $bookId,
+
+                $hamdastAccessToken,
+
+                $event
+
+            );
+
+            if ($appointmentCenterId === null || $appointmentCenterId !== $medicalCenterId) {
+
+                continue;
+
+            }
+
+
+
+            if (
+
+                self::rescheduleSingleOverlappingAppointment(
+
+                    $userId,
+
+                    $tokenRow,
+
+                    $bookId,
+
+                    $parsed['start_ts'],
+
+                    $parsed['end_ts'],
+
+                    $appointmentCenterId,
+
+                    $vacationCenter,
+
+                    $hamdastAccessToken,
+
+                    $googleAccessToken,
+
+                    $event
+
+                )
+
+            ) {
+
+                $rescheduled++;
+
+            }
+
+        }
+
+
+
+        return $rescheduled;
+
+    }
+
+
+
+    /**
+
+     * @param array<string, mixed> $tokenRow
+
+     * @param array{medical_center_id: string, user_center_id: ?string, name: string} $vacationCenter
+
+     * @param array<string, mixed> $googleEvent
+
+     */
+
+    private static function rescheduleSingleOverlappingAppointment(
+
+        string $userId,
+
+        array $tokenRow,
+
+        string $bookId,
+
+        int $bookFrom,
+
+        int $bookTo,
+
+        string $medicalCenterId,
+
+        array $vacationCenter,
+
+        string $hamdastAccessToken,
+
+        string $googleAccessToken,
+
+        array $googleEvent
+
+    ): bool {
+
+        $userCenterId = self::resolveUserCenterIdForAppointment(
+
+            $bookId,
+
+            $medicalCenterId,
+
+            $vacationCenter,
+
+            $hamdastAccessToken
+
+        );
+
+        if ($userCenterId === null || $userCenterId === '') {
+
+            error_log(
+
+                '[google-vacation] reschedule skipped: missing user_center_id book_id='
+
+                . $bookId
+
+                . ' center='
+
+                . $medicalCenterId
+
+            );
+
+            return false;
+
+        }
+
+
+
+        $targetFrom = Paziresh24AppointmentApi::getFirstAvailableSlot(
+
+            $hamdastAccessToken,
+
+            $medicalCenterId,
+
+            $userCenterId
+
+        );
+
+        if ($targetFrom === null) {
+
+            error_log(
+
+                '[google-vacation] reschedule skipped: no available slot book_id='
+
+                . $bookId
+
+                . ' center='
+
+                . $medicalCenterId
+
+            );
+
+            return false;
+
+        }
+
+
+
+        $moveResult = Paziresh24AppointmentApi::moveAppointmentResult(
+
+            $hamdastAccessToken,
+
+            $medicalCenterId,
+
+            $bookFrom,
+
+            $bookTo,
+
+            $targetFrom
+
+        );
+
+        if (!$moveResult['success']) {
+
+            if ($moveResult['permission_denied']) {
+
+                error_log(
+
+                    '[google-vacation] reschedule blocked: missing provider.appointment.write book_id='
+
+                    . $bookId
+
+                );
+
+            }
+
+
+
+            return false;
+
+        }
+
+
+
+        self::syncRescheduledAppointmentCalendar(
+
+            $userId,
+
+            $tokenRow,
+
+            $bookId,
+
+            $googleAccessToken,
+
+            $hamdastAccessToken,
+
+            $googleEvent
+
+        );
+
+
+
+        error_log(
+
+            '[google-vacation] rescheduled overlapping appointment book_id=' . $bookId
+
+            . ' from=' . $bookFrom
+
+            . ' to=' . $bookTo
+
+            . ' target_from=' . $targetFrom
+
+        );
+
+
+
+        return true;
+
+    }
+
+
+
+    /**
+
+     * @param array{medical_center_id: string, user_center_id: ?string, name: string} $vacationCenter
+
+     */
+
+    private static function resolveUserCenterIdForAppointment(
+
+        string $bookId,
+
+        string $medicalCenterId,
+
+        array $vacationCenter,
+
+        string $hamdastAccessToken
+
+    ): ?string {
+
+        $fromCenter = isset($vacationCenter['user_center_id']) && is_string($vacationCenter['user_center_id'])
+
+            ? trim($vacationCenter['user_center_id'])
+
+            : '';
+
+        if ($fromCenter !== '') {
+
+            return $fromCenter;
+
+        }
+
+
+
+        $appointment = GoogleCalendar::getAppointment($bookId, $hamdastAccessToken);
+
+        if (is_array($appointment)) {
+
+            $fromAppointment = BookingAppointmentResolver::extractUserCenterId($appointment);
+
+            if ($fromAppointment !== null && $fromAppointment !== '') {
+
+                return $fromAppointment;
+
+            }
+
+        }
+
+
+
+        $centers = Paziresh24VacationApi::normalizeMedicalCenters($hamdastAccessToken);
+
+        foreach ($centers as $center) {
+
+            if (($center['medical_center_id'] ?? '') !== $medicalCenterId) {
+
+                continue;
+
+            }
+
+
+
+            $userCenterId = isset($center['user_center_id']) && is_string($center['user_center_id'])
+
+                ? trim($center['user_center_id'])
+
+                : '';
+
+            if ($userCenterId !== '') {
+
+                return $userCenterId;
+
+            }
+
+        }
+
+
+
+        return null;
+
+    }
+
+
+
+    /**
+
+     * @param array<string, mixed> $tokenRow
+
+     * @param array<string, mixed> $googleEvent
+
+     */
+
+    private static function syncRescheduledAppointmentCalendar(
+
+        string $userId,
+
+        array $tokenRow,
+
+        string $bookId,
+
+        string $googleAccessToken,
+
+        string $hamdastAccessToken,
+
+        array $googleEvent
+
+    ): void {
+
+        $appointment = GoogleCalendar::getAppointment($bookId, $hamdastAccessToken);
+
+        if (!is_array($appointment)) {
+
+            error_log(
+
+                '[google-vacation] calendar sync after reschedule failed: appointment fetch book_id='
+
+                . $bookId
+
+            );
+
+            return;
+
+        }
+
+
+
+        $range = GoogleCalendar::extractAppointmentRange($appointment);
+
+        if ($range === null) {
+
+            error_log(
+
+                '[google-vacation] calendar sync after reschedule failed: invalid range book_id='
+
+                . $bookId
+
+            );
+
+            return;
+
+        }
+
+
+
+        $booking = BookingAppointmentResolver::enrichBookingDetails($appointment, $bookId, $hamdastAccessToken);
+
+        $booking['book_id'] = $bookId;
+
+
+
+        $settings = GoogleTokensRepository::getSettings($tokenRow);
+
+        $eventPayload = CalendarEventBuilder::build($range, $settings, $booking);
+
+        if ($eventPayload === null) {
+
+            error_log(
+
+                '[google-vacation] calendar sync after reschedule failed: build event book_id='
+
+                . $bookId
+
+            );
+
+            return;
+
+        }
+
+
+
+        $storedEventId = GoogleCalendarBookingRepository::getGoogleEventId($userId, $bookId);
+
+        $eventId = GoogleEventParser::extractEventId($googleEvent);
+
+        if ($eventId === null || $eventId === '') {
+
+            $eventId = $storedEventId;
+
+        }
+
+
+
+        if ($eventId !== null && $eventId !== '') {
+
+            $updated = GoogleCalendar::updateEventReturningBody($googleAccessToken, $eventId, $eventPayload);
+
+            if ($updated !== null) {
+
+                GoogleCalendarBookingRepository::recordProcessedBooking($userId, $bookId, $eventId);
+
+                error_log(
+
+                    '[google-vacation] calendar event updated after reschedule book_id='
+
+                    . $bookId
+
+                    . ' google_event_id='
+
+                    . $eventId
+
+                );
+
+                return;
+
+            }
+
+        }
+
+
+
+        $created = GoogleCalendar::createEventReturningBody($googleAccessToken, $eventPayload);
+
+        if ($created === null) {
+
+            error_log(
+
+                '[google-vacation] calendar sync after reschedule failed: create event book_id='
+
+                . $bookId
+
+            );
+
+            return;
+
+        }
+
+
+
+        $newEventId = is_string($created['id'] ?? null) ? $created['id'] : '';
+
+        if ($newEventId === '') {
+
+            return;
+
+        }
+
+
+
+        GoogleCalendarBookingRepository::recordProcessedBooking($userId, $bookId, $newEventId);
+
+
+
+        error_log(
+
+            '[google-vacation] calendar event recreated after reschedule book_id='
+
+            . $bookId
+
+            . ' google_event_id='
+
+            . $newEventId
+
+        );
 
     }
 

@@ -77,6 +77,29 @@ final class BookingAppointmentResolver
     /**
      * @param array<string, mixed> $booking
      */
+    public static function extractUserCenterId(array $booking): ?string
+    {
+        $keys = ['user_center_id', 'userCenterId'];
+        foreach ($keys as $key) {
+            $value = $booking[$key] ?? null;
+            if (is_scalar($value) && trim((string) $value) !== '') {
+                return trim((string) $value);
+            }
+        }
+
+        if (isset($booking['center']) && is_array($booking['center'])) {
+            $id = $booking['center']['user_center_id'] ?? null;
+            if (is_scalar($id) && trim((string) $id) !== '') {
+                return trim((string) $id);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $booking
+     */
     public static function extractCenterName(array $booking): string
     {
         foreach (['center_name', 'medical_center_name', 'center_title'] as $key) {

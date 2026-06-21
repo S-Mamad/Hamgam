@@ -11,6 +11,8 @@ const PAZIRESH24_LAUNCHER_PATH = "/_/hamgam/launcher/";
 const PAZIRESH24_LAUNCHER_APP_PATH = "/_/hamgam/launcher/?direct=true";
 const PAZIRESH24_LAUNCHER_APP = "https://www.paziresh24.com/_/hamgam/launcher/?direct=true";
 const DEFAULT_COLOR_ID = "9";
+const TOAST_VISIBLE_MS = 4500;
+const VACATION_GUIDE_HINT_VISIBLE_MS = 14000;
 
 const googleColors = {
     "11": { name: "قرمز", hex: "#DA5234" },
@@ -46,6 +48,7 @@ const appState = {
     importFutureBackfillStarting: false,
     importFutureBackfillPending: false,
     importFutureBackfillPollId: 0,
+    backfillProgressPhase: "",
     deletingSyncedBackfill: false,
     drdrConnected: false,
     drdrOAuthReady: false,
@@ -58,7 +61,8 @@ const appState = {
     drdrOtpMobile: "",
     drdrOtpRetryAfter: 0,
     drdrExpiresAt: null,
-    drdrHasRefreshToken: false
+    drdrHasRefreshToken: false,
+    drdrStatusError: false
 };
 
 document.addEventListener("DOMContentLoaded", initApp);
@@ -130,10 +134,13 @@ async function fetchSyncStatusOnce() {
 }
 
 async function pollSyncStatus(options = {}) {
-    const { maxAttempts = 30, intervalMs = 2000 } = options;
+    const { maxAttempts = 30, intervalMs = 2000, onProgress } = options;
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
         const status = await fetchSyncStatusOnce();
+        if (status && typeof onProgress === "function") {
+            onProgress(status);
+        }
         if (status && !status.pending) {
             return status;
         }
@@ -142,7 +149,11 @@ async function pollSyncStatus(options = {}) {
         }
     }
 
-    return fetchSyncStatusOnce();
+    const finalStatus = await fetchSyncStatusOnce();
+    if (finalStatus && typeof onProgress === "function") {
+        onProgress(finalStatus);
+    }
+    return finalStatus;
 }
 
 function applyBackfillStatusToUi(backfill) {
@@ -256,6 +267,54 @@ function resetBackfillFillProgress() {
     setBackfillFillProgress(0);
 }
 
+function getBackfillProgressLabel(phase) {
+    const labels = {
+        preparing: "آماده‌سازی…",
+        fetching: "دریافت رویدادها…",
+        processing: "پردازش رویدادها…"
+    };
+    return labels[phase] || "همگام‌سازی ۳۰ روز…";
+}
+
+function resolveBackfillTargetPercent(status) {
+    if (!status) {
+        return backfillFillState.progress;
+    }
+
+    if (!status.pending) {
+        return 100;
+    }
+
+    const progress = status.progress;
+    if (progress && Number.isFinite(Number(progress.percent))) {
+        return Math.max(0, Math.min(99, Math.round(Number(progress.percent))));
+    }
+
+    return backfillFillState.progress;
+}
+
+function applyBackfillProgressFromStatus(status) {
+    if (!status) {
+        return;
+    }
+
+    if (status.progress?.phase) {
+        appState.backfillProgressPhase = String(status.progress.phase);
+    }
+
+    const target = resolveBackfillTargetPercent(status);
+    if (target > backfillFillState.progress) {
+        const delta = target - backfillFillState.progress;
+        animateBackfillFillTo(target, Math.min(900, 180 + delta * 10));
+    } else if (!status.pending && target < backfillFillState.progress) {
+        setBackfillFillProgress(target);
+    }
+
+    if (appState.importFutureBackfillPending || appState.importFutureBackfillStarting) {
+        applyImportFutureBackfillCardUiState();
+    }
+}
+
 function animateBackfillFillTo(target, durationMs = 600) {
     stopBackfillFillAnimation();
 
@@ -263,49 +322,33 @@ function animateBackfillFillTo(target, durationMs = 600) {
     const delta = target - start;
     if (delta <= 0) {
         setBackfillFillProgress(target);
-        return;
+        return Promise.resolve();
     }
 
-    const startTime = performance.now();
-    const tick = (now) => {
-        const elapsed = now - startTime;
-        const t = Math.min(1, elapsed / durationMs);
-        const eased = 1 - Math.pow(1 - t, 3);
-        setBackfillFillProgress(start + delta * eased);
+    return new Promise((resolve) => {
+        const startTime = performance.now();
+        const tick = (now) => {
+            const elapsed = now - startTime;
+            const t = Math.min(1, elapsed / durationMs);
+            const eased = 1 - Math.pow(1 - t, 3);
+            setBackfillFillProgress(start + delta * eased);
 
-        if (t < 1) {
-            backfillFillState.raf = requestAnimationFrame(tick);
-        } else {
-            backfillFillState.raf = null;
-        }
-    };
+            if (t < 1) {
+                backfillFillState.raf = requestAnimationFrame(tick);
+            } else {
+                backfillFillState.raf = null;
+                resolve();
+            }
+        };
 
-    backfillFillState.raf = requestAnimationFrame(tick);
+        backfillFillState.raf = requestAnimationFrame(tick);
+    });
 }
 
 function startBackfillFillAnimation(phase) {
     if (phase === "starting") {
         setBackfillFillProgress(0);
-        animateBackfillFillTo(24, 650);
-        return;
-    }
-
-    if (phase === "running") {
-        stopBackfillFillAnimation();
-
-        if (backfillFillState.progress < 24) {
-            setBackfillFillProgress(24);
-        }
-
-        backfillFillState.timer = setInterval(() => {
-            const current = backfillFillState.progress;
-            if (current >= 88) {
-                return;
-            }
-
-            const step = current < 45 ? 0.65 : current < 70 ? 0.28 : 0.1;
-            setBackfillFillProgress(current + step);
-        }, 900);
+        animateBackfillFillTo(5, 400);
     }
 }
 
@@ -323,31 +366,34 @@ function playBackfillFillSuccess() {
             return;
         }
 
-        setBackfillFillProgress(100);
-        btn.classList.remove("is-loading", "is-running");
-        btn.classList.add("is-success");
-        btn.setAttribute("aria-busy", "false");
+        const showSuccessState = () => {
+            btn.classList.remove("is-loading", "is-running");
+            btn.classList.add("is-success");
+            btn.setAttribute("aria-busy", "false");
 
-        if (wrap) {
-            wrap.classList.add("is-success-card");
-        }
-
-        if (btnText) {
-            btnText.textContent = "همگام‌سازی انجام شد";
-        }
-
-        if (pctEl) {
-            pctEl.hidden = true;
-        }
-
-        backfillFillState.successTimer = window.setTimeout(() => {
-            btn.classList.remove("is-success");
             if (wrap) {
-                wrap.classList.remove("is-success-card");
+                wrap.classList.add("is-success-card");
             }
-            backfillFillState.successTimer = null;
-            resolve();
-        }, 1500);
+
+            if (btnText) {
+                btnText.textContent = "همگام‌سازی انجام شد";
+            }
+
+            if (pctEl) {
+                pctEl.hidden = true;
+            }
+
+            backfillFillState.successTimer = window.setTimeout(() => {
+                btn.classList.remove("is-success");
+                if (wrap) {
+                    wrap.classList.remove("is-success-card");
+                }
+                backfillFillState.successTimer = null;
+                resolve();
+            }, 1500);
+        };
+
+        void animateBackfillFillTo(100, 500).then(showSuccessState);
     });
 }
 
@@ -362,10 +408,9 @@ function setImportFutureBackfillStarting(starting) {
 function setImportFutureBackfillPending(pending, options = {}) {
     const wasPending = appState.importFutureBackfillPending;
     appState.importFutureBackfillPending = !!pending;
-    if (pending && !wasPending) {
-        startBackfillFillAnimation("running");
-    } else if (!pending && wasPending) {
+    if (!pending && wasPending) {
         stopBackfillFillAnimation();
+        appState.backfillProgressPhase = "";
     }
     applyImportFutureBackfillCardUiState();
     applyImportFutureBackfillUndoUiState();
@@ -404,7 +449,13 @@ function applyImportFutureBackfillCardUiState() {
         if (starting) {
             btnText.textContent = "در حال ارسال…";
         } else if (pending) {
-            btnText.textContent = "همگام‌سازی ۳۰ روز…";
+            const progress = backfillFillState.progress;
+            const phase = appState.backfillProgressPhase;
+            if (phase && progress > 0 && progress < 100) {
+                btnText.textContent = getBackfillProgressLabel(phase);
+            } else {
+                btnText.textContent = "همگام‌سازی ۳۰ روز…";
+            }
         } else {
             btnText.textContent = "شروع فرآیند";
         }
@@ -422,7 +473,8 @@ async function startImportFutureBackfillPoll() {
 
     const status = await pollSyncStatus({
         maxAttempts: 90,
-        intervalMs: 2000
+        intervalMs: 1500,
+        onProgress: applyBackfillProgressFromStatus
     });
 
     if (pollId !== appState.importFutureBackfillPollId) {
@@ -650,9 +702,8 @@ async function checkRecentSyncStatus() {
     }
 
     if (status.pending && status.operation === "backfill") {
-        setBackfillFillProgress(30);
+        applyBackfillProgressFromStatus(status);
         setImportFutureBackfillPending(true);
-        startBackfillFillAnimation("running");
         void startImportFutureBackfillPoll();
         return;
     }
@@ -1212,6 +1263,7 @@ function applyDrdrIntegrationState(data = {}) {
     appState.drdrExpiresAt = Number.isFinite(data.expires_at) ? data.expires_at : null;
     appState.drdrHasRefreshToken = !!data.has_refresh_token;
     appState.drdrStatusLoaded = true;
+    appState.drdrStatusError = false;
 
     if (data.otp_client && typeof data.otp_client === "object") {
         drdrOtpClientConfig = data.otp_client;
@@ -1277,12 +1329,61 @@ function ensureDrdrPanelOpenForFlow() {
     }
 }
 
+function setDrdrIntegrationBadge(label, variant) {
+    const badge = document.getElementById("drdrIntegrationBadge");
+    if (!badge) return;
+
+    badge.className = `integration-card__badge integration-card__badge--${variant}`;
+
+    let dot = badge.querySelector(".integration-card__badge-dot");
+    if (!dot) {
+        dot = document.createElement("span");
+        dot.className = "integration-card__badge-dot";
+        dot.setAttribute("aria-hidden", "true");
+        badge.prepend(dot);
+    }
+
+    let textEl = badge.querySelector(".integration-card__badge-text");
+    if (!textEl) {
+        textEl = document.createElement("span");
+        textEl.className = "integration-card__badge-text";
+        badge.appendChild(textEl);
+    }
+
+    textEl.textContent = label;
+}
+
+function updateDrdrFlowSteps() {
+    const steps = document.getElementById("drdrFlowSteps");
+    if (!steps) return;
+
+    const mobileStep = steps.querySelector('[data-drdr-step="mobile"]');
+    const otpStep = steps.querySelector('[data-drdr-step="otp"]');
+    const showSteps = appState.drdrStatusLoaded && !appState.drdrConnected;
+
+    steps.hidden = !showSteps;
+    steps.setAttribute("aria-hidden", showSteps ? "false" : "true");
+
+    if (mobileStep) {
+        mobileStep.classList.toggle("is-active", !appState.drdrOtpSent);
+        mobileStep.classList.toggle("is-done", appState.drdrOtpSent);
+    }
+
+    if (otpStep) {
+        otpStep.classList.toggle("is-active", appState.drdrOtpSent);
+        otpStep.classList.toggle("is-done", false);
+    }
+}
+
 function updateDrdrIntegrationUi() {
     const card = document.getElementById("drdrIntegrationCard");
-    const badge = document.getElementById("drdrIntegrationBadge");
+    const subtitle = document.getElementById("drdrIntegrationSubtitle");
     const panel = document.getElementById("drdrIntegrationPanel");
-    const connectedWrap = document.getElementById("drdrConnectedWrap");
+    const loginWrap = document.getElementById("drdrLoginWrap");
     const loginForm = document.getElementById("drdrLoginForm");
+    const loginIntro = document.getElementById("drdrLoginIntro");
+    const connectedWrap = document.getElementById("drdrConnectedWrap");
+    const connectedDesc = document.getElementById("drdrConnectedDesc");
     const mobileInput = document.getElementById("drdrMobileInput");
     const otpStep = document.getElementById("drdrOtpStep");
     const otpInput = document.getElementById("drdrOtpInput");
@@ -1290,38 +1391,66 @@ function updateDrdrIntegrationUi() {
     const sendBtn = document.getElementById("drdrSendOtpBtn");
     const verifyBtn = document.getElementById("drdrVerifyOtpBtn");
     const disconnectBtn = document.getElementById("drdrDisconnectBtn");
+    const changeMobileBtn = document.getElementById("drdrChangeMobileBtn");
 
     if (card) {
         card.classList.toggle("is-connected", appState.drdrConnected);
+        card.classList.toggle("is-loading", !appState.drdrStatusLoaded);
     }
 
     if (panel) {
         panel.classList.toggle("is-connected-view", appState.drdrConnected);
     }
 
-    if (badge) {
+    if (subtitle) {
         if (!appState.drdrStatusLoaded) {
-            badge.textContent = "در حال بررسی…";
-            badge.className = "integration-card__badge integration-card__badge--idle";
+            subtitle.textContent = "در حال بررسی وضعیت…";
+        } else if (appState.drdrStatusError) {
+            subtitle.textContent = "خطا در بررسی وضعیت";
         } else if (appState.drdrConnected) {
-            badge.textContent = "متصل";
-            badge.className = "integration-card__badge integration-card__badge--connected";
+            subtitle.textContent = "همگام‌سازی فعال است";
         } else if (appState.drdrOtpSent) {
-            badge.textContent = "منتظر کد";
-            badge.className = "integration-card__badge integration-card__badge--idle";
+            subtitle.textContent = "کد پیامکی را وارد کنید";
         } else {
-            badge.textContent = "متصل نیست";
-            badge.className = "integration-card__badge integration-card__badge--disconnected";
+            subtitle.textContent = "با شماره موبایل وارد شوید";
         }
+    }
+
+    if (!appState.drdrStatusLoaded) {
+        setDrdrIntegrationBadge("در حال بررسی…", "loading");
+    } else if (appState.drdrStatusError) {
+        setDrdrIntegrationBadge("خطا", "error");
+    } else if (appState.drdrConnected) {
+        setDrdrIntegrationBadge("متصل", "connected");
+    } else if (appState.drdrOtpSent) {
+        setDrdrIntegrationBadge("منتظر کد", "pending");
+    } else {
+        setDrdrIntegrationBadge("متصل نیست", "disconnected");
     }
 
     if (connectedWrap) {
         connectedWrap.hidden = !appState.drdrConnected;
     }
 
+    if (loginWrap) {
+        loginWrap.hidden = appState.drdrConnected;
+    }
+
     if (loginForm) {
         loginForm.hidden = appState.drdrConnected;
     }
+
+    if (loginIntro) {
+        loginIntro.hidden = appState.drdrConnected || appState.drdrOtpSent;
+    }
+
+    if (connectedDesc) {
+        connectedDesc.textContent = appState.drdrHasRefreshToken
+            ? "اتصال پایدار برقرار است و نوبت‌های DrDr همگام می‌شوند."
+            : "نوبت‌های DrDr با پذیرش۲۴ همگام می‌شوند.";
+    }
+
+    updateDrdrFlowSteps();
 
     if (mobileInput) {
         mobileInput.disabled =
@@ -1346,13 +1475,28 @@ function updateDrdrIntegrationUi() {
 
     if (otpHint) {
         if (appState.drdrOtpSent && appState.drdrOtpMobile) {
-            otpHint.textContent =
-                appState.drdrOtpRetryAfter > 0
-                    ? `کد به ${appState.drdrOtpMobile} ارسال شد · ارسال مجدد تا ${appState.drdrOtpRetryAfter} ثانیه`
-                    : `کد به ${appState.drdrOtpMobile} ارسال شد`;
+            if (appState.drdrOtpRetryAfter > 0) {
+                otpHint.innerHTML =
+                    `کد به <strong dir="ltr">${appState.drdrOtpMobile}</strong> ارسال شد · ارسال مجدد تا ${appState.drdrOtpRetryAfter} ثانیه`;
+                otpHint.classList.add("is-countdown");
+            } else {
+                otpHint.innerHTML =
+                    `کد به <strong dir="ltr">${appState.drdrOtpMobile}</strong> ارسال شد`;
+                otpHint.classList.remove("is-countdown");
+            }
         } else {
             otpHint.textContent = "";
+            otpHint.classList.remove("is-countdown");
         }
+    }
+
+    if (changeMobileBtn) {
+        changeMobileBtn.hidden = !appState.drdrOtpSent || appState.drdrConnected;
+        changeMobileBtn.disabled =
+            appState.drdrSendingOtp ||
+            appState.drdrVerifyingOtp ||
+            appState.drdrDisconnecting ||
+            !appState.drdrStatusLoaded;
     }
 
     if (sendBtn) {
@@ -1434,12 +1578,14 @@ async function fetchDrdrIntegrationStatus(options = {}) {
         : localStorage.getItem("access_token");
 
     if (!token) {
+        appState.drdrStatusError = false;
         applyDrdrIntegrationState({ connected: false });
         return null;
     }
 
     if (!silent) {
         appState.drdrStatusLoaded = false;
+        appState.drdrStatusError = false;
         updateDrdrIntegrationUi();
     }
 
@@ -1462,6 +1608,7 @@ async function fetchDrdrIntegrationStatus(options = {}) {
     } catch (error) {
         console.error("[Hamgam] drdr status failed:", error);
         appState.drdrStatusLoaded = true;
+        appState.drdrStatusError = true;
         updateDrdrIntegrationUi();
         if (!silent) {
             showToast(error.message || "خطا در دریافت وضعیت DrDr", "error");
@@ -2355,6 +2502,7 @@ function bindUiEvents() {
         row.addEventListener("click", (e) => {
             e.stopPropagation();
             if (e.target.closest(".switch")) return;
+            if (e.target.closest(".vacation-guide-anchor")) return;
             const checkbox = row.querySelector('input[type="checkbox"]');
             if (!checkbox) return;
             checkbox.checked = !checkbox.checked;
@@ -2393,10 +2541,25 @@ function bindUiEvents() {
 
     document.getElementById("saveSettings").addEventListener("click", handleSaveClick);
 
-    const vacationInfoToggle = document.getElementById("vacationInfoToggle");
-    if (vacationInfoToggle) {
-        vacationInfoToggle.addEventListener("click", toggleVacationInfo);
+    const vacationGuideBtn = document.getElementById("vacationGuideBtn");
+    const vacationGuideAnchor = document.querySelector(".vacation-guide-anchor");
+    const stopVacationGuideBubble = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+    if (vacationGuideAnchor) {
+        vacationGuideAnchor.addEventListener("click", stopVacationGuideBubble);
+        vacationGuideAnchor.addEventListener("pointerdown", stopVacationGuideBubble);
     }
+    if (vacationGuideBtn) {
+        vacationGuideBtn.addEventListener("click", (e) => {
+            stopVacationGuideBubble(e);
+            hideVacationGuideHint();
+            openVacationGuide();
+        });
+    }
+
+    bindVacationGuideDialog();
 
     const changeGmailBtn = document.getElementById("changeGmailBtn");
     if (changeGmailBtn) {
@@ -2425,6 +2588,19 @@ function bindUiEvents() {
     const drdrIntegrationToggle = document.getElementById("drdrIntegrationToggle");
     if (drdrIntegrationToggle) {
         drdrIntegrationToggle.addEventListener("click", toggleDrdrIntegration);
+    }
+
+    const drdrChangeMobileBtn = document.getElementById("drdrChangeMobileBtn");
+    if (drdrChangeMobileBtn) {
+        drdrChangeMobileBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (appState.drdrSendingOtp || appState.drdrVerifyingOtp) {
+                return;
+            }
+            resetDrdrOtpForm(false);
+            document.getElementById("drdrMobileInput")?.focus();
+        });
     }
 
     const drdrLoginForm = document.getElementById("drdrLoginForm");
@@ -3339,15 +3515,90 @@ function validateVacationCentersBeforeSave(autoVacation) {
     return false;
 }
 
-function toggleVacationInfo() {
-    const toggle = document.getElementById("vacationInfoToggle");
-    const panel = document.getElementById("vacationInfoPanel");
-    if (!toggle || !panel) return;
+function hideVacationGuideHint() {
+    const hint = document.getElementById("vacationGuideHint");
+    const btn = document.getElementById("vacationGuideBtn");
+    if (!hint) return;
 
-    const open = toggle.getAttribute("aria-expanded") !== "true";
-    toggle.setAttribute("aria-expanded", open ? "true" : "false");
-    panel.setAttribute("aria-hidden", open ? "false" : "true");
-    panel.classList.toggle("open", open);
+    clearTimeout(hideVacationGuideHint._timer);
+    hint.classList.remove("show");
+    hint.hidden = true;
+    hint.setAttribute("aria-hidden", "true");
+    if (btn) btn.classList.remove("is-highlighted");
+}
+
+function showVacationGuideHint() {
+    const hint = document.getElementById("vacationGuideHint");
+    const btn = document.getElementById("vacationGuideBtn");
+    if (!hint || !btn) return;
+
+    hideVacationGuideHint();
+    hint.hidden = false;
+    hint.setAttribute("aria-hidden", "false");
+    btn.classList.add("is-highlighted");
+
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => hint.classList.add("show"));
+    });
+
+    hideVacationGuideHint._timer = setTimeout(() => {
+        hideVacationGuideHint();
+    }, VACATION_GUIDE_HINT_VISIBLE_MS);
+}
+
+function bindVacationGuideDialog() {
+    const overlay = document.getElementById("vacationGuideOverlay");
+    const closeBtn = document.getElementById("vacationGuideClose");
+    const dismissBtn = document.getElementById("vacationGuideDismiss");
+    if (!overlay) return;
+
+    overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) {
+            closeVacationGuide();
+        }
+    });
+
+    if (closeBtn) {
+        closeBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            closeVacationGuide();
+        });
+    }
+
+    if (dismissBtn) {
+        dismissBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            closeVacationGuide();
+        });
+    }
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !overlay.hidden) {
+            closeVacationGuide();
+        }
+    });
+}
+
+function openVacationGuide() {
+    const overlay = document.getElementById("vacationGuideOverlay");
+    const dismissBtn = document.getElementById("vacationGuideDismiss");
+    if (!overlay) return;
+
+    overlay.hidden = false;
+    document.body.classList.add("vacation-guide-open");
+    (dismissBtn || overlay).focus();
+}
+
+function closeVacationGuide() {
+    const overlay = document.getElementById("vacationGuideOverlay");
+    const btn = document.getElementById("vacationGuideBtn");
+    if (!overlay) return;
+
+    overlay.hidden = true;
+    document.body.classList.remove("vacation-guide-open");
+    if (btn) btn.focus();
 }
 
 function pulseField(field) {
@@ -3476,6 +3727,7 @@ function showApp() {
             requestAnimationFrame(() => refreshMainTabPill());
         });
         setTimeout(() => refreshMainTabPill(), 120);
+        setTimeout(() => showVacationGuideHint(), 420);
     }, 280);
 }
 
@@ -3603,7 +3855,7 @@ function showToast(message, type = "success") {
     toast.textContent = message;
     toast.className = `toast toast-${type} show`;
     clearTimeout(showToast._timer);
-    showToast._timer = setTimeout(() => toast.classList.remove("show"), 3000);
+    showToast._timer = setTimeout(() => toast.classList.remove("show"), TOAST_VISIBLE_MS);
 }
 
 function showWarningsIfAny(data) {
