@@ -2394,15 +2394,15 @@ function bindUiEvents() {
     document.getElementById("saveSettings").addEventListener("click", handleSaveClick);
 
     const vacationInfoBtn = document.getElementById("vacationInfoBtn");
-    const vacationMinimalHint = document.getElementById("vacationMinimalHint");
+    const vacationLabelHint = document.querySelector(".field-label-hint");
     const vacationModalClose = document.getElementById("vacationModalClose");
     const vacationModal = document.getElementById("vacationInfoModal");
 
     if (vacationInfoBtn) {
         vacationInfoBtn.addEventListener("click", toggleVacationInfo);
     }
-    if (vacationMinimalHint) {
-        vacationMinimalHint.addEventListener("click", toggleVacationInfo);
+    if (vacationLabelHint) {
+        vacationLabelHint.addEventListener("click", toggleVacationInfo);
     }
     if (vacationModalClose) {
         vacationModalClose.addEventListener("click", closeVacationModal);
@@ -2454,6 +2454,12 @@ function bindUiEvents() {
         drdrLoginForm.addEventListener("submit", (e) => {
             e.preventDefault();
             e.stopPropagation();
+            if (appState.drdrConnected) return;
+            if (appState.drdrOtpSent) {
+                void handleDrdrVerifyOtpClick();
+            } else {
+                void handleDrdrSendOtpClick();
+            }
         });
     }
 

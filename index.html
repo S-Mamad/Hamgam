@@ -64,14 +64,10 @@
                     </button>
                 </div>
 
-                <div class="vacation-minimal-hint" id="vacationMinimalHint" tabindex="0" role="button" aria-label="راهنمای نحوه کار">
-                    <svg class="vacation-minimal-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.25"/><path d="M8 5v3.5M8 10.5v.5" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
-                    <span>چگونه کار می‌کند؟</span>
-                </div>
-
                 <div class="field row" data-toggle-field="autoVacation">
                     <div class="field-label-group">
                         <div class="field-title1">ثبت خودکار مرخصی</div>
+                        <div class="field-label-hint">چگونه کار می‌کند؟</div>
                         <button type="button" class="vacation-info-btn" id="vacationInfoBtn" aria-label="راهنمای نحوه کار">
                             <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.25"/><path d="M8 5v3.5M8 10.5v.5" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
                         </button>
@@ -390,28 +386,36 @@
     <div id="vacationInfoModal" class="vacation-modal-overlay" hidden aria-hidden="true">
         <div class="vacation-modal" role="dialog" aria-modal="true" aria-labelledby="vacationModalTitle">
             <div class="vacation-modal__header">
-                <span id="vacationModalTitle" class="vacation-modal__title">چگونه کار می‌کند؟</span>
+                <span class="vacation-modal__icon" aria-hidden="true">
+                    <svg viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M9 6.5v4M9 12v.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </span>
+                <span id="vacationModalTitle" class="vacation-modal__title">نحوه کار</span>
                 <button type="button" class="vacation-modal__close" id="vacationModalClose" aria-label="بستن">
                     <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                 </button>
             </div>
             <div class="vacation-modal__body">
+                <p class="vacation-modal__sub">با ثبت خودکار مرخصی، همگام‌سازی به این صورت انجام می‌شود:</p>
                 <ol class="vacation-modal__steps">
-                    <li>
-                        <span class="vacation-modal__step-num" aria-hidden="true">۱</span>
-                        <span>در Google Calendar یک رویداد با تاریخ و ساعت دلخواه ایجاد کنید.</span>
+                    <li class="vacation-modal__step">
+                        <span class="vacation-modal__step-line"></span>
+                        <span class="vacation-modal__step-badge" aria-hidden="true">۱</span>
+                        <span class="vacation-modal__step-text">در Google Calendar یک رویداد با تاریخ و ساعت دلخواه ایجاد کنید.</span>
                     </li>
-                    <li>
-                        <span class="vacation-modal__step-num" aria-hidden="true">۲</span>
-                        <span>همان بازه زمانی به‌صورت خودکار به‌عنوان مرخصی در پذیرش۲۴ ثبت می‌شود.</span>
+                    <li class="vacation-modal__step">
+                        <span class="vacation-modal__step-line"></span>
+                        <span class="vacation-modal__step-badge" aria-hidden="true">۲</span>
+                        <span class="vacation-modal__step-text">همان بازه زمانی به‌صورت خودکار به‌عنوان مرخصی در پذیرش۲۴ ثبت می‌شود.</span>
                     </li>
-                    <li>
-                        <span class="vacation-modal__step-num" aria-hidden="true">۳</span>
-                        <span>اگر چند مرکز درمانی دارید، مرخصی فقط برای مرکز(های) انتخاب‌شده ثبت می‌شود و در صورت تداخل، فقط نوبت‌های همان مرکز لغو یا منتقل می‌شوند.</span>
+                    <li class="vacation-modal__step">
+                        <span class="vacation-modal__step-line"></span>
+                        <span class="vacation-modal__step-badge" aria-hidden="true">۳</span>
+                        <span class="vacation-modal__step-text">اگر چند مرکز درمانی دارید، مرخصی فقط برای مرکز(های) انتخاب‌شده ثبت می‌شود و در صورت تداخل، فقط نوبت‌های همان مرکز لغو یا منتقل می‌شوند.</span>
                     </li>
-                    <li>
-                        <span class="vacation-modal__step-num" aria-hidden="true">۴</span>
-                        <span>در صورت ویرایش یا حذف رویداد در Google Calendar، مرخصی ثبت‌شده در پذیرش۲۴ نیز به‌روزرسانی یا حذف خواهد شد.</span>
+                    <li class="vacation-modal__step">
+                        <span class="vacation-modal__step-line"></span>
+                        <span class="vacation-modal__step-badge" aria-hidden="true">۴</span>
+                        <span class="vacation-modal__step-text">در صورت ویرایش یا حذف رویداد در Google Calendar، مرخصی ثبت‌شده در پذیرش۲۴ نیز به‌روزرسانی یا حذف خواهد شد.</span>
                     </li>
                 </ol>
             </div>
