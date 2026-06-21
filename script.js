@@ -216,7 +216,7 @@ function setBackfillFillProgress(percent) {
     }
 
     btn.style.setProperty("--backfill-fill", `${value}%`);
-    btn.classList.toggle("is-fill-deep", value >= 38);
+    btn.classList.toggle("is-fill-deep", value >= 42);
 
     if (pctEl) {
         const showPct = btn.classList.contains("is-loading") || btn.classList.contains("is-running");
