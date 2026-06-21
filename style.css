@@ -2455,8 +2455,8 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
+    width: 30px;
+    height: 30px;
     padding: 0;
     margin: 0 6px 0 2px;
     border: none;
@@ -2492,7 +2492,7 @@ body {
 
 .vacation-info-badge {
     position: absolute;
-    top: -22px;
+    top: -18px;
     left: 50%;
     transform: translateX(-50%) scale(0.85);
     padding: 2px 8px;
@@ -2843,37 +2843,6 @@ body {
     align-items: center;
     flex-wrap: wrap;
     gap: 2px 4px;
-}
-
-.field-label-hint {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin: -4px 8px 2px;
-    padding: 4px 8px;
-    border-radius: 8px;
-    font-size: 10.5px;
-    font-weight: 500;
-    color: var(--blue-500);
-    line-height: 1.6;
-    cursor: pointer;
-    transition: color 0.15s ease, background 0.15s ease;
-    width: fit-content;
-}
-
-.field-label-hint:hover {
-    color: var(--blue-700);
-}
-
-.field-label-hint__icon {
-    width: 10.5px;
-    height: 10.5px;
-    flex-shrink: 0;
-    color: var(--blue-400);
-}
-
-.field-label-hint:hover .field-label-hint__icon {
-    color: var(--blue-500);
 }
 
 .field-title {

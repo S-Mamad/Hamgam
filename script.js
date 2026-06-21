@@ -2394,15 +2394,11 @@ function bindUiEvents() {
     document.getElementById("saveSettings").addEventListener("click", handleSaveClick);
 
     const vacationInfoBtn = document.getElementById("vacationInfoBtn");
-    const vacationLabelHint = document.querySelector(".field-label-hint");
     const vacationModalClose = document.getElementById("vacationModalClose");
     const vacationModal = document.getElementById("vacationInfoModal");
 
     if (vacationInfoBtn) {
         vacationInfoBtn.addEventListener("click", toggleVacationInfo);
-    }
-    if (vacationLabelHint) {
-        vacationLabelHint.addEventListener("click", toggleVacationInfo);
     }
     if (vacationModalClose) {
         vacationModalClose.addEventListener("click", closeVacationModal);
