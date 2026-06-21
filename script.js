@@ -3516,7 +3516,7 @@ function showApp() {
         const badge = document.getElementById("vacationInfoBadge");
         if (badge) {
             badge.classList.add("show");
-            setTimeout(() => badge.classList.remove("show"), 3000);
+            setTimeout(() => badge.classList.remove("show"), 10000);
         }
     }, 280);
 }

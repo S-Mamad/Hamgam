@@ -2455,10 +2455,10 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
+    width: 26px;
+    height: 26px;
     padding: 0;
-    margin: 0 3px 0 0;
+    margin: 0 6px 0 2px;
     border: none;
     border-radius: 50%;
     background: transparent;
@@ -2472,8 +2472,8 @@ body {
 }
 
 .vacation-info-btn svg {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
 }
 
 .vacation-info-btn:hover {
