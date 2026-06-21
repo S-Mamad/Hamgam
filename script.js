@@ -2398,7 +2398,10 @@ function bindUiEvents() {
     const vacationModal = document.getElementById("vacationInfoModal");
 
     if (vacationInfoBtn) {
-        vacationInfoBtn.addEventListener("click", toggleVacationInfo);
+        vacationInfoBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleVacationInfo();
+        });
     }
     if (vacationModalClose) {
         vacationModalClose.addEventListener("click", closeVacationModal);
