@@ -2393,9 +2393,31 @@ function bindUiEvents() {
 
     document.getElementById("saveSettings").addEventListener("click", handleSaveClick);
 
-    const vacationInfoToggle = document.getElementById("vacationInfoToggle");
-    if (vacationInfoToggle) {
-        vacationInfoToggle.addEventListener("click", toggleVacationInfo);
+    const vacationInfoBtn = document.getElementById("vacationInfoBtn");
+    const vacationMinimalHint = document.getElementById("vacationMinimalHint");
+    const vacationModalClose = document.getElementById("vacationModalClose");
+    const vacationModal = document.getElementById("vacationInfoModal");
+
+    if (vacationInfoBtn) {
+        vacationInfoBtn.addEventListener("click", toggleVacationInfo);
+    }
+    if (vacationMinimalHint) {
+        vacationMinimalHint.addEventListener("click", toggleVacationInfo);
+    }
+    if (vacationModalClose) {
+        vacationModalClose.addEventListener("click", closeVacationModal);
+    }
+    if (vacationModal) {
+        vacationModal.addEventListener("click", (e) => {
+            if (e.target === vacationModal) {
+                closeVacationModal();
+            }
+        });
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && !vacationModal.hidden) {
+                closeVacationModal();
+            }
+        });
     }
 
     const changeGmailBtn = document.getElementById("changeGmailBtn");
@@ -3339,15 +3361,24 @@ function validateVacationCentersBeforeSave(autoVacation) {
     return false;
 }
 
-function toggleVacationInfo() {
-    const toggle = document.getElementById("vacationInfoToggle");
-    const panel = document.getElementById("vacationInfoPanel");
-    if (!toggle || !panel) return;
+function openVacationModal() {
+    const modal = document.getElementById("vacationInfoModal");
+    if (!modal) return;
+    modal.hidden = false;
+    modal.removeAttribute("aria-hidden");
+    document.body.style.overflow = "hidden";
+}
 
-    const open = toggle.getAttribute("aria-expanded") !== "true";
-    toggle.setAttribute("aria-expanded", open ? "true" : "false");
-    panel.setAttribute("aria-hidden", open ? "false" : "true");
-    panel.classList.toggle("open", open);
+function closeVacationModal() {
+    const modal = document.getElementById("vacationInfoModal");
+    if (!modal) return;
+    modal.hidden = true;
+    modal.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+}
+
+function toggleVacationInfo() {
+    openVacationModal();
 }
 
 function pulseField(field) {
@@ -3603,7 +3634,7 @@ function showToast(message, type = "success") {
     toast.textContent = message;
     toast.className = `toast toast-${type} show`;
     clearTimeout(showToast._timer);
-    showToast._timer = setTimeout(() => toast.classList.remove("show"), 3000);
+    showToast._timer = setTimeout(() => toast.classList.remove("show"), 4000);
 }
 
 function showWarningsIfAny(data) {

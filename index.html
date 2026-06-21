@@ -64,9 +64,17 @@
                     </button>
                 </div>
 
+                <div class="vacation-minimal-hint" id="vacationMinimalHint" tabindex="0" role="button" aria-label="راهنمای نحوه کار">
+                    <svg class="vacation-minimal-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.25"/><path d="M8 5v3.5M8 10.5v.5" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
+                    <span>چگونه کار می‌کند؟</span>
+                </div>
+
                 <div class="field row" data-toggle-field="autoVacation">
                     <div class="field-label-group">
                         <div class="field-title1">ثبت خودکار مرخصی</div>
+                        <button type="button" class="vacation-info-btn" id="vacationInfoBtn" aria-label="راهنمای نحوه کار">
+                            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.25"/><path d="M8 5v3.5M8 10.5v.5" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
+                        </button>
                     </div>
                     <label class="switch">
                         <input type="checkbox" data-field="autoVacation" id="autoVacationToggle" aria-controls="vacationSubPanel">
@@ -167,21 +175,6 @@
                         <span class="vacation-sync-undo__btn-text">حذف</span>
                         <span class="vacation-sync-undo__btn-spinner" aria-hidden="true"></span>
                     </button>
-                </div>
-
-                <button type="button" class="vacation-info-toggle" id="vacationInfoToggle" aria-expanded="false" aria-controls="vacationInfoPanel">
-                    <svg class="vacation-info-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 3a1 1 0 110 2 1 1 0 010-2zm1 8H7V7h2v5z"/></svg>
-                    <span>چگونه کار می‌کند؟</span>
-                    <span class="vacation-info-chevron" aria-hidden="true"></span>
-                </button>
-
-                <div id="vacationInfoPanel" class="vacation-info-panel" aria-hidden="true">
-                    <ol class="vacation-info-steps">
-                        <li>در Google Calendar یک رویداد با تاریخ و ساعت دلخواه ایجاد کنید.</li>
-                        <li>همان بازه زمانی به‌صورت خودکار به‌عنوان مرخصی در پذیرش۲۴ ثبت می‌شود.</li>
-                        <li>اگر چند مرکز درمانی دارید، مرخصی فقط برای مرکز(های) انتخاب‌شده ثبت می‌شود و در صورت تداخل، فقط نوبت‌های همان مرکز لغو یا منتقل می‌شوند.</li>
-                        <li>در صورت ویرایش یا حذف رویداد در Google Calendar، مرخصی ثبت‌شده در پذیرش۲۴ نیز به‌روزرسانی یا حذف خواهد شد.</li>
-                    </ol>
                 </div>
 
                 <div class="vacation-footer-divider" aria-hidden="true"></div>
@@ -390,6 +383,37 @@
                     <button type="button" id="hamgamConfirmCancel" class="hamgam-confirm-dialog__btn hamgam-confirm-dialog__btn--ghost">انصراف</button>
                     <button type="button" id="hamgamConfirmAccept" class="hamgam-confirm-dialog__btn hamgam-confirm-dialog__btn--primary">تأیید</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="vacationInfoModal" class="vacation-modal-overlay" hidden aria-hidden="true">
+        <div class="vacation-modal" role="dialog" aria-modal="true" aria-labelledby="vacationModalTitle">
+            <div class="vacation-modal__header">
+                <span id="vacationModalTitle" class="vacation-modal__title">چگونه کار می‌کند؟</span>
+                <button type="button" class="vacation-modal__close" id="vacationModalClose" aria-label="بستن">
+                    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </button>
+            </div>
+            <div class="vacation-modal__body">
+                <ol class="vacation-modal__steps">
+                    <li>
+                        <span class="vacation-modal__step-num" aria-hidden="true">۱</span>
+                        <span>در Google Calendar یک رویداد با تاریخ و ساعت دلخواه ایجاد کنید.</span>
+                    </li>
+                    <li>
+                        <span class="vacation-modal__step-num" aria-hidden="true">۲</span>
+                        <span>همان بازه زمانی به‌صورت خودکار به‌عنوان مرخصی در پذیرش۲۴ ثبت می‌شود.</span>
+                    </li>
+                    <li>
+                        <span class="vacation-modal__step-num" aria-hidden="true">۳</span>
+                        <span>اگر چند مرکز درمانی دارید، مرخصی فقط برای مرکز(های) انتخاب‌شده ثبت می‌شود و در صورت تداخل، فقط نوبت‌های همان مرکز لغو یا منتقل می‌شوند.</span>
+                    </li>
+                    <li>
+                        <span class="vacation-modal__step-num" aria-hidden="true">۴</span>
+                        <span>در صورت ویرایش یا حذف رویداد در Google Calendar، مرخصی ثبت‌شده در پذیرش۲۴ نیز به‌روزرسانی یا حذف خواهد شد.</span>
+                    </li>
+                </ol>
             </div>
         </div>
     </div>
