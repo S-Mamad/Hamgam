@@ -303,16 +303,41 @@ function applyBackfillProgressFromStatus(status) {
     }
 
     const target = resolveBackfillTargetPercent(status);
-    if (target > backfillFillState.progress) {
-        const delta = target - backfillFillState.progress;
-        animateBackfillFillTo(target, Math.min(900, 180 + delta * 10));
-    } else if (!status.pending && target < backfillFillState.progress) {
+    if (target !== backfillFillState.progress) {
         setBackfillFillProgress(target);
     }
 
     if (appState.importFutureBackfillPending || appState.importFutureBackfillStarting) {
         applyImportFutureBackfillCardUiState();
     }
+}
+
+async function pollBackfillSyncStatus(options = {}) {
+    const { maxAttempts = 180, intervalMs = 350 } = options;
+    const pollId = appState.importFutureBackfillPollId;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        if (pollId !== appState.importFutureBackfillPollId) {
+            return null;
+        }
+
+        const status = await fetchSyncStatusOnce();
+        if (status) {
+            applyBackfillProgressFromStatus(status);
+        }
+        if (status && !status.pending) {
+            return status;
+        }
+        if (attempt < maxAttempts - 1) {
+            await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        }
+    }
+
+    const finalStatus = await fetchSyncStatusOnce();
+    if (finalStatus) {
+        applyBackfillProgressFromStatus(finalStatus);
+    }
+    return finalStatus;
 }
 
 function animateBackfillFillTo(target, durationMs = 600) {
@@ -345,11 +370,8 @@ function animateBackfillFillTo(target, durationMs = 600) {
     });
 }
 
-function startBackfillFillAnimation(phase) {
-    if (phase === "starting") {
-        setBackfillFillProgress(0);
-        animateBackfillFillTo(5, 400);
-    }
+function startBackfillFillAnimation() {
+    setBackfillFillProgress(0);
 }
 
 function playBackfillFillSuccess() {
@@ -366,41 +388,38 @@ function playBackfillFillSuccess() {
             return;
         }
 
-        const showSuccessState = () => {
-            btn.classList.remove("is-loading", "is-running");
-            btn.classList.add("is-success");
-            btn.setAttribute("aria-busy", "false");
+        setBackfillFillProgress(100);
+        btn.classList.remove("is-loading", "is-running");
+        btn.classList.add("is-success");
+        btn.setAttribute("aria-busy", "false");
 
+        if (wrap) {
+            wrap.classList.add("is-success-card");
+        }
+
+        if (btnText) {
+            btnText.textContent = "همگام‌سازی انجام شد";
+        }
+
+        if (pctEl) {
+            pctEl.hidden = true;
+        }
+
+        backfillFillState.successTimer = window.setTimeout(() => {
+            btn.classList.remove("is-success");
             if (wrap) {
-                wrap.classList.add("is-success-card");
+                wrap.classList.remove("is-success-card");
             }
-
-            if (btnText) {
-                btnText.textContent = "همگام‌سازی انجام شد";
-            }
-
-            if (pctEl) {
-                pctEl.hidden = true;
-            }
-
-            backfillFillState.successTimer = window.setTimeout(() => {
-                btn.classList.remove("is-success");
-                if (wrap) {
-                    wrap.classList.remove("is-success-card");
-                }
-                backfillFillState.successTimer = null;
-                resolve();
-            }, 1500);
-        };
-
-        void animateBackfillFillTo(100, 500).then(showSuccessState);
+            backfillFillState.successTimer = null;
+            resolve();
+        }, 1500);
     });
 }
 
 function setImportFutureBackfillStarting(starting) {
     appState.importFutureBackfillStarting = !!starting;
     if (starting) {
-        startBackfillFillAnimation("starting");
+        startBackfillFillAnimation();
     }
     applyImportFutureBackfillCardUiState();
 }
@@ -414,6 +433,13 @@ function setImportFutureBackfillPending(pending, options = {}) {
     }
     applyImportFutureBackfillCardUiState();
     applyImportFutureBackfillUndoUiState();
+    if (pending && !wasPending) {
+        void fetchSyncStatusOnce().then((status) => {
+            if (status) {
+                applyBackfillProgressFromStatus(status);
+            }
+        });
+    }
     if (pending && !wasPending && options.notify) {
         showToast("درخواست شما با موفقیت در دست انجام قرار گرفت");
     }
@@ -471,11 +497,7 @@ function applyImportFutureBackfillCardUiState() {
 async function startImportFutureBackfillPoll() {
     const pollId = ++appState.importFutureBackfillPollId;
 
-    const status = await pollSyncStatus({
-        maxAttempts: 90,
-        intervalMs: 1500,
-        onProgress: applyBackfillProgressFromStatus
-    });
+    const status = await pollBackfillSyncStatus();
 
     if (pollId !== appState.importFutureBackfillPollId) {
         return status;

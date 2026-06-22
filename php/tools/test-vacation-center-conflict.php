@@ -154,21 +154,21 @@ assertTest(
     'extractFirstWorkhourTurnNum picks earliest future slot',
     Paziresh24AppointmentApi::extractFirstWorkhourTurnNum([
         'data' => [
-            ['workhour_turn_num' => 100],
-            ['workhour_turn_num' => 200],
+            ['workhour_turn_num' => 1_700_000_000],
+            ['workhour_turn_num' => 1_800_000_000],
         ],
-    ], 150) === 200
+    ], 1_750_000_000) === 1_800_000_000
 );
 
 assertTest(
     'extractFirstWorkhourTurnNum skips slots inside vacation range',
     Paziresh24AppointmentApi::extractFirstWorkhourTurnNum([
         'data' => [
-            ['workhour_turn_num' => 1000],
-            ['workhour_turn_num' => 1500],
-            ['workhour_turn_num' => 2000],
+            ['workhour_turn_num' => 1_700_000_000],
+            ['workhour_turn_num' => 1_750_000_000],
+            ['workhour_turn_num' => 1_800_000_000],
         ],
-    ], 0, 1200, 1800) === 1000
+    ], 0, 1_720_000_000, 1_780_000_000) === 1_700_000_000
 );
 
 assertTest(
@@ -198,8 +198,30 @@ assertTest(
 );
 
 assertTest(
-    'VacationSyncService has rescheduleOverlappingAppointments',
-    $syncRef->hasMethod('rescheduleOverlappingAppointments')
+    'Paziresh24AppointmentApi has rescheduleToFirstAvailableSlot',
+    method_exists(Paziresh24AppointmentApi::class, 'rescheduleToFirstAvailableSlot')
+);
+
+assertTest(
+    'Paziresh24AppointmentApi has moveAppointmentWithCenterFallback',
+    method_exists(Paziresh24AppointmentApi::class, 'moveAppointmentWithCenterFallback')
+);
+
+assertTest(
+    'BookingAppointmentResolver has resolveUserCenterIdForReschedule',
+    method_exists(BookingAppointmentResolver::class, 'resolveUserCenterIdForReschedule')
+);
+
+assertTest(
+    'normalizeUnixTimestamp rejects small turn numbers',
+    Paziresh24AppointmentApi::extractFirstWorkhourTurnNum([
+        'data' => [['turn_num' => 42], ['from' => 1782073800]],
+    ]) === 1782073800
+);
+
+assertTest(
+    'VacationSyncService has findOverlappingAppointments',
+    $syncRef->hasMethod('findOverlappingAppointments')
 );
 
 assertTest(

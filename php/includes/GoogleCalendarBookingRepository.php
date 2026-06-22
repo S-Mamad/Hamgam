@@ -53,6 +53,37 @@ final class GoogleCalendarBookingRepository
         return is_string($eventId) && trim($eventId) !== '' ? trim($eventId) : null;
     }
 
+    /**
+     * @return array<int, string>
+     */
+    public static function listBookIdsForUser(string $userId): array
+    {
+        $userId = GoogleTokensRepository::normalizeUserId($userId);
+        if ($userId === '') {
+            return [];
+        }
+
+        $stmt = Database::connection()->prepare(
+            'SELECT book_id FROM google_calendar_bookings
+             WHERE paziresh24_user_id = :user_id'
+        );
+        $stmt->execute(['user_id' => $userId]);
+
+        $bookIds = [];
+        while ($row = $stmt->fetch()) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $bookId = $row['book_id'] ?? null;
+            if (is_string($bookId) && trim($bookId) !== '') {
+                $bookIds[] = trim($bookId);
+            }
+        }
+
+        return $bookIds;
+    }
+
     public static function recordProcessedBooking(
         string $userId,
         string $bookId,

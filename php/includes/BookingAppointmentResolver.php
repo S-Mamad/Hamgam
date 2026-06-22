@@ -88,9 +88,87 @@ final class BookingAppointmentResolver
         }
 
         if (isset($booking['center']) && is_array($booking['center'])) {
-            $id = $booking['center']['user_center_id'] ?? null;
+            $center = $booking['center'];
+            $id = $center['user_center_id'] ?? null;
             if (is_scalar($id) && trim((string) $id) !== '') {
                 return trim((string) $id);
+            }
+
+            $centerId = $center['id'] ?? null;
+            $medicalId = $center['medical_center_id'] ?? $center['center_id'] ?? null;
+            if (
+                is_scalar($centerId)
+                && trim((string) $centerId) !== ''
+                && ($medicalId === null || (string) $centerId !== (string) $medicalId)
+            ) {
+                return trim((string) $centerId);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve user_center_id for slots/move APIs from appointment payload and medical centers list.
+     *
+     * @param ?array<string, mixed> $appointment
+     */
+    public static function resolveUserCenterIdForReschedule(
+        ?array $appointment,
+        string $accessToken,
+        string $medicalCenterId,
+        ?string $hintUserCenterId = null
+    ): ?string {
+        $hintUserCenterId = is_string($hintUserCenterId) ? trim($hintUserCenterId) : '';
+        if ($hintUserCenterId !== '') {
+            return $hintUserCenterId;
+        }
+
+        if (is_array($appointment)) {
+            $fromAppointment = self::extractUserCenterId($appointment);
+            if ($fromAppointment !== null && $fromAppointment !== '') {
+                return $fromAppointment;
+            }
+        }
+
+        foreach (Paziresh24VacationApi::normalizeMedicalCenters($accessToken) as $center) {
+            if (($center['medical_center_id'] ?? '') !== $medicalCenterId) {
+                continue;
+            }
+
+            $userCenterId = isset($center['user_center_id']) && is_string($center['user_center_id'])
+                ? trim($center['user_center_id'])
+                : '';
+            if ($userCenterId !== '') {
+                return $userCenterId;
+            }
+        }
+
+        $rawCenters = Paziresh24VacationApi::listMedicalCenters($accessToken);
+        if (!is_array($rawCenters)) {
+            return null;
+        }
+
+        foreach ($rawCenters as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $flat = Paziresh24VacationApi::flattenMedicalCenterRow($row);
+            if (Paziresh24VacationApi::resolveMedicalCenterId($flat) !== $medicalCenterId) {
+                continue;
+            }
+
+            foreach (['user_center_id', 'id'] as $key) {
+                $value = $flat[$key] ?? null;
+                if (!is_scalar($value) || trim((string) $value) === '') {
+                    continue;
+                }
+
+                $candidate = trim((string) $value);
+                if ($candidate !== $medicalCenterId) {
+                    return $candidate;
+                }
             }
         }
 

@@ -2510,20 +2510,23 @@ body {
 
 .vg-cta {
     position: absolute;
-    bottom: calc(100% + 7px);
+    bottom: calc(100% - 1px);
     left: 50%;
     z-index: 30;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 5px 6px 5px 9px;
-    border-radius: 9px;
-    background: var(--slate-900);
+    padding: 4px 10px;
+    border-radius: 7px;
+    background: var(--blue-500);
     color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.35;
+    letter-spacing: 0.01em;
     white-space: nowrap;
-    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.22);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.28);
     opacity: 0;
-    transform: translateX(-50%) translateY(6px) scale(0.94);
+    transform: translateX(-50%) translateY(4px) scale(0.94);
     pointer-events: none;
     transition:
         opacity 0.38s var(--ease-out),
@@ -2535,30 +2538,13 @@ body {
     position: absolute;
     top: 100%;
     left: 50%;
-    width: 8px;
-    height: 8px;
-    margin-top: -4px;
-    margin-left: -4px;
-    background: var(--slate-900);
+    width: 7px;
+    height: 7px;
+    margin-top: -3.5px;
+    margin-left: -3.5px;
+    background: var(--blue-500);
     transform: rotate(45deg);
     border-radius: 1px;
-}
-
-.vg-cta__label {
-    font-size: 10px;
-    font-weight: 600;
-    line-height: 1.3;
-    opacity: 0.92;
-}
-
-.vg-cta__action {
-    padding: 3px 8px;
-    border-radius: 6px;
-    background: var(--blue-500);
-    font-size: 9.5px;
-    font-weight: 800;
-    line-height: 1.3;
-    letter-spacing: 0.02em;
 }
 
 .vg-cta.show {

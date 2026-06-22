@@ -96,6 +96,15 @@ final class HamgamConnectionService
         $warnings = [];
         $backfillResult = ['ran' => false, 'imported' => 0, 'skipped' => 0, 'failed' => 0];
 
+        if ($runBackfillWhenEligible) {
+            GoogleTokensRepository::updateSyncProgress($userId, [
+                'phase' => 'preparing',
+                'processed' => 0,
+                'total' => 0,
+                'percent' => 3,
+            ]);
+        }
+
         try {
             $syncResult = self::syncAfterAuth($userId, $hamdastAccessToken);
             $warnings = array_merge($warnings, $syncResult['warnings']);
@@ -110,7 +119,7 @@ final class HamgamConnectionService
                     'phase' => 'preparing',
                     'processed' => 0,
                     'total' => 0,
-                    'percent' => 5,
+                    'percent' => 8,
                 ]);
 
                 $tokenRow = GoogleTokensRepository::findByUserId($userId);

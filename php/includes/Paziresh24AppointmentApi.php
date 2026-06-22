@@ -298,7 +298,19 @@ final class Paziresh24AppointmentApi
 
         $body = is_array($response['body']) ? $response['body'] : null;
 
-        return self::extractFirstWorkhourTurnNum($body, $fromTs, $excludeRangeFrom, $excludeRangeTo);
+        $slot = self::extractFirstWorkhourTurnNum($body, $fromTs, $excludeRangeFrom, $excludeRangeTo);
+        if ($slot !== null) {
+            return $slot;
+        }
+
+        if ($excludeRangeTo !== null && $excludeRangeTo > $fromTs) {
+            $slot = self::extractFirstWorkhourTurnNum($body, $excludeRangeTo, null, null);
+            if ($slot !== null) {
+                return $slot;
+            }
+        }
+
+        return self::extractFirstWorkhourTurnNum($body, $fromTs, null, null);
     }
 
     /**
@@ -414,14 +426,249 @@ final class Paziresh24AppointmentApi
      */
     private static function extractSlotTimestampFromItem(array $item): ?int
     {
-        foreach (['workhour_turn_num', 'from', 'start_timestamp', 'book_timestamp', 'turn_num'] as $key) {
-            $value = $item[$key] ?? null;
-            if (is_numeric($value) && (int) $value > 0) {
-                return (int) $value;
+        foreach (['from', 'start_timestamp', 'book_timestamp'] as $key) {
+            $ts = self::normalizeUnixTimestamp($item[$key] ?? null);
+            if ($ts !== null) {
+                return $ts;
+            }
+        }
+
+        foreach (['workhour_turn_num', 'turn_num'] as $key) {
+            $ts = self::normalizeUnixTimestamp($item[$key] ?? null);
+            if ($ts !== null) {
+                return $ts;
             }
         }
 
         return null;
+    }
+
+    private static function normalizeUnixTimestamp(mixed $value): ?int
+    {
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        $int = (int) $value;
+        if ($int > 1_000_000_000_000) {
+            $int = (int) floor($int / 1000);
+        }
+
+        if ($int < 946_684_800) {
+            return null;
+        }
+
+        return $int;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function moveCenterPathCandidates(string $medicalCenterId, ?string $userCenterId): array
+    {
+        $candidates = [];
+        foreach ([$medicalCenterId, $userCenterId] as $candidate) {
+            $candidate = is_string($candidate) ? trim($candidate) : '';
+            if ($candidate === '' || in_array($candidate, $candidates, true)) {
+                continue;
+            }
+
+            $candidates[] = $candidate;
+        }
+
+        return $candidates;
+    }
+
+    /**
+     * Move appointment trying medical_center_id and user_center_id in the URL path.
+     *
+     * @return array{
+     *   success: bool,
+     *   body: ?array<string, mixed>,
+     *   http_status: int,
+     *   permission_denied: bool,
+     *   center_id_used: ?string
+     * }
+     */
+    public static function moveAppointmentWithCenterFallback(
+        string $accessToken,
+        string $medicalCenterId,
+        ?string $userCenterId,
+        int $bookFrom,
+        int $bookTo,
+        int $targetFrom
+    ): array {
+        $last = [
+            'success' => false,
+            'body' => null,
+            'http_status' => 0,
+            'permission_denied' => false,
+            'center_id_used' => null,
+        ];
+
+        foreach (self::moveCenterPathCandidates($medicalCenterId, $userCenterId) as $centerPathId) {
+            $result = self::moveAppointmentResult($accessToken, $centerPathId, $bookFrom, $bookTo, $targetFrom);
+            $last = array_merge($result, ['center_id_used' => $centerPathId]);
+
+            if ($result['success']) {
+                return $last;
+            }
+
+            if ($result['permission_denied']) {
+                return $last;
+            }
+        }
+
+        return $last;
+    }
+
+    /**
+     * Full reschedule flow: slots → move.
+     *
+     * @return array{
+     *   success: bool,
+     *   stage: string,
+     *   target_from: ?int,
+     *   book_from: ?int,
+     *   book_to: ?int,
+     *   user_center_id: ?string,
+     *   center_id_used: ?string,
+     *   http_status: int,
+     *   permission_denied: bool,
+     *   body: ?array<string, mixed>
+     * }
+     */
+    public static function rescheduleToFirstAvailableSlot(
+        string $accessToken,
+        string $bookId,
+        string $medicalCenterId,
+        ?string $hintUserCenterId,
+        int $fallbackBookFrom,
+        int $fallbackBookTo,
+        ?int $vacationFrom = null,
+        ?int $vacationTo = null
+    ): array {
+        $bookId = trim($bookId);
+        $medicalCenterId = trim($medicalCenterId);
+        $empty = [
+            'success' => false,
+            'stage' => 'init',
+            'target_from' => null,
+            'book_from' => null,
+            'book_to' => null,
+            'user_center_id' => null,
+            'center_id_used' => null,
+            'http_status' => 0,
+            'permission_denied' => false,
+            'body' => null,
+        ];
+
+        if ($bookId === '' || $medicalCenterId === '') {
+            return array_merge($empty, ['stage' => 'invalid_input']);
+        }
+
+        $appointment = GoogleCalendar::getAppointment($bookId, $accessToken);
+        $moveRange = self::resolveMoveRange($accessToken, $bookId, $fallbackBookFrom, $fallbackBookTo);
+        $bookFrom = $moveRange['from'];
+        $bookTo = $moveRange['to'];
+
+        $userCenterId = BookingAppointmentResolver::resolveUserCenterIdForReschedule(
+            is_array($appointment) ? $appointment : null,
+            $accessToken,
+            $medicalCenterId,
+            $hintUserCenterId
+        );
+
+        if ($userCenterId === null || $userCenterId === '') {
+            error_log(
+                '[hamgam-appointment] reschedule failed stage=user_center_id book_id='
+                . $bookId
+                . ' center=' . $medicalCenterId
+            );
+
+            return array_merge($empty, [
+                'stage' => 'user_center_id',
+                'book_from' => $bookFrom,
+                'book_to' => $bookTo,
+            ]);
+        }
+
+        $targetFrom = self::getFirstAvailableSlot(
+            $accessToken,
+            $medicalCenterId,
+            $userCenterId,
+            $vacationFrom,
+            $vacationTo
+        );
+
+        if ($targetFrom === null) {
+            error_log(
+                '[hamgam-appointment] reschedule failed stage=slots book_id='
+                . $bookId
+                . ' center=' . $medicalCenterId
+                . ' user_center_id=' . $userCenterId
+            );
+
+            return array_merge($empty, [
+                'stage' => 'slots',
+                'book_from' => $bookFrom,
+                'book_to' => $bookTo,
+                'user_center_id' => $userCenterId,
+            ]);
+        }
+
+        $moveResult = self::moveAppointmentWithCenterFallback(
+            $accessToken,
+            $medicalCenterId,
+            $userCenterId,
+            $bookFrom,
+            $bookTo,
+            $targetFrom
+        );
+
+        if (!$moveResult['success']) {
+            error_log(
+                '[hamgam-appointment] reschedule failed stage=move book_id='
+                . $bookId
+                . ' center_path=' . ($moveResult['center_id_used'] ?? '')
+                . ' http=' . ($moveResult['http_status'] ?? 0)
+                . ' book_from=' . $bookFrom
+                . ' book_to=' . $bookTo
+                . ' target_from=' . $targetFrom
+            );
+
+            return [
+                'success' => false,
+                'stage' => 'move',
+                'target_from' => $targetFrom,
+                'book_from' => $bookFrom,
+                'book_to' => $bookTo,
+                'user_center_id' => $userCenterId,
+                'center_id_used' => $moveResult['center_id_used'] ?? null,
+                'http_status' => $moveResult['http_status'] ?? 0,
+                'permission_denied' => $moveResult['permission_denied'] ?? false,
+                'body' => $moveResult['body'] ?? null,
+            ];
+        }
+
+        error_log(
+            '[hamgam-appointment] reschedule ok book_id=' . $bookId
+            . ' center_path=' . ($moveResult['center_id_used'] ?? '')
+            . ' target_from=' . $targetFrom
+        );
+
+        return [
+            'success' => true,
+            'stage' => 'done',
+            'target_from' => $targetFrom,
+            'book_from' => $bookFrom,
+            'book_to' => $bookTo,
+            'user_center_id' => $userCenterId,
+            'center_id_used' => $moveResult['center_id_used'] ?? null,
+            'http_status' => $moveResult['http_status'] ?? 200,
+            'permission_denied' => false,
+            'body' => $moveResult['body'] ?? null,
+        ];
     }
 
     /**

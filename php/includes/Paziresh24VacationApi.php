@@ -401,6 +401,13 @@ final class Paziresh24VacationApi
         }
 
         $userCenterId = self::stringUuid($flat['user_center_id'] ?? null);
+        if ($userCenterId === null) {
+            $rowId = self::stringUuid($flat['id'] ?? null);
+            if ($rowId !== null && $rowId !== $medicalCenterId) {
+                $userCenterId = $rowId;
+            }
+        }
+
         $name = self::resolveCenterDisplayName($flat, $medicalCenterId);
 
         return [
@@ -416,7 +423,7 @@ final class Paziresh24VacationApi
      */
     public static function resolveMedicalCenterId(array $row): ?string
     {
-        foreach (['id', 'medical_center_id', 'center_id', 'uuid'] as $key) {
+        foreach (['medical_center_id', 'center_id'] as $key) {
             $id = self::stringMedicalCenterId($row[$key] ?? null);
             if ($id !== null) {
                 return $id;
@@ -428,7 +435,17 @@ final class Paziresh24VacationApi
                 continue;
             }
 
-            $id = self::resolveMedicalCenterId($row[$nestedKey]);
+            $nested = $row[$nestedKey];
+            foreach (['id', 'medical_center_id', 'center_id', 'uuid'] as $key) {
+                $id = self::stringMedicalCenterId($nested[$key] ?? null);
+                if ($id !== null) {
+                    return $id;
+                }
+            }
+        }
+
+        foreach (['uuid', 'id'] as $key) {
+            $id = self::stringMedicalCenterId($row[$key] ?? null);
             if ($id !== null) {
                 return $id;
             }
