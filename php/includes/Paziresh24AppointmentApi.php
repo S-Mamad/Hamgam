@@ -293,11 +293,55 @@ final class Paziresh24AppointmentApi
                 . ' body=' . $response['raw']
             );
 
-            return null;
+            return self::getFirstAvailableSlotFromBody(null, $fromTs, $excludeRangeFrom, $excludeRangeTo);
         }
 
         $body = is_array($response['body']) ? $response['body'] : null;
+        $slot = self::getFirstAvailableSlotFromBody($body, $fromTs, $excludeRangeFrom, $excludeRangeTo);
+        if ($slot !== null) {
+            return $slot;
+        }
 
+        if ($userCenterId !== $centerId) {
+            $fallbackUrl = $baseUrl . '?' . http_build_query([
+                'center_id' => $userCenterId,
+                'user_center_id' => $userCenterId,
+                'from' => (string) $fromTs,
+                'to' => (string) $toTs,
+            ]);
+
+            $fallbackResponse = HttpClient::request(
+                'GET',
+                $fallbackUrl,
+                [
+                    'Authorization' => 'Bearer ' . $accessToken,
+                    'Accept' => '*/*',
+                ]
+            );
+
+            if ($fallbackResponse['status'] >= 200 && $fallbackResponse['status'] < 300) {
+                $fallbackBody = is_array($fallbackResponse['body']) ? $fallbackResponse['body'] : null;
+                $slot = self::getFirstAvailableSlotFromBody(
+                    $fallbackBody,
+                    $fromTs,
+                    $excludeRangeFrom,
+                    $excludeRangeTo
+                );
+                if ($slot !== null) {
+                    return $slot;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static function getFirstAvailableSlotFromBody(
+        ?array $body,
+        int $fromTs,
+        ?int $excludeRangeFrom = null,
+        ?int $excludeRangeTo = null
+    ): ?int {
         $slot = self::extractFirstWorkhourTurnNum($body, $fromTs, $excludeRangeFrom, $excludeRangeTo);
         if ($slot !== null) {
             return $slot;
@@ -310,7 +354,7 @@ final class Paziresh24AppointmentApi
             }
         }
 
-        return self::extractFirstWorkhourTurnNum($body, $fromTs, null, null);
+        return null;
     }
 
     /**
@@ -410,12 +454,13 @@ final class Paziresh24AppointmentApi
                 continue;
             }
 
-            if ($key === 'data' || $key === 'slots' || $key === 'items' || $key === 'result') {
-                self::collectSlotTimestamps($value, $candidates);
-                continue;
-            }
-
-            if (!is_string($key) || !self::isUuid($key)) {
+            if (
+                $key === 'data'
+                || $key === 'slots'
+                || $key === 'items'
+                || $key === 'result'
+                || (is_string($key) && self::isUuid($key))
+            ) {
                 self::collectSlotTimestamps($value, $candidates);
             }
         }

@@ -3062,7 +3062,9 @@ function setVacationConflictMode(mode) {
     cancelBtn?.setAttribute("aria-pressed", isCancel ? "true" : "false");
     rescheduleBtn?.setAttribute("aria-pressed", !isCancel ? "true" : "false");
 
+    hidden.dispatchEvent(new Event("change", { bubbles: true }));
     updateVacationConflictOptionStates();
+    updateLiveBadge();
 }
 
 function updateVacationConflictOptionStates() {

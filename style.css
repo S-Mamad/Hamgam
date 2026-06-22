@@ -882,7 +882,7 @@ body {
     align-items: center;
     justify-content: space-between;
     gap: 14px;
-    margin: 4px 8px 14px;
+    margin: 6px 8px 4px;
     padding: 12px 14px;
     border-radius: 13px;
     background: linear-gradient(160deg, #ffffff 0%, #fff8f8 100%);
@@ -1468,7 +1468,10 @@ body {
 .vacation-sub-panel:not(.open) .vacation-sub-divider,
 .vacation-sub-panel:not(.open) .vacation-sub-group-title,
 .vacation-sub-panel:not(.open) .vacation-conflict,
-.vacation-sub-panel:not(.open) .vacation-centers-section {
+.vacation-sub-panel:not(.open) .vacation-centers-section,
+.vacation-sub-panel:not(.open) .sync-backfill-action,
+.vacation-sub-panel:not(.open) .vacation-sync-undo,
+.vacation-sub-panel:not(.open) .vacation-event-delete {
     pointer-events: none;
 }
 
@@ -1858,6 +1861,9 @@ body {
         transform 0.35s var(--ease-out),
         max-height 0.38s var(--ease-out);
     transform-origin: top center;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .vacation-sub-options-block--inactive {
@@ -2733,7 +2739,7 @@ body {
 }
 
 .vacation-event-delete {
-    margin: 8px 8px 6px;
+    margin: 4px 8px 6px;
     padding: 9px 12px;
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.5);

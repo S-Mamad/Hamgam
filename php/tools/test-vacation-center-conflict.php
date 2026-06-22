@@ -49,9 +49,14 @@ $syncRef = new ReflectionClass(VacationSyncService::class);
 $cancelMethod = $syncRef->getMethod('cancelOverlappingAppointments');
 $cancelParams = array_map(static fn (ReflectionParameter $p) => $p->getName(), $cancelMethod->getParameters());
 assertTest(
-    'cancelOverlappingAppointments has medicalCenterId parameter',
-    in_array('medicalCenterId', $cancelParams, true),
+    'cancelOverlappingAppointments receives vacationCenter array',
+    in_array('vacationCenter', $cancelParams, true),
     $cancelParams
+);
+
+assertTest(
+    'VacationSyncService has resolveOverlappingAppointmentsFromConflictBody',
+    $syncRef->hasMethod('resolveOverlappingAppointmentsFromConflictBody')
 );
 
 assertTest(
@@ -181,6 +186,17 @@ assertTest(
 );
 
 assertTest(
+    'extractFirstWorkhourTurnNum reads slots nested under center UUID key',
+    Paziresh24AppointmentApi::extractFirstWorkhourTurnNum([
+        'a1111111-1111-4111-8111-111111111111' => [
+            'slots' => [
+                ['from' => 1782073800],
+            ],
+        ],
+    ]) === 1782073800
+);
+
+assertTest(
     'Paziresh24AppointmentApi has resolveMoveRange',
     method_exists(Paziresh24AppointmentApi::class, 'resolveMoveRange')
 );
@@ -242,6 +258,38 @@ assertTest(
 assertTest(
     'isBookConflictResponse false for unrelated 400',
     !Paziresh24VacationApi::isBookConflictResponse(400, ['status' => 'VALIDATION_ERROR'])
+);
+
+assertTest(
+    'extractBookIdsFromConflictBody reads book_id field',
+    Paziresh24VacationApi::extractBookIdsFromConflictBody([
+        'status' => 'BOOK_CONFLICT',
+        'book_id' => 'a1111111-1111-4111-8111-111111111111',
+    ]) === ['a1111111-1111-4111-8111-111111111111']
+);
+
+assertTest(
+    'extractBookIdsFromConflictBody reads nested book_ids',
+    Paziresh24VacationApi::extractBookIdsFromConflictBody([
+        'data' => [
+            'book_ids' => [
+                'b2222222-2222-4222-8222-222222222222',
+                'c3333333-3333-4333-8333-333333333333',
+            ],
+        ],
+    ]) === [
+        'b2222222-2222-4222-8222-222222222222',
+        'c3333333-3333-4333-8333-333333333333',
+    ]
+);
+
+assertTest(
+    'slot fallback does not pick time inside vacation range',
+    Paziresh24AppointmentApi::extractFirstWorkhourTurnNum([
+        'data' => [
+            ['from' => 1_750_000_000],
+        ],
+    ], 0, 1_740_000_000, 1_760_000_000) === null
 );
 
 echo json_encode([

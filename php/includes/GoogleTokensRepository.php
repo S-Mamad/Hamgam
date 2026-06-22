@@ -537,6 +537,15 @@ final class GoogleTokensRepository
         $dbUserId = (string) ($existing['paziresh24_user_id'] ?? $userId);
         $settings = self::applyImportFutureVacationsLock($existing, $settings);
 
+        if (!$settings['auto_vacation']) {
+            $settings['cancel_appointment_on_event_delete'] = self::toBool(
+                $existing['cancel_appointment_on_event_delete'] ?? true
+            );
+            $settings['cancel_conflicting_appointments'] = self::toBool(
+                $existing['cancel_conflicting_appointments'] ?? false
+            );
+        }
+
         $stmt = Database::connection()->prepare(
             'UPDATE google_tokens SET
                 color_id = :color_id,

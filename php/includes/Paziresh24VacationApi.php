@@ -103,6 +103,70 @@ final class Paziresh24VacationApi
     }
 
     /**
+     * Extract book UUIDs from a BOOK_CONFLICT API response body.
+     *
+     * @return array<int, string>
+     */
+    public static function extractBookIdsFromConflictBody(?array $body): array
+    {
+        if ($body === null) {
+            return [];
+        }
+
+        $bookIds = [];
+        self::collectBookIdsFromConflictNode($body, $bookIds);
+
+        return array_values(array_unique($bookIds));
+    }
+
+    /**
+     * @param array<string, mixed> $node
+     * @param array<int, string> $bookIds
+     */
+    private static function collectBookIdsFromConflictNode(array $node, array &$bookIds): void
+    {
+        foreach (['book_id', 'bookId', 'id'] as $key) {
+            $value = $node[$key] ?? null;
+            if (is_string($value) && self::isUuidString($value)) {
+                $bookIds[] = $value;
+            }
+        }
+
+        foreach (['book_ids', 'bookIds', 'books', 'conflicting_books', 'conflicts'] as $listKey) {
+            $list = $node[$listKey] ?? null;
+            if (!is_array($list)) {
+                continue;
+            }
+
+            foreach ($list as $item) {
+                if (is_string($item) && self::isUuidString($item)) {
+                    $bookIds[] = $item;
+                    continue;
+                }
+
+                if (is_array($item)) {
+                    self::collectBookIdsFromConflictNode($item, $bookIds);
+                }
+            }
+        }
+
+        foreach (['data', 'result', 'details'] as $nestedKey) {
+            $nested = $node[$nestedKey] ?? null;
+            if (is_array($nested)) {
+                self::collectBookIdsFromConflictNode($nested, $bookIds);
+            }
+        }
+    }
+
+    private static function isUuidString(string $value): bool
+    {
+        return preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
+            trim($value)
+        ) === 1;
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     public static function deleteVacation(

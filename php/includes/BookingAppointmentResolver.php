@@ -120,15 +120,16 @@ final class BookingAppointmentResolver
         ?string $hintUserCenterId = null
     ): ?string {
         $hintUserCenterId = is_string($hintUserCenterId) ? trim($hintUserCenterId) : '';
-        if ($hintUserCenterId !== '') {
-            return $hintUserCenterId;
-        }
 
         if (is_array($appointment)) {
             $fromAppointment = self::extractUserCenterId($appointment);
             if ($fromAppointment !== null && $fromAppointment !== '') {
                 return $fromAppointment;
             }
+        }
+
+        if ($hintUserCenterId !== '' && $hintUserCenterId !== $medicalCenterId) {
+            return $hintUserCenterId;
         }
 
         foreach (Paziresh24VacationApi::normalizeMedicalCenters($accessToken) as $center) {

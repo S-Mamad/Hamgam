@@ -17,6 +17,7 @@ function hamgam_load_vacation_modules(): void
     require_once __DIR__ . '/GoogleVacationRepository.php';
     require_once __DIR__ . '/Paziresh24VacationApi.php';
     require_once __DIR__ . '/Paziresh24AppointmentApi.php';
+    require_once __DIR__ . '/BookingAppointmentResolver.php';
     require_once __DIR__ . '/GoogleCalendarBookingRepository.php';
     require_once __DIR__ . '/AppointmentWebhookService.php';
     require_once __DIR__ . '/GoogleWebhookHeaders.php';
