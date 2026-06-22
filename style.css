@@ -877,12 +877,18 @@ body {
     padding-inline: 28px 2px;
 }
 
+.vacation-standalone-block {
+    display: flex;
+    flex-direction: column;
+    margin-top: 2px;
+}
+
 .vacation-sync-undo {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 14px;
-    margin: 6px 8px 4px;
+    margin: 4px 8px 0;
     padding: 12px 14px;
     border-radius: 13px;
     background: linear-gradient(160deg, #ffffff 0%, #fff8f8 100%);
@@ -1469,9 +1475,7 @@ body {
 .vacation-sub-panel:not(.open) .vacation-sub-group-title,
 .vacation-sub-panel:not(.open) .vacation-conflict,
 .vacation-sub-panel:not(.open) .vacation-centers-section,
-.vacation-sub-panel:not(.open) .sync-backfill-action,
-.vacation-sub-panel:not(.open) .vacation-sync-undo,
-.vacation-sub-panel:not(.open) .vacation-event-delete {
+.vacation-sub-panel:not(.open) .sync-backfill-action {
     pointer-events: none;
 }
 
@@ -2734,12 +2738,12 @@ body {
 
 .vacation-footer-divider {
     height: 1px;
-    margin: 10px 12px 0;
+    margin: 12px 12px 0;
     background: linear-gradient(90deg, transparent, rgba(191, 219, 254, 0.85), transparent);
 }
 
 .vacation-event-delete {
-    margin: 4px 8px 6px;
+    margin: 8px 8px 6px;
     padding: 9px 12px;
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.5);

@@ -538,9 +538,6 @@ final class GoogleTokensRepository
         $settings = self::applyImportFutureVacationsLock($existing, $settings);
 
         if (!$settings['auto_vacation']) {
-            $settings['cancel_appointment_on_event_delete'] = self::toBool(
-                $existing['cancel_appointment_on_event_delete'] ?? true
-            );
             $settings['cancel_conflicting_appointments'] = self::toBool(
                 $existing['cancel_conflicting_appointments'] ?? false
             );
@@ -708,8 +705,8 @@ final class GoogleTokensRepository
             $importFutureVacations = $parsedImport;
         }
 
-        $cancelAppointmentOnEventDelete = false;
-        if ($autoVacation && array_key_exists('cancelAppointmentOnEventDelete', $body)) {
+        $cancelAppointmentOnEventDelete = true;
+        if (array_key_exists('cancelAppointmentOnEventDelete', $body)) {
             $parsedCancelOnDelete = self::readSettingsBool($body['cancelAppointmentOnEventDelete']);
             if ($parsedCancelOnDelete === null) {
                 error_log('[GoogleTokensRepository] parseSettingsBody: invalid cancelAppointmentOnEventDelete');

@@ -213,7 +213,9 @@ const backfillFillState = {
     progress: 0,
     timer: null,
     raf: null,
-    successTimer: null
+    successTimer: null,
+    creepTimer: null,
+    lastServerTarget: 0
 };
 
 function setBackfillFillProgress(percent) {
@@ -231,9 +233,44 @@ function setBackfillFillProgress(percent) {
 
     if (pctEl) {
         const showPct = btn.classList.contains("is-loading") || btn.classList.contains("is-running");
-        pctEl.textContent = showPct ? `${Math.round(value)}٪` : "";
+        const displayPct = showPct
+            ? Math.min(99, Math.max(0, value >= 99.5 ? 99 : Math.floor(value)))
+            : 0;
+        pctEl.textContent = showPct ? `${displayPct}٪` : "";
         pctEl.hidden = !showPct;
     }
+}
+
+function stopBackfillProgressCreep() {
+    if (backfillFillState.creepTimer) {
+        clearInterval(backfillFillState.creepTimer);
+        backfillFillState.creepTimer = null;
+    }
+}
+
+function startBackfillProgressCreep() {
+    if (backfillFillState.creepTimer) {
+        return;
+    }
+    if (!appState.importFutureBackfillPending && !appState.importFutureBackfillStarting) {
+        return;
+    }
+
+    backfillFillState.creepTimer = window.setInterval(() => {
+        if (!appState.importFutureBackfillPending && !appState.importFutureBackfillStarting) {
+            stopBackfillProgressCreep();
+            return;
+        }
+        if (backfillFillState.raf) {
+            return;
+        }
+
+        const serverCap = Math.max(backfillFillState.lastServerTarget, 8);
+        const creepCap = Math.min(92, Math.max(serverCap, backfillFillState.progress + 2));
+        if (backfillFillState.progress < creepCap) {
+            void animateBackfillFillTo(Math.min(creepCap, backfillFillState.progress + 1), 320);
+        }
+    }, 420);
 }
 
 function stopBackfillFillAnimation() {
@@ -247,8 +284,13 @@ function stopBackfillFillAnimation() {
     }
 }
 
-function resetBackfillFillProgress() {
+function stopAllBackfillProgress() {
     stopBackfillFillAnimation();
+    stopBackfillProgressCreep();
+}
+
+function resetBackfillFillProgress() {
+    stopAllBackfillProgress();
 
     if (backfillFillState.successTimer) {
         clearTimeout(backfillFillState.successTimer);
@@ -303,8 +345,19 @@ function applyBackfillProgressFromStatus(status) {
     }
 
     const target = resolveBackfillTargetPercent(status);
-    if (target !== backfillFillState.progress) {
+    backfillFillState.lastServerTarget = target;
+
+    if (target > backfillFillState.progress) {
+        const delta = target - backfillFillState.progress;
+        void animateBackfillFillTo(target, Math.min(900, 200 + delta * 12));
+    } else if (!status.pending && target < backfillFillState.progress) {
         setBackfillFillProgress(target);
+    }
+
+    if (status.pending) {
+        startBackfillProgressCreep();
+    } else {
+        stopBackfillProgressCreep();
     }
 
     if (appState.importFutureBackfillPending || appState.importFutureBackfillStarting) {
@@ -370,13 +423,20 @@ function animateBackfillFillTo(target, durationMs = 600) {
     });
 }
 
-function startBackfillFillAnimation() {
-    setBackfillFillProgress(0);
+function startBackfillFillAnimation(phase) {
+    backfillFillState.lastServerTarget = 0;
+    if (phase === "starting") {
+        setBackfillFillProgress(0);
+        void animateBackfillFillTo(4, 350);
+        startBackfillProgressCreep();
+    } else {
+        setBackfillFillProgress(0);
+    }
 }
 
 function playBackfillFillSuccess() {
     return new Promise((resolve) => {
-        stopBackfillFillAnimation();
+        stopAllBackfillProgress();
 
         const btn = document.getElementById("importFutureBackfillBtn");
         const wrap = document.getElementById("importFutureBackfillWrap");
@@ -388,38 +448,43 @@ function playBackfillFillSuccess() {
             return;
         }
 
-        setBackfillFillProgress(100);
-        btn.classList.remove("is-loading", "is-running");
-        btn.classList.add("is-success");
-        btn.setAttribute("aria-busy", "false");
+        const showSuccessState = () => {
+            btn.classList.remove("is-loading", "is-running");
+            btn.classList.add("is-success");
+            btn.setAttribute("aria-busy", "false");
 
-        if (wrap) {
-            wrap.classList.add("is-success-card");
-        }
-
-        if (btnText) {
-            btnText.textContent = "همگام‌سازی انجام شد";
-        }
-
-        if (pctEl) {
-            pctEl.hidden = true;
-        }
-
-        backfillFillState.successTimer = window.setTimeout(() => {
-            btn.classList.remove("is-success");
             if (wrap) {
-                wrap.classList.remove("is-success-card");
+                wrap.classList.add("is-success-card");
             }
-            backfillFillState.successTimer = null;
-            resolve();
-        }, 1500);
+
+            if (btnText) {
+                btnText.textContent = "همگام‌سازی انجام شد";
+            }
+
+            if (pctEl) {
+                pctEl.hidden = true;
+            }
+
+            backfillFillState.successTimer = window.setTimeout(() => {
+                btn.classList.remove("is-success");
+                if (wrap) {
+                    wrap.classList.remove("is-success-card");
+                }
+                backfillFillState.successTimer = null;
+                resolve();
+            }, 1500);
+        };
+
+        void animateBackfillFillTo(100, 520).then(showSuccessState);
     });
 }
 
 function setImportFutureBackfillStarting(starting) {
     appState.importFutureBackfillStarting = !!starting;
     if (starting) {
-        startBackfillFillAnimation();
+        startBackfillFillAnimation("starting");
+    } else if (!appState.importFutureBackfillPending) {
+        stopBackfillProgressCreep();
     }
     applyImportFutureBackfillCardUiState();
 }
@@ -428,12 +493,14 @@ function setImportFutureBackfillPending(pending, options = {}) {
     const wasPending = appState.importFutureBackfillPending;
     appState.importFutureBackfillPending = !!pending;
     if (!pending && wasPending) {
-        stopBackfillFillAnimation();
+        stopAllBackfillProgress();
         appState.backfillProgressPhase = "";
+        backfillFillState.lastServerTarget = 0;
     }
     applyImportFutureBackfillCardUiState();
     applyImportFutureBackfillUndoUiState();
     if (pending && !wasPending) {
+        startBackfillProgressCreep();
         void fetchSyncStatusOnce().then((status) => {
             if (status) {
                 applyBackfillProgressFromStatus(status);
@@ -2905,6 +2972,8 @@ function updateVacationSubPanel() {
     }
 
     updateVacationSubOptionsState();
+    applyImportFutureBackfillCardUiState();
+    applyImportFutureBackfillUndoUiState();
 }
 
 function getAllCenterIds(centers = appState.medicalCenters) {
@@ -3644,7 +3713,7 @@ function collectSettingsPayload() {
         phone: fields.phone,
         autoVacation: fields.autoVacation,
         importFutureVacations: false,
-        cancelAppointmentOnEventDelete: fields.autoVacation ? fields.cancelAppointmentOnEventDelete : false,
+        cancelAppointmentOnEventDelete: fields.cancelAppointmentOnEventDelete,
         cancelConflictingAppointments: fields.autoVacation ? fields.cancelConflictingAppointments : false,
         vacationSyncCenters: buildVacationSyncCentersPayload()
     };

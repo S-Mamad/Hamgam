@@ -11,10 +11,10 @@
     <meta name="description" content="شخصی‌سازی نحوه ثبت نوبت‌های پذیرش۲۴ در Google Calendar">
     <link rel="dns-prefetch" href="https://accounts.google.com">
     <link rel="preconnect" href="https://accounts.google.com" crossorigin>
-    <link rel="stylesheet" href="style.css?v=29e8d931">
+    <link rel="stylesheet" href="style.css?v=f920be6b">
     <link href="https://fonts.paziresh24.com/iran-sans-x.css" rel="stylesheet">
     <script src="https://hamdast.paziresh24.com/sdk/hamdast.js"></script>
-    <script src="script.js?v=29e8d931" defer></script>
+    <script src="script.js?v=f920be6b" defer></script>
 </head>
 
 <body>
@@ -168,29 +168,32 @@
                         </div>
                     </div>
 
-                    <div class="vacation-sub-divider" aria-hidden="true"></div>
+                    </div>
+                </div>
 
-                    <div class="vacation-event-delete field row" data-toggle-field="cancelAppointmentOnEventDelete">
-                        <div class="field-label-group">
-                            <span class="vacation-event-delete__label">لغو نوبت در صورت حذف ایونت‌ آن در تقویم</span>
-                        </div>
-                        <label class="switch switch--mini" for="cancelAppointmentOnEventDelete">
-                            <input type="checkbox" data-field="cancelAppointmentOnEventDelete" id="cancelAppointmentOnEventDelete" checked>
-                            <span></span>
-                        </label>
+                <div class="vacation-standalone-block">
+                <div id="deleteSyncedBackfillWrap" class="vacation-sync-undo" hidden>
+                    <div class="vacation-sync-undo__copy">
+                        <span class="vacation-sync-undo__title">حذف مرخصی‌های همگام‌شده</span>
+                        <span id="deleteSyncedBackfillHint" class="vacation-sync-undo__meta" hidden></span>
                     </div>
+                    <button type="button" id="deleteSyncedBackfillBtn" class="vacation-sync-undo__btn" aria-label="حذف مرخصی‌های همگام‌شده">
+                        <span class="vacation-sync-undo__btn-text">حذف</span>
+                        <span class="vacation-sync-undo__btn-spinner" aria-hidden="true"></span>
+                    </button>
+                </div>
 
-                    <div id="deleteSyncedBackfillWrap" class="vacation-sync-undo" hidden>
-                        <div class="vacation-sync-undo__copy">
-                            <span class="vacation-sync-undo__title">حذف مرخصی‌های همگام‌شده</span>
-                            <span id="deleteSyncedBackfillHint" class="vacation-sync-undo__meta" hidden></span>
-                        </div>
-                        <button type="button" id="deleteSyncedBackfillBtn" class="vacation-sync-undo__btn" aria-label="حذف مرخصی‌های همگام‌شده">
-                            <span class="vacation-sync-undo__btn-text">حذف</span>
-                            <span class="vacation-sync-undo__btn-spinner" aria-hidden="true"></span>
-                        </button>
+                <div class="vacation-footer-divider" aria-hidden="true"></div>
+
+                <div class="vacation-event-delete field row" data-toggle-field="cancelAppointmentOnEventDelete">
+                    <div class="field-label-group">
+                        <span class="vacation-event-delete__label">لغو نوبت در صورت حذف ایونت‌ آن در تقویم</span>
                     </div>
-                    </div>
+                    <label class="switch switch--mini" for="cancelAppointmentOnEventDelete">
+                        <input type="checkbox" data-field="cancelAppointmentOnEventDelete" id="cancelAppointmentOnEventDelete" checked>
+                        <span></span>
+                    </label>
+                </div>
                 </div>
             </main>
 

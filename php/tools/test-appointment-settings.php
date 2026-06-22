@@ -82,7 +82,7 @@ $offPayload['cancelAppointmentOnEventDelete'] = true;
 $offPayload['cancelConflictingAppointments'] = true;
 
 $parsedOff = parseSettingsBody($offPayload);
-assertTest('appointment flags forced false when autoVacation off', ($parsedOff['cancel_appointment_on_event_delete'] ?? null) === false);
+assertTest('cancel on delete kept when autoVacation off', ($parsedOff['cancel_appointment_on_event_delete'] ?? null) === true);
 assertTest('conflict flag forced false when autoVacation off', ($parsedOff['cancel_conflicting_appointments'] ?? null) === false);
 
 $defaults = GoogleTokensRepository::getSettings(null);
