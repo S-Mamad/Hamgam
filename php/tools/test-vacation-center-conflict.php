@@ -315,6 +315,14 @@ assertTest(
 );
 
 assertTest(
+    'extractBookIdsFromConflictBody reads UUIDs from message text',
+    Paziresh24VacationApi::extractBookIdsFromConflictBody([
+        'status' => 'BOOK_CONFLICT',
+        'message' => 'conflict with book d3fe846f-6b15-11f1-8fe5-b6c09fdc72a4',
+    ]) === ['d3fe846f-6b15-11f1-8fe5-b6c09fdc72a4']
+);
+
+assertTest(
     'slot fallback does not pick time inside vacation range',
     Paziresh24AppointmentApi::extractFirstWorkhourTurnNum([
         'data' => [

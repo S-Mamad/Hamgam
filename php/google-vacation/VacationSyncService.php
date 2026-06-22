@@ -716,21 +716,17 @@ final class VacationSyncService
 
         if (GoogleEventParser::isHamgamAppointmentEvent($googleEvent)) {
 
-            $moved = self::processUpdatedAppointmentEvent(
+            // DISABLED: جابه‌جایی دستی نوبت در Google Calendar نباید زمان نوبت را در پذیرش۲۴ تغییر دهد.
+            // $moved = self::processUpdatedAppointmentEvent(
+            //     $userId,
+            //     $tokenRow,
+            //     $googleEvent,
+            //     $parsed,
+            //     $hamdastAccessToken
+            // );
+            // return $moved ? 'updated' : 'skipped';
 
-                $userId,
-
-                $tokenRow,
-
-                $googleEvent,
-
-                $parsed,
-
-                $hamdastAccessToken
-
-            );
-
-            return $moved ? 'updated' : 'skipped';
+            return 'skipped';
 
         }
 
@@ -1833,6 +1829,11 @@ final class VacationSyncService
 
     ): bool {
 
+        // DISABLED: جابه‌جایی دستی نوبت در Google Calendar نباید زمان نوبت را در پذیرش۲۴ تغییر دهد.
+        return false;
+
+        /*
+
         $eventId = $parsed['event_id'];
 
         $bookId = GoogleEventParser::extractBookId($googleEvent);
@@ -2035,6 +2036,8 @@ final class VacationSyncService
 
         return true;
 
+        */
+
     }
 
 
@@ -2043,7 +2046,10 @@ final class VacationSyncService
 
     {
 
-        return abs($apiTimestamp - $calendarTimestamp) < 60;
+        // DISABLED: فقط برای جابه‌جایی دستی نوبت در تقویم استفاده می‌شد.
+        return false;
+
+        // return abs($apiTimestamp - $calendarTimestamp) < 60;
 
     }
 
@@ -2059,7 +2065,8 @@ final class VacationSyncService
 
     ): void {
 
-        self::syncAppointmentCalendarAfterReschedule($userId, $bookId, $hamdastAccessToken);
+        // DISABLED: فقط برای بازگرداندن تقویم پس از شکست جابه‌جایی دستی نوبت استفاده می‌شد.
+        // self::syncAppointmentCalendarAfterReschedule($userId, $bookId, $hamdastAccessToken);
 
     }
 
@@ -2499,7 +2506,7 @@ final class VacationSyncService
 
         if (GoogleTokensRepository::isCancelConflictingAppointmentsEnabled($tokenRow)) {
 
-            self::cancelOverlappingAppointments(
+            $cancelled = self::cancelOverlappingAppointments(
 
                 $userId,
 
@@ -2517,7 +2524,51 @@ final class VacationSyncService
 
 
 
+            if ($cancelled < $expected) {
+
+                error_log(
+
+                    '[google-vacation] cancel before vacation incomplete cancelled='
+
+                    . $cancelled
+
+                    . ' expected='
+
+                    . $expected
+
+                    . ' center='
+
+                    . $vacationCenter['medical_center_id']
+
+                );
+
+
+
+                return false;
+
+            }
+
+
+
             return true;
+
+        }
+
+
+
+        if (!Paziresh24AppointmentApi::hasAppointmentWriteScope($hamdastAccessToken)) {
+
+            error_log(
+
+                '[google-vacation] reschedule before vacation blocked: missing provider.appointment.write center='
+
+                . $vacationCenter['medical_center_id']
+
+            );
+
+
+
+            return false;
 
         }
 
@@ -2634,6 +2685,24 @@ final class VacationSyncService
 
 
             return $cancelled;
+
+        }
+
+
+
+        if (!Paziresh24AppointmentApi::hasAppointmentWriteScope($hamdastAccessToken)) {
+
+            error_log(
+
+                '[google-vacation] book conflict reschedule blocked: missing provider.appointment.write center='
+
+                . $vacationCenter['medical_center_id']
+
+            );
+
+
+
+            return 0;
 
         }
 
@@ -2801,7 +2870,25 @@ final class VacationSyncService
 
     ): bool {
 
-        $hintUserCenterId = null;
+        $appointment = GoogleCalendar::getAppointment($bookId, $hamdastAccessToken);
+
+        $hintUserCenterId = is_array($appointment)
+
+            ? BookingAppointmentResolver::extractUserCenterId($appointment)
+
+            : null;
+
+        if (($hintUserCenterId === null || $hintUserCenterId === '') && isset($vacationCenter['user_center_id'])) {
+
+            $userCenterFromVacation = $vacationCenter['user_center_id'];
+
+            if (is_string($userCenterFromVacation) && trim($userCenterFromVacation) !== '') {
+
+                $hintUserCenterId = trim($userCenterFromVacation);
+
+            }
+
+        }
 
 
 
@@ -2951,15 +3038,65 @@ final class VacationSyncService
 
         $medicalCenterId = $vacationCenter['medical_center_id'];
 
+        $targets = [];
+
+        $seenBookIds = [];
+
+
+
+        $addTarget = static function (?array $target) use (&$targets, &$seenBookIds): void {
+
+            if ($target === null) {
+
+                return;
+
+            }
+
+
+
+            $bookId = $target['book_id'] ?? '';
+
+            if (!is_string($bookId) || $bookId === '' || isset($seenBookIds[$bookId])) {
+
+                return;
+
+            }
+
+
+
+            $seenBookIds[$bookId] = true;
+
+            $targets[] = $target;
+
+        };
+
+
+
+        foreach (GoogleCalendarBookingRepository::listBookIdsForUser($userId) as $bookId) {
+
+            $addTarget(self::buildOverlappingAppointmentTargetFromApi(
+
+                $bookId,
+
+                $from,
+
+                $to,
+
+                $medicalCenterId,
+
+                $hamdastAccessToken
+
+            ));
+
+        }
+
+
+
         $timeMin = gmdate('Y-m-d\TH:i:s\Z', $from - 3600);
 
         $timeMax = gmdate('Y-m-d\TH:i:s\Z', $to + 3600);
 
         $events = GoogleCalendarWatch::listEventsInRange($googleAccessToken, $timeMin, $timeMax);
-
-        $targets = [];
-
-        $seenBookIds = [];
 
 
 
@@ -2973,7 +3110,7 @@ final class VacationSyncService
 
 
 
-            $target = self::buildOverlappingAppointmentTarget(
+            $addTarget(self::buildOverlappingAppointmentTarget(
 
                 $event,
 
@@ -2985,19 +3122,7 @@ final class VacationSyncService
 
                 $hamdastAccessToken
 
-            );
-
-            if ($target === null || isset($seenBookIds[$target['book_id']])) {
-
-                continue;
-
-            }
-
-
-
-            $seenBookIds[$target['book_id']] = true;
-
-            $targets[] = $target;
+            ));
 
         }
 
@@ -3039,7 +3164,7 @@ final class VacationSyncService
 
 
 
-                $target = self::buildOverlappingAppointmentTarget(
+                $addTarget(self::buildOverlappingAppointmentTarget(
 
                     $event,
 
@@ -3053,19 +3178,7 @@ final class VacationSyncService
 
                     $bookId
 
-                );
-
-                if ($target === null || isset($seenBookIds[$target['book_id']])) {
-
-                    continue;
-
-                }
-
-
-
-                $seenBookIds[$target['book_id']] = true;
-
-                $targets[] = $target;
+                ));
 
             }
 
@@ -3073,43 +3186,17 @@ final class VacationSyncService
 
 
 
-        foreach (GoogleCalendarBookingRepository::listBookIdsForUser($userId) as $bookId) {
+        error_log(
 
-            if (isset($seenBookIds[$bookId])) {
+            '[google-vacation] overlapping appointments found=' . count($targets)
 
-                continue;
+            . ' center=' . $medicalCenterId
 
-            }
+            . ' vacation_from=' . $from
 
+            . ' vacation_to=' . $to
 
-
-            $target = self::buildOverlappingAppointmentTargetFromApi(
-
-                $bookId,
-
-                $from,
-
-                $to,
-
-                $medicalCenterId,
-
-                $hamdastAccessToken
-
-            );
-
-            if ($target === null) {
-
-                continue;
-
-            }
-
-
-
-            $seenBookIds[$target['book_id']] = true;
-
-            $targets[] = $target;
-
-        }
+        );
 
 
 
@@ -3267,27 +3354,9 @@ final class VacationSyncService
 
 
 
-        $parsed = GoogleEventParser::parseEvent($event);
+        $moveRange = Paziresh24AppointmentApi::resolveMoveRange($hamdastAccessToken, $bookId, 0, 0);
 
-        if ($parsed === null) {
-
-            $moveRange = Paziresh24AppointmentApi::resolveMoveRange($hamdastAccessToken, $bookId, 0, 0);
-
-            if ($moveRange['from'] <= 0 || $moveRange['to'] <= $moveRange['from']) {
-
-                return null;
-
-            }
-
-
-
-            if (!self::rangesOverlap($moveRange['from'], $moveRange['to'], $from, $to)) {
-
-                return null;
-
-            }
-
-
+        if ($moveRange['from'] > 0 && $moveRange['to'] > $moveRange['from']) {
 
             $eventFrom = $moveRange['from'];
 
@@ -3295,7 +3364,9 @@ final class VacationSyncService
 
         } else {
 
-            if (!self::rangesOverlap($parsed['start_ts'], $parsed['end_ts'], $from, $to)) {
+            $parsed = GoogleEventParser::parseEvent($event);
+
+            if ($parsed === null) {
 
                 return null;
 
@@ -3306,6 +3377,14 @@ final class VacationSyncService
             $eventFrom = $parsed['start_ts'];
 
             $eventTo = $parsed['end_ts'];
+
+        }
+
+
+
+        if (!self::rangesOverlap($eventFrom, $eventTo, $from, $to)) {
+
+            return null;
 
         }
 

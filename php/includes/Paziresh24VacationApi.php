@@ -116,7 +116,34 @@ final class Paziresh24VacationApi
         $bookIds = [];
         self::collectBookIdsFromConflictNode($body, $bookIds);
 
+        foreach (['message', 'error', 'detail', 'description'] as $textKey) {
+            $text = $body[$textKey] ?? null;
+            if (is_string($text) && $text !== '') {
+                self::collectBookIdsFromConflictText($text, $bookIds);
+            }
+        }
+
         return array_values(array_unique($bookIds));
+    }
+
+    /**
+     * @param array<int, string> $bookIds
+     */
+    private static function collectBookIdsFromConflictText(string $text, array &$bookIds): void
+    {
+        if (preg_match_all(
+            '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i',
+            $text,
+            $matches
+        ) !== 1) {
+            return;
+        }
+
+        foreach ($matches[0] as $match) {
+            if (is_string($match) && self::isUuidString($match)) {
+                $bookIds[] = strtolower($match);
+            }
+        }
     }
 
     /**
