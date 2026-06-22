@@ -233,6 +233,12 @@ assertTest(
     method_exists(Paziresh24AppointmentApi::class, 'moveAppointmentWithCenterFallback')
 );
 
+$appointmentApiSource = (string) file_get_contents(__DIR__ . '/../includes/Paziresh24AppointmentApi.php');
+assertTest(
+    'moveAppointmentResult default URL is openapi booking move',
+    str_contains($appointmentApiSource, "'https://openapi.paziresh24.com/v1/booking/move'")
+);
+
 assertTest(
     'VacationSyncService has processUpdatedAppointmentEvent',
     $syncRef->hasMethod('processUpdatedAppointmentEvent')

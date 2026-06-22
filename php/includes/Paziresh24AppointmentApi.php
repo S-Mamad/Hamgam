@@ -175,7 +175,7 @@ final class Paziresh24AppointmentApi
         $baseUrl = rtrim(
             Config::get(
                 'PAZIRESH24_BOOKING_MOVE_URL',
-                'https://apigw.paziresh24.com/open-platform/v1/booking/move'
+                'https://openapi.paziresh24.com/v1/booking/move'
             ),
             '/'
         );
