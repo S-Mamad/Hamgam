@@ -1,6 +1,6 @@
 # Google Calendar → Paziresh24 Vacation Sync
 
-ماژول ثبت خودکار مرخصی در پذیرش۲۴ از رویدادهای Google Calendar.
+ماژول ثبت خودکار مرخصی در پذیرش۲۴ از ایونت‌های Google Calendar.
 
 ## نصب
 
@@ -60,8 +60,8 @@ Watch گوگل حدود ۷ روز اعتبار دارد. هر ۶ ساعت اجر
 
 ## v1 محدودیت‌ها
 
-- ویرایش رویداد گوگل (تغییر تاریخ/ساعت) → `PUT updateVacation` در پذیرش۲۴ (با `old_from`/`old_to` از DB)
-- حذف رویداد گوگل → `DELETE deleteVacation` در پذیرش۲۴
+- ویرایش ایونت‌ گوگل (تغییر تاریخ/ساعت) → `PUT updateVacation` در پذیرش۲۴ (با `old_from`/`old_to` از DB)
+- حذف ایونت‌ گوگل → `DELETE deleteVacation` در پذیرش۲۴
 - فقط تغییر عنوان (بدون تغییر زمان) → فقط به‌روزرسانی DB، بدون درخواست API
-- رویدادهای Hamgam (عنوان شامل «پذیرش 24») → skip
+- ایونت‌های Hamgam (عنوان شامل «پذیرش 24») → skip
 - `center_id` → UUID مرکز درمانی از `GET /booking/medical-centers` (فیلد `data[].id`)

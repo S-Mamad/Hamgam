@@ -15,11 +15,11 @@ final class HamgamSyncMessages
         'calendar_channel_missing' => 'شناسه کانال همگام‌سازی تقویم Google ثبت نشده است. یک‌بار تنظیمات را ذخیره کنید.',
         'calendar_resource_missing' => 'شناسه منبع همگام‌سازی تقویم Google ثبت نشده است. یک‌بار تنظیمات را ذخیره کنید.',
         'sync_failed' => 'خطا در همگام‌سازی Google Calendar. چند لحظه بعد دوباره تلاش کنید.',
-        'backfill_failed' => 'خطا در خواندن رویدادهای تقویم Google.',
-        'backfill_not_run' => 'خواندن رویدادهای آینده انجام نشد. اتصال Google یا مراکز درمانی را بررسی کنید.',
+        'backfill_failed' => 'خطا در خواندن ایونت‌های تقویم Google.',
+        'backfill_not_run' => 'خواندن ایونت‌های آینده انجام نشد. اتصال Google یا مراکز درمانی را بررسی کنید.',
         'backfill_no_centers' => 'مرکز درمانی برای ثبت مرخصی یافت نشد.',
         'backfill_token_refresh_failed' => 'دسترسی به تقویم Google منقضی شده. اتصال را دوباره برقرار کنید.',
-        'backfill_partial_fail' => 'برخی رویدادهای تقویم ثبت نشدند.',
+        'backfill_partial_fail' => 'برخی ایونت‌های تقویم ثبت نشدند.',
     ];
 
     /**
@@ -32,7 +32,7 @@ final class HamgamSyncMessages
         if ($code === 'backfill_partial_fail' && $detail !== null && ctype_digit($detail)) {
             $count = (int) $detail;
             if ($count > 0) {
-                $message = $count . ' رویداد تقویم ثبت نشد. دوباره تلاش کنید.';
+                $message = $count . ' ایونت‌ تقویم ثبت نشد. دوباره تلاش کنید.';
             }
         }
 

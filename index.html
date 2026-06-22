@@ -44,7 +44,7 @@
         <nav class="main-tab-wrapper" id="mainTabSwitcher" role="tablist" aria-label="بخش‌های تنظیمات">
             <div class="main-tab-pill" id="mainTabPill" aria-hidden="true"></div>
             <button type="button" class="main-tab-trigger active" role="tab" data-target="tab-vacation" aria-selected="true" aria-controls="tab-vacation">مدیریت مرخصی و نوبت</button>
-            <button type="button" class="main-tab-trigger" role="tab" data-target="tab-personalize" aria-selected="false" aria-controls="tab-personalize">شخصی سازی رویداد</button>
+            <button type="button" class="main-tab-trigger" role="tab" data-target="tab-personalize" aria-selected="false" aria-controls="tab-personalize">شخصی سازی ایونت‌</button>
         </nav>
 
         <div id="tab-vacation" class="main-tab-content active font-medium" role="tabpanel" aria-label="مدیریت مرخصی">
@@ -132,9 +132,9 @@
                     <div id="importFutureBackfillWrap" class="sync-backfill-action">
                         <div class="sync-backfill-action__copy">
                             <span class="sync-backfill-action__title">همگام‌ساز ۳۰ روزه</span>
-                            <span class="sync-backfill-action__desc">رویدادهای ایجاد شده در گوگل کلندر در بازه ۳۰ روز آینده به عنوان مرخصی در پذیرش۲۴ اعمال خواهد شد.</span>
+                            <span class="sync-backfill-action__desc">ایونت‌های ایجاد شده در گوگل کلندر در بازه ۳۰ روز آینده به عنوان مرخصی در پذیرش۲۴ اعمال خواهد شد.</span>
                         </div>
-                        <button type="button" id="importFutureBackfillBtn" class="sync-backfill-action__btn" aria-label="همگام‌سازی رویدادهای ۳۰ روز آینده" aria-busy="false">
+                        <button type="button" id="importFutureBackfillBtn" class="sync-backfill-action__btn" aria-label="همگام‌سازی ایونت‌های ۳۰ روز آینده" aria-busy="false">
                             <span class="sync-backfill-action__btn-fill" aria-hidden="true"></span>
                             <span class="sync-backfill-action__btn-content">
                                 <span class="sync-backfill-action__btn-text">شروع فرآیند</span>
@@ -172,7 +172,7 @@
 
                     <div class="vacation-event-delete field row" data-toggle-field="cancelAppointmentOnEventDelete">
                         <div class="field-label-group">
-                            <span class="vacation-event-delete__label">لغو نوبت در صورت حذف رویداد آن در تقویم</span>
+                            <span class="vacation-event-delete__label">لغو نوبت در صورت حذف ایونت‌ آن در تقویم</span>
                         </div>
                         <label class="switch switch--mini" for="cancelAppointmentOnEventDelete">
                             <input type="checkbox" data-field="cancelAppointmentOnEventDelete" id="cancelAppointmentOnEventDelete" checked>
@@ -298,11 +298,11 @@
 
         </div>
 
-        <div id="tab-personalize" class="main-tab-content" role="tabpanel" aria-label="رویدادشخصی‌سازی">
+        <div id="tab-personalize" class="main-tab-content" role="tabpanel" aria-label="ایونت‌شخصی‌سازی">
 
-        <section class="settings-section settings-section--personalize" aria-label="شخصی‌سازی رویداد نوبت">
+        <section class="settings-section settings-section--personalize" aria-label="شخصی‌سازی ایونت‌ نوبت">
 
-            <section class="color-picker-container" id="colorPickerSection" data-selected-color="9" aria-label="انتخاب رنگ رویداد">
+            <section class="color-picker-container" id="colorPickerSection" data-selected-color="9" aria-label="انتخاب رنگ ایونت‌">
                 <div class="color-picker-label">
                     <span class="color-label-badge" id="colorLabel">آبی ارغوانی</span>
                 </div>
@@ -315,9 +315,9 @@
                 </div>
             </section>
 
-            <section class="preview-section" aria-label="پیش‌نمایش رویداد تقویم">
+            <section class="preview-section" aria-label="پیش‌نمایش ایونت‌ تقویم">
                 <div class="section-heading section-heading--preview">
-                    <span class="section-title">پیش‌نمایش رویداد تقویم</span>
+                    <span class="section-title">پیش‌نمایش ایونت‌ تقویم</span>
                     <span class="section-hint-badge">روی نوار رنگی بزنید</span>
                 </div>
                 <div class="calendar-preview-box" id="previewBox">
@@ -438,10 +438,10 @@
             </div>
             <p class="vg-sheet__lead">ثبت خودکار مرخصی از Google Calendar</p>
             <ol class="vg-sheet__steps">
-                <li><span class="vg-sheet__num" aria-hidden="true">۱</span><span>در Google Calendar یک رویداد با تاریخ و ساعت دلخواه ایجاد کنید.</span></li>
+                <li><span class="vg-sheet__num" aria-hidden="true">۱</span><span>در Google Calendar یک ایونت‌ با تاریخ و ساعت دلخواه ایجاد کنید.</span></li>
                 <li><span class="vg-sheet__num" aria-hidden="true">۲</span><span>همان بازه به‌صورت خودکار به‌عنوان مرخصی در پذیرش۲۴ ثبت می‌شود.</span></li>
                 <li><span class="vg-sheet__num" aria-hidden="true">۳</span><span>مرخصی فقط برای مرکز(های) انتخاب‌شده ثبت می‌شود؛ در تداخل، نوبت‌های همان مرکز لغو یا منتقل می‌شوند.</span></li>
-                <li><span class="vg-sheet__num" aria-hidden="true">۴</span><span>با ویرایش یا حذف رویداد در تقویم، مرخصی پذیرش۲۴ هم به‌روز یا حذف می‌شود.</span></li>
+                <li><span class="vg-sheet__num" aria-hidden="true">۴</span><span>با ویرایش یا حذف ایونت‌ در تقویم، مرخصی پذیرش۲۴ هم به‌روز یا حذف می‌شود.</span></li>
             </ol>
             <button type="button" class="vg-sheet__done" id="vacationModalDone">متوجه شدم</button>
         </div>

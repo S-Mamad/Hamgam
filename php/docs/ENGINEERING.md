@@ -59,7 +59,7 @@ php/.env                        ← تنظیمات محیط (روی سرور)
 ### ۴. webhook نوبت
 
 1. پذیرش۲۴ به `php/webhook/paziresh24-hamgam.php` POST می‌زند.
-2. تأیید امضا (Svix) → یافتن پزشک → refresh توکن Google → ساخت رویداد Calendar.
+2. تأیید امضا (Svix) → یافتن پزشک → refresh توکن Google → ساخت ایونت‌ Calendar.
 3. همیشه JSON برمی‌گرداند؛ skipها با `ok:true` و دلیل.
 
 ### ۵. vacation sync

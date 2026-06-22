@@ -38,7 +38,7 @@ function updateLiveBadge() {
     if (phoneCheck) detailsHTML += `<div class="detail-item"><span class="label">شماره تلفن:</span><span class="value">۰۹۱۲۳۴۵۶۷۸۹</span></div>`;
 
     if (detailsHTML === "") {
-        detailsHTML = `<div class="detail-item" style="color:#94a3b8; font-style:italic; font-size: 11px;">توضیحات رویداد خالی است</div>`;
+        detailsHTML = `<div class="detail-item" style="color:#94a3b8; font-style:italic; font-size: 11px;">توضیحات ایونت‌ خالی است</div>`;
     }
 
     detailsBox.innerHTML = detailsHTML;

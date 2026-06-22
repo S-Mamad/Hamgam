@@ -5,10 +5,10 @@ declare(strict_types=1);
 /**
  * معادل PHP workflow n8n: POST /webhook/paziresh24-hamgam
  *
- * رویدادهای پشتیبانی‌شده:
- * - provider.appointment          → ساخت رویداد در Google Calendar
- * - provider.appointment.cancelled → حذف رویداد از Google Calendar
- * - provider.appointment.updated   → به‌روزرسانی زمان/جزئیات رویداد
+ * ایونت‌های پشتیبانی‌شده:
+ * - provider.appointment          → ساخت ایونت‌ در Google Calendar
+ * - provider.appointment.cancelled → حذف ایونت‌ از Google Calendar
+ * - provider.appointment.updated   → به‌روزرسانی زمان/جزئیات ایونت‌
  */
 
 require_once __DIR__ . '/../includes/bootstrap.php';

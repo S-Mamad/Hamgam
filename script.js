@@ -197,16 +197,16 @@ function showImportFutureBackfillCompletionFeedback(status) {
     applyBackfillStatusToUi(backfill);
 
     if (backfill.imported > 0) {
-        showToast(`${backfill.imported} رویداد آینده به‌عنوان مرخصی ثبت شد.`);
+        showToast(`${backfill.imported} ایونت‌ آینده به‌عنوان مرخصی ثبت شد.`);
         return;
     }
 
     if (backfill.failed > 0) {
-        showToast("برخی رویدادهای تقویم ثبت نشدند.", "error");
+        showToast("برخی ایونت‌های تقویم ثبت نشدند.", "error");
         return;
     }
 
-    showToast("رویداد شخصی جدیدی در ۳۰ روز آینده یافت نشد.");
+    showToast("ایونت‌ شخصی جدیدی در ۳۰ روز آینده یافت نشد.");
 }
 
 const backfillFillState = {
@@ -270,8 +270,8 @@ function resetBackfillFillProgress() {
 function getBackfillProgressLabel(phase) {
     const labels = {
         preparing: "آماده‌سازی…",
-        fetching: "دریافت رویدادها…",
-        processing: "پردازش رویدادها…"
+        fetching: "دریافت ایونت‌ها…",
+        processing: "پردازش ایونت‌ها…"
     };
     return labels[phase] || "همگام‌سازی ۳۰ روز…";
 }
@@ -633,19 +633,19 @@ function showSyncStatusFeedback(status) {
     }
 
     if (backfill.imported > 0) {
-        showToast(`${backfill.imported} رویداد آینده به‌عنوان مرخصی ثبت شد.`);
+        showToast(`${backfill.imported} ایونت‌ آینده به‌عنوان مرخصی ثبت شد.`);
         applyBackfillStatusToUi(backfill);
         return;
     }
 
     if (backfill.failed > 0) {
-        showToast("برخی رویدادهای تقویم ثبت نشدند.", "error");
+        showToast("برخی ایونت‌های تقویم ثبت نشدند.", "error");
         applyBackfillStatusToUi(backfill);
         return;
     }
 
     applyBackfillStatusToUi(backfill);
-    showToast("رویداد شخصی جدیدی در ۳۰ روز آینده یافت نشد.");
+    showToast("ایونت‌ شخصی جدیدی در ۳۰ روز آینده یافت نشد.");
 }
 
 async function maybeShowFreshConnectionToast() {
@@ -688,7 +688,7 @@ async function waitForBackgroundSync(options = {}) {
     const maxAttempts = options.maxAttempts ?? (needsBackfill ? 60 : 15);
     const intervalMs = options.intervalMs ?? 2000;
     const loadingLabel = needsBackfill
-        ? "در حال همگام‌سازی رویدادهای تقویم…"
+        ? "در حال همگام‌سازی ایونت‌های تقویم…"
         : "در حال اتصال به Google Calendar…";
 
     setSaveLoading(true, loadingLabel);
@@ -4272,7 +4272,7 @@ function updateLiveBadge() {
     if (fields.phone) items.push({ label: "شماره تلفن", value: PREVIEW_SAMPLES.phone });
 
     if (items.length === 0) {
-        detailsBox.innerHTML = `<p class="detail-empty">توضیحات رویداد خالی است</p>`;
+        detailsBox.innerHTML = `<p class="detail-empty">توضیحات ایونت‌ خالی است</p>`;
     } else {
         detailsBox.innerHTML = items.map((item, i) => `
             <div class="detail-item" style="animation-delay:${i * 0.06}s">
@@ -4394,12 +4394,12 @@ function showSaveToast(data, settings = null) {
 
     if (data?.backfill?.ran && data.backfill.imported > 0) {
         applyBackfillStatusToUi(data.backfill);
-        showToast(`تنظیمات ذخیره شد. ${data.backfill.imported} رویداد آینده به‌عنوان مرخصی ثبت شد.`);
+        showToast(`تنظیمات ذخیره شد. ${data.backfill.imported} ایونت‌ آینده به‌عنوان مرخصی ثبت شد.`);
         return;
     }
 
     if (data?.backfill?.ran && data.backfill.failed > 0) {
-        showToast("تنظیمات ذخیره شد، اما برخی رویدادها ثبت نشدند.", "error");
+        showToast("تنظیمات ذخیره شد، اما برخی ایونت‌ها ثبت نشدند.", "error");
         return;
     }
 

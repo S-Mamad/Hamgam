@@ -71,7 +71,7 @@ SET @sql = IF(
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- ۲) جدول ردیابی رویدادهای پردازش‌شده
+-- ۲) جدول ردیابی ایونت‌های پردازش‌شده
 CREATE TABLE IF NOT EXISTS google_event_vacations (
     id INT AUTO_INCREMENT PRIMARY KEY,
     paziresh24_user_id VARCHAR(64) NOT NULL,

@@ -100,7 +100,7 @@ HTTP_SSL_VERIFY=false
    باید JSON برگرداند (مثلاً `{"ok":true,"skipped":"not_connected"}`).
 4. `https://hamgam.zamanak24.ir/` → از پنل پذیرش۲۴ باز شود و وارد تنظیمات شوید.
 5. اولین بار → Google OAuth → برگشت به `https://hamgam.zamanak24.ir/?oauth=success`
-6. نوبت تست → رویداد در Google Calendar
+6. نوبت تست → ایونت‌ در Google Calendar
 
 ### SQL چک توکن‌ها
 

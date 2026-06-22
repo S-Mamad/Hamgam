@@ -60,6 +60,16 @@ assertTest(
 );
 
 assertTest(
+    'VacationSyncService has clearConflictingAppointmentsBeforeVacation',
+    $syncRef->hasMethod('clearConflictingAppointmentsBeforeVacation')
+);
+
+assertTest(
+    'VacationSyncService has buildOverlappingAppointmentTargetFromApi',
+    $syncRef->hasMethod('buildOverlappingAppointmentTargetFromApi')
+);
+
+assertTest(
     'VacationSyncService has updateVacationWithConflictResolution',
     $syncRef->hasMethod('updateVacationWithConflictResolution')
 );
@@ -221,6 +231,27 @@ assertTest(
 assertTest(
     'Paziresh24AppointmentApi has moveAppointmentWithCenterFallback',
     method_exists(Paziresh24AppointmentApi::class, 'moveAppointmentWithCenterFallback')
+);
+
+assertTest(
+    'VacationSyncService has processUpdatedAppointmentEvent',
+    $syncRef->hasMethod('processUpdatedAppointmentEvent')
+);
+
+assertTest(
+    'VacationSyncService has appointmentTimestampsMatch',
+    $syncRef->hasMethod('appointmentTimestampsMatch')
+);
+
+$timestampMatchMethod = $syncRef->getMethod('appointmentTimestampsMatch');
+$timestampMatchMethod->setAccessible(true);
+assertTest(
+    'appointmentTimestampsMatch treats same slot as equal',
+    $timestampMatchMethod->invoke(null, 1782073800, 1782073800) === true
+);
+assertTest(
+    'appointmentTimestampsMatch treats moved slot as different',
+    $timestampMatchMethod->invoke(null, 1782073800, 1782077400) === false
 );
 
 assertTest(
