@@ -161,6 +161,31 @@ assertTest(
 );
 
 assertTest(
+    'extractFirstWorkhourTurnNum skips slots inside vacation range',
+    Paziresh24AppointmentApi::extractFirstWorkhourTurnNum([
+        'data' => [
+            ['workhour_turn_num' => 1000],
+            ['workhour_turn_num' => 1500],
+            ['workhour_turn_num' => 2000],
+        ],
+    ], 0, 1200, 1800) === 1000
+);
+
+assertTest(
+    'extractFirstWorkhourTurnNum reads from field in slot item',
+    Paziresh24AppointmentApi::extractFirstWorkhourTurnNum([
+        'slots' => [
+            ['from' => 1782073800],
+        ],
+    ]) === 1782073800
+);
+
+assertTest(
+    'Paziresh24AppointmentApi has resolveMoveRange',
+    method_exists(Paziresh24AppointmentApi::class, 'resolveMoveRange')
+);
+
+assertTest(
     'extractUserCenterId reads user_center_id from booking payload',
     BookingAppointmentResolver::extractUserCenterId([
         'user_center_id' => 'uc-test-123',

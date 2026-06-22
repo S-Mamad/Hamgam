@@ -235,11 +235,16 @@ final class Paziresh24AppointmentApi
 
     /**
      * Fetch the first available slot (workhour_turn_num) within the next 3 months (Asia/Tehran).
+     *
+     * @param ?int $excludeRangeFrom When set with $excludeRangeTo, slots inside this range are skipped.
+     * @param ?int $excludeRangeTo
      */
     public static function getFirstAvailableSlot(
         string $accessToken,
         string $centerId,
-        string $userCenterId
+        string $userCenterId,
+        ?int $excludeRangeFrom = null,
+        ?int $excludeRangeTo = null
     ): ?int {
         $centerId = trim($centerId);
         $userCenterId = trim($userCenterId);
@@ -293,51 +298,149 @@ final class Paziresh24AppointmentApi
 
         $body = is_array($response['body']) ? $response['body'] : null;
 
-        return self::extractFirstWorkhourTurnNum($body, $fromTs);
+        return self::extractFirstWorkhourTurnNum($body, $fromTs, $excludeRangeFrom, $excludeRangeTo);
     }
 
     /**
      * @param ?array<string, mixed> $body
      */
-    public static function extractFirstWorkhourTurnNum(?array $body, int $minTimestamp = 0): ?int
-    {
+    public static function extractFirstWorkhourTurnNum(
+        ?array $body,
+        int $minTimestamp = 0,
+        ?int $excludeRangeFrom = null,
+        ?int $excludeRangeTo = null
+    ): ?int {
         if ($body === null) {
             return null;
         }
 
         $candidates = [];
-        self::collectWorkhourTurnNums($body, $candidates);
+        self::collectSlotTimestamps($body, $candidates);
 
         if ($candidates === []) {
             return null;
         }
 
+        $candidates = array_values(array_unique($candidates));
         sort($candidates, SORT_NUMERIC);
 
         foreach ($candidates as $candidate) {
-            if ($candidate >= $minTimestamp) {
-                return $candidate;
+            if ($candidate < $minTimestamp) {
+                continue;
             }
+
+            if (
+                $excludeRangeFrom !== null
+                && $excludeRangeTo !== null
+                && $excludeRangeTo > $excludeRangeFrom
+                && $candidate >= $excludeRangeFrom
+                && $candidate < $excludeRangeTo
+            ) {
+                continue;
+            }
+
+            return $candidate;
         }
 
-        return $candidates[0] ?? null;
+        return null;
+    }
+
+    /**
+     * @return array{from: int, to: int}
+     */
+    public static function resolveMoveRange(
+        string $accessToken,
+        string $bookId,
+        int $fallbackFrom,
+        int $fallbackTo
+    ): array {
+        $bookId = trim($bookId);
+        if ($bookId === '') {
+            return ['from' => $fallbackFrom, 'to' => $fallbackTo];
+        }
+
+        $appointment = GoogleCalendar::getAppointment($bookId, $accessToken);
+        if (!is_array($appointment)) {
+            return ['from' => $fallbackFrom, 'to' => $fallbackTo];
+        }
+
+        $range = GoogleCalendar::extractAppointmentRange($appointment);
+        if ($range !== null) {
+            return $range;
+        }
+
+        return ['from' => $fallbackFrom, 'to' => $fallbackTo];
     }
 
     /**
      * @param array<string, mixed> $node
      * @param array<int, int> $candidates
      */
-    private static function collectWorkhourTurnNums(array $node, array &$candidates): void
+    private static function collectSlotTimestamps(array $node, array &$candidates): void
     {
+        if (self::isListArray($node)) {
+            foreach ($node as $item) {
+                if (is_array($item)) {
+                    self::collectSlotTimestamps($item, $candidates);
+                }
+            }
+
+            return;
+        }
+
+        $slotTs = self::extractSlotTimestampFromItem($node);
+        if ($slotTs !== null) {
+            $candidates[] = $slotTs;
+        }
+
         foreach ($node as $key => $value) {
-            if ($key === 'workhour_turn_num' && is_numeric($value)) {
-                $candidates[] = (int) $value;
+            if (!is_array($value)) {
                 continue;
             }
 
-            if (is_array($value)) {
-                self::collectWorkhourTurnNums($value, $candidates);
+            if ($key === 'data' || $key === 'slots' || $key === 'items' || $key === 'result') {
+                self::collectSlotTimestamps($value, $candidates);
+                continue;
+            }
+
+            if (!is_string($key) || !self::isUuid($key)) {
+                self::collectSlotTimestamps($value, $candidates);
             }
         }
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     */
+    private static function extractSlotTimestampFromItem(array $item): ?int
+    {
+        foreach (['workhour_turn_num', 'from', 'start_timestamp', 'book_timestamp', 'turn_num'] as $key) {
+            $value = $item[$key] ?? null;
+            if (is_numeric($value) && (int) $value > 0) {
+                return (int) $value;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<mixed> $value
+     */
+    private static function isListArray(array $value): bool
+    {
+        if ($value === []) {
+            return true;
+        }
+
+        return array_keys($value) === range(0, count($value) - 1);
+    }
+
+    private static function isUuid(string $value): bool
+    {
+        return preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
+            $value
+        ) === 1;
     }
 }

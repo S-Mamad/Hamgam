@@ -1779,6 +1779,24 @@ final class VacationSyncService
 
     ): ?array {
 
+        self::resolveOverlappingAppointments(
+
+            $userId,
+
+            $tokenRow,
+
+            $from,
+
+            $to,
+
+            $vacationCenter,
+
+            $hamdastAccessToken
+
+        );
+
+
+
         $result = Paziresh24VacationApi::createVacationResult(
 
             $hamdastAccessToken,
@@ -1890,6 +1908,26 @@ final class VacationSyncService
     ): ?array {
 
         $medicalCenterId = $vacationCenter['medical_center_id'];
+
+
+
+        self::resolveOverlappingAppointments(
+
+            $userId,
+
+            $tokenRow,
+
+            $from,
+
+            $to,
+
+            $vacationCenter,
+
+            $hamdastAccessToken
+
+        );
+
+
 
         $result = Paziresh24VacationApi::updateVacationResult(
 
@@ -2303,7 +2341,11 @@ final class VacationSyncService
 
                     $googleAccessToken,
 
-                    $event
+                    $event,
+
+                    $from,
+
+                    $to
 
                 )
 
@@ -2353,9 +2395,31 @@ final class VacationSyncService
 
         string $googleAccessToken,
 
-        array $googleEvent
+        array $googleEvent,
+
+        int $vacationFrom,
+
+        int $vacationTo
 
     ): bool {
+
+        $moveRange = Paziresh24AppointmentApi::resolveMoveRange(
+
+            $hamdastAccessToken,
+
+            $bookId,
+
+            $bookFrom,
+
+            $bookTo
+
+        );
+
+        $bookFrom = $moveRange['from'];
+
+        $bookTo = $moveRange['to'];
+
+
 
         $userCenterId = self::resolveUserCenterIdForAppointment(
 
@@ -2395,7 +2459,11 @@ final class VacationSyncService
 
             $medicalCenterId,
 
-            $userCenterId
+            $userCenterId,
+
+            $vacationFrom,
+
+            $vacationTo
 
         );
 
@@ -2511,20 +2579,6 @@ final class VacationSyncService
 
     ): ?string {
 
-        $fromCenter = isset($vacationCenter['user_center_id']) && is_string($vacationCenter['user_center_id'])
-
-            ? trim($vacationCenter['user_center_id'])
-
-            : '';
-
-        if ($fromCenter !== '') {
-
-            return $fromCenter;
-
-        }
-
-
-
         $appointment = GoogleCalendar::getAppointment($bookId, $hamdastAccessToken);
 
         if (is_array($appointment)) {
@@ -2536,6 +2590,20 @@ final class VacationSyncService
                 return $fromAppointment;
 
             }
+
+        }
+
+
+
+        $fromCenter = isset($vacationCenter['user_center_id']) && is_string($vacationCenter['user_center_id'])
+
+            ? trim($vacationCenter['user_center_id'])
+
+            : '';
+
+        if ($fromCenter !== '') {
+
+            return $fromCenter;
 
         }
 
@@ -2673,29 +2741,99 @@ final class VacationSyncService
 
 
 
+        $candidateEvents = GoogleCalendar::findEventsByBookId($googleAccessToken, $bookId);
+
         if ($eventId !== null && $eventId !== '') {
 
-            $updated = GoogleCalendar::updateEventReturningBody($googleAccessToken, $eventId, $eventPayload);
+            $hasStored = false;
+
+            foreach ($candidateEvents as $candidateEvent) {
+
+                if (GoogleEventParser::extractEventId($candidateEvent) === $eventId) {
+
+                    $hasStored = true;
+
+                    break;
+
+                }
+
+            }
+
+            if (!$hasStored) {
+
+                $candidateEvents[] = array_merge($googleEvent, ['id' => $eventId]);
+
+            }
+
+        }
+
+
+
+        $updatedEventId = null;
+
+        foreach ($candidateEvents as $candidateEvent) {
+
+            $candidateId = GoogleEventParser::extractEventId($candidateEvent);
+
+            if ($candidateId === null || $candidateId === '') {
+
+                continue;
+
+            }
+
+
+
+            $updated = GoogleCalendar::updateEventReturningBody($googleAccessToken, $candidateId, $eventPayload);
 
             if ($updated !== null) {
 
-                GoogleCalendarBookingRepository::recordProcessedBooking($userId, $bookId, $eventId);
+                $updatedEventId = $candidateId;
 
-                error_log(
-
-                    '[google-vacation] calendar event updated after reschedule book_id='
-
-                    . $bookId
-
-                    . ' google_event_id='
-
-                    . $eventId
-
-                );
-
-                return;
+                break;
 
             }
+
+        }
+
+
+
+        if ($updatedEventId !== null) {
+
+            foreach ($candidateEvents as $candidateEvent) {
+
+                $candidateId = GoogleEventParser::extractEventId($candidateEvent);
+
+                if ($candidateId === null || $candidateId === '' || $candidateId === $updatedEventId) {
+
+                    continue;
+
+                }
+
+                GoogleCalendar::deleteEvent($googleAccessToken, $candidateId);
+
+            }
+
+
+
+            GoogleCalendarBookingRepository::recordProcessedBooking($userId, $bookId, $updatedEventId);
+
+
+
+            error_log(
+
+                '[google-vacation] calendar event updated after reschedule book_id='
+
+                . $bookId
+
+                . ' google_event_id='
+
+                . $updatedEventId
+
+            );
+
+
+
+            return;
 
         }
 

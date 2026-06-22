@@ -2502,7 +2502,7 @@ function bindUiEvents() {
         row.addEventListener("click", (e) => {
             e.stopPropagation();
             if (e.target.closest(".switch")) return;
-            if (e.target.closest(".vacation-guide-anchor")) return;
+            if (e.target.closest(".vg-wrap")) return;
             const checkbox = row.querySelector('input[type="checkbox"]');
             if (!checkbox) return;
             checkbox.checked = !checkbox.checked;
@@ -2542,29 +2542,37 @@ function bindUiEvents() {
     document.getElementById("saveSettings").addEventListener("click", handleSaveClick);
 
     const vacationGuideBtn = document.getElementById("vacationGuideBtn");
-    const vacationGuideAnchor = document.querySelector(".vacation-guide-anchor");
-    const stopVacationGuideBubble = (e) => {
+    const vacationGuideWrap = document.querySelector(".vg-wrap");
+    const stopGuideBubble = (e) => {
         e.preventDefault();
         e.stopPropagation();
     };
-    if (vacationGuideAnchor) {
-        vacationGuideAnchor.addEventListener("click", stopVacationGuideBubble);
-        vacationGuideAnchor.addEventListener("pointerdown", stopVacationGuideBubble);
+
+    if (vacationGuideWrap) {
+        vacationGuideWrap.addEventListener("click", stopGuideBubble);
+        vacationGuideWrap.addEventListener("pointerdown", stopGuideBubble);
     }
 
-    const vacationInfoBtn = document.getElementById("vacationInfoBtn");
-    const vacationModalClose = document.getElementById("vacationModalClose");
     const vacationModal = document.getElementById("vacationInfoModal");
+    const vacationModalClose = document.getElementById("vacationModalClose");
+    const vacationModalDone = document.getElementById("vacationModalDone");
 
-    if (vacationInfoBtn) {
-        vacationInfoBtn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            toggleVacationInfo();
+    if (vacationGuideBtn) {
+        vacationGuideBtn.addEventListener("click", (e) => {
+            stopGuideBubble(e);
+            hideVacationGuideHint();
+            openVacationModal();
         });
     }
+
     if (vacationModalClose) {
         vacationModalClose.addEventListener("click", closeVacationModal);
     }
+
+    if (vacationModalDone) {
+        vacationModalDone.addEventListener("click", closeVacationModal);
+    }
+
     if (vacationModal) {
         vacationModal.addEventListener("click", (e) => {
             if (e.target === vacationModal) {
@@ -2577,15 +2585,6 @@ function bindUiEvents() {
             }
         });
     }
-    if (vacationGuideBtn) {
-        vacationGuideBtn.addEventListener("click", (e) => {
-            stopVacationGuideBubble(e);
-            hideVacationGuideHint();
-            openVacationGuide();
-        });
-    }
-
-    bindVacationGuideDialog();
 
     const changeGmailBtn = document.getElementById("changeGmailBtn");
     if (changeGmailBtn) {
@@ -3548,29 +3547,29 @@ function validateVacationCentersBeforeSave(autoVacation) {
 }
 
 function hideVacationGuideHint() {
-    const hint = document.getElementById("vacationGuideHint");
+    const cta = document.getElementById("vacationGuideCta");
     const btn = document.getElementById("vacationGuideBtn");
-    if (!hint) return;
+    if (!cta) return;
 
     clearTimeout(hideVacationGuideHint._timer);
-    hint.classList.remove("show");
-    hint.hidden = true;
-    hint.setAttribute("aria-hidden", "true");
-    if (btn) btn.classList.remove("is-highlighted");
+    cta.classList.remove("show");
+    cta.hidden = true;
+    cta.setAttribute("aria-hidden", "true");
+    if (btn) btn.classList.remove("is-pulse");
 }
 
 function showVacationGuideHint() {
-    const hint = document.getElementById("vacationGuideHint");
+    const cta = document.getElementById("vacationGuideCta");
     const btn = document.getElementById("vacationGuideBtn");
-    if (!hint || !btn) return;
+    if (!cta || !btn) return;
 
     hideVacationGuideHint();
-    hint.hidden = false;
-    hint.setAttribute("aria-hidden", "false");
-    btn.classList.add("is-highlighted");
+    cta.hidden = false;
+    cta.setAttribute("aria-hidden", "false");
+    btn.classList.add("is-pulse");
 
     requestAnimationFrame(() => {
-        requestAnimationFrame(() => hint.classList.add("show"));
+        requestAnimationFrame(() => cta.classList.add("show"));
     });
 
     hideVacationGuideHint._timer = setTimeout(() => {
@@ -3578,79 +3577,27 @@ function showVacationGuideHint() {
     }, VACATION_GUIDE_HINT_VISIBLE_MS);
 }
 
-function bindVacationGuideDialog() {
-    const overlay = document.getElementById("vacationGuideOverlay");
-    const closeBtn = document.getElementById("vacationGuideClose");
-    const dismissBtn = document.getElementById("vacationGuideDismiss");
-    if (!overlay) return;
-
-    overlay.addEventListener("click", (event) => {
-        if (event.target === overlay) {
-            closeVacationGuide();
-        }
-    });
-
-    if (closeBtn) {
-        closeBtn.addEventListener("click", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            closeVacationGuide();
-        });
-    }
-
-    if (dismissBtn) {
-        dismissBtn.addEventListener("click", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            closeVacationGuide();
-        });
-    }
-
-    document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && !overlay.hidden) {
-            closeVacationGuide();
-        }
-    });
-}
-
-function openVacationGuide() {
-    const overlay = document.getElementById("vacationGuideOverlay");
-    const dismissBtn = document.getElementById("vacationGuideDismiss");
-    if (!overlay) return;
-
-    overlay.hidden = false;
-    document.body.classList.add("vacation-guide-open");
-    (dismissBtn || overlay).focus();
-}
-
-function closeVacationGuide() {
-    const overlay = document.getElementById("vacationGuideOverlay");
-    const btn = document.getElementById("vacationGuideBtn");
-    if (!overlay) return;
-
-    overlay.hidden = true;
-    document.body.classList.remove("vacation-guide-open");
-    if (btn) btn.focus();
-}
-
 function openVacationModal() {
     const modal = document.getElementById("vacationInfoModal");
+    const btn = document.getElementById("vacationGuideBtn");
     if (!modal) return;
+
     modal.hidden = false;
     modal.removeAttribute("aria-hidden");
     document.body.style.overflow = "hidden";
+    hideVacationGuideHint();
+    (document.getElementById("vacationModalDone") || btn)?.focus();
 }
 
 function closeVacationModal() {
     const modal = document.getElementById("vacationInfoModal");
+    const btn = document.getElementById("vacationGuideBtn");
     if (!modal) return;
+
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
     document.body.style.overflow = "";
-}
-
-function toggleVacationInfo() {
-    openVacationModal();
+    if (btn) btn.focus();
 }
 
 function pulseField(field) {
@@ -3780,11 +3727,6 @@ function showApp() {
         });
         setTimeout(() => refreshMainTabPill(), 120);
         setTimeout(() => showVacationGuideHint(), 420);
-        const badge = document.getElementById("vacationInfoBadge");
-        if (badge) {
-            badge.classList.add("show");
-            setTimeout(() => badge.classList.remove("show"), 10000);
-        }
     }, 280);
 }
 
