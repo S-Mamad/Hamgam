@@ -2541,7 +2541,6 @@ function bindUiEvents() {
 
     document.getElementById("saveSettings").addEventListener("click", handleSaveClick);
 
-<<<<<<< HEAD
     const vacationGuideBtn = document.getElementById("vacationGuideBtn");
     const vacationGuideAnchor = document.querySelector(".vacation-guide-anchor");
     const stopVacationGuideBubble = (e) => {
@@ -2551,7 +2550,8 @@ function bindUiEvents() {
     if (vacationGuideAnchor) {
         vacationGuideAnchor.addEventListener("click", stopVacationGuideBubble);
         vacationGuideAnchor.addEventListener("pointerdown", stopVacationGuideBubble);
-=======
+    }
+
     const vacationInfoBtn = document.getElementById("vacationInfoBtn");
     const vacationModalClose = document.getElementById("vacationModalClose");
     const vacationModal = document.getElementById("vacationInfoModal");
@@ -2576,7 +2576,6 @@ function bindUiEvents() {
                 closeVacationModal();
             }
         });
->>>>>>> 7b29ae5ab561cd63ef99e6be158e6dbfd2817b09
     }
     if (vacationGuideBtn) {
         vacationGuideBtn.addEventListener("click", (e) => {
@@ -3548,7 +3547,6 @@ function validateVacationCentersBeforeSave(autoVacation) {
     return false;
 }
 
-<<<<<<< HEAD
 function hideVacationGuideHint() {
     const hint = document.getElementById("vacationGuideHint");
     const btn = document.getElementById("vacationGuideBtn");
@@ -3633,7 +3631,8 @@ function closeVacationGuide() {
     overlay.hidden = true;
     document.body.classList.remove("vacation-guide-open");
     if (btn) btn.focus();
-=======
+}
+
 function openVacationModal() {
     const modal = document.getElementById("vacationInfoModal");
     if (!modal) return;
@@ -3652,7 +3651,6 @@ function closeVacationModal() {
 
 function toggleVacationInfo() {
     openVacationModal();
->>>>>>> 7b29ae5ab561cd63ef99e6be158e6dbfd2817b09
 }
 
 function pulseField(field) {
@@ -3781,15 +3779,12 @@ function showApp() {
             requestAnimationFrame(() => refreshMainTabPill());
         });
         setTimeout(() => refreshMainTabPill(), 120);
-<<<<<<< HEAD
         setTimeout(() => showVacationGuideHint(), 420);
-=======
         const badge = document.getElementById("vacationInfoBadge");
         if (badge) {
             badge.classList.add("show");
             setTimeout(() => badge.classList.remove("show"), 10000);
         }
->>>>>>> 7b29ae5ab561cd63ef99e6be158e6dbfd2817b09
     }, 280);
 }
 
@@ -3917,11 +3912,7 @@ function showToast(message, type = "success") {
     toast.textContent = message;
     toast.className = `toast toast-${type} show`;
     clearTimeout(showToast._timer);
-<<<<<<< HEAD
     showToast._timer = setTimeout(() => toast.classList.remove("show"), TOAST_VISIBLE_MS);
-=======
-    showToast._timer = setTimeout(() => toast.classList.remove("show"), 4000);
->>>>>>> 7b29ae5ab561cd63ef99e6be158e6dbfd2817b09
 }
 
 function showWarningsIfAny(data) {

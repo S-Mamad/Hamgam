@@ -2451,8 +2451,6 @@ body {
     text-align-last: right;
 }
 
-<<<<<<< HEAD
-=======
 .vacation-info-btn {
     display: inline-flex;
     align-items: center;
@@ -2744,7 +2742,6 @@ body {
     }
 }
 
->>>>>>> 7b29ae5ab561cd63ef99e6be158e6dbfd2817b09
 .vacation-footer-divider {
     height: 1px;
     margin: 10px 12px 0;
@@ -4321,7 +4318,6 @@ body.hamgam-confirm-open {
     color: var(--slate-500);
 }
 
-<<<<<<< HEAD
 .integration-login__hint strong {
     color: var(--blue-700);
     font-weight: 700;
@@ -4336,8 +4332,6 @@ body.hamgam-confirm-open {
     gap: 7px;
 }
 
-=======
->>>>>>> 7b29ae5ab561cd63ef99e6be158e6dbfd2817b09
 @media (max-width: 380px) {
     .integration-card__toggle {
         min-height: 54px;
