@@ -107,7 +107,56 @@ function mapApiError(error) {
         "Method not allowed": "درخواست نامعتبر است. صفحه را رفرش کنید."
     };
 
+    if (error === "Failed to fetch") {
+        return mapNetworkError({ message: error, name: "TypeError" });
+    }
+
     return messages[error] || error;
+}
+
+function mapNetworkError(error) {
+    const msg = String(error?.message || error || "");
+    const origin = window.location.origin || "";
+
+    if (msg !== "Failed to fetch" && !(error?.name === "TypeError" && /fetch/i.test(msg))) {
+        return msg || "خطا در ارتباط با سرور.";
+    }
+
+    if (origin === "null" || origin.startsWith("file:")) {
+        return "این صفحه را مستقیم از فایل باز نکنید. از پنل پذیرش۲۴ یا https://hamgam.zamanak24.ir استفاده کنید.";
+    }
+
+    try {
+        const originUrl = new URL(origin);
+        const host = originUrl.hostname.toLowerCase();
+        const isLocal = host === "localhost" || host === "127.0.0.1";
+        if (isLocal && originUrl.port !== "8765") {
+            return "برای تست لوکال Live Server کافی نیست. در ترمینال dev.ps1 را اجرا کنید و از http://127.0.0.1:8765 باز کنید.";
+        }
+    } catch {
+        // ignore malformed origin
+    }
+
+    return "ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید یا چند لحظه بعد دوباره تلاش کنید.";
+}
+
+async function hamgamFetch(url, init = {}, options = {}) {
+    const retries = typeof options.retries === "number" ? options.retries : 1;
+    let lastError = null;
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            return await fetch(url, init);
+        } catch (error) {
+            lastError = error;
+            console.error(`[Hamgam] fetch failed (attempt ${attempt + 1}/${retries + 1}):`, url, error);
+            if (attempt < retries) {
+                await new Promise((resolve) => setTimeout(resolve, 450));
+            }
+        }
+    }
+
+    throw new Error(mapNetworkError(lastError));
 }
 
 async function fetchSyncStatusOnce() {
@@ -885,7 +934,7 @@ function integrationEndpoint(scriptName, provider = DRDR_PROVIDER, extraParams =
 }
 
 async function integrationApiGet(scriptName, token, provider = DRDR_PROVIDER, extraParams = {}) {
-    const response = await fetch(integrationEndpoint(scriptName, provider, extraParams), {
+    const response = await hamgamFetch(integrationEndpoint(scriptName, provider, extraParams), {
         method: "GET",
         headers: apiHeaders(token)
     });
@@ -2361,7 +2410,7 @@ async function parseJsonResponse(response) {
 
 async function apiFetch(url, token, options = {}) {
     const { body = null, withJson = false, redirect = "follow" } = options;
-    const response = await fetch(url, {
+    const response = await hamgamFetch(url, {
         method: "POST",
         headers: apiHeaders(token, withJson || body !== null),
         body,
@@ -2404,7 +2453,7 @@ async function authenticateWithHamdast() {
         ]
     });
 
-    const response = await fetch(`${HAMGAM_API_PREFIX}/auth.php`, {
+    const response = await hamgamFetch(`${HAMGAM_API_PREFIX}/auth.php`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
