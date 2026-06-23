@@ -423,19 +423,20 @@ final class Response
 
 
         if (function_exists('fastcgi_finish_request')) {
-
             fastcgi_finish_request();
 
             return;
-
         }
 
+        // LiteSpeed (common on cPanel/BitNinja) — without this, jsonThenContinue blocks until PHP exits.
+        if (function_exists('litespeed_finish_request')) {
+            litespeed_finish_request();
 
+            return;
+        }
 
-        // Some reverse proxies only flush once a minimum body size is sent.
-
+        // Fallback: some reverse proxies only flush once a minimum body size is sent.
         echo str_repeat(' ', 1024);
-
         @flush();
 
     }
