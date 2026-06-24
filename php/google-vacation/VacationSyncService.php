@@ -122,7 +122,16 @@ final class VacationSyncService
 
 
 
-            self::syncSingleEvent($userId, $tokenRow, $event, $autoVacation, $vacationCenters, $hamdastAccessToken);
+            self::syncSingleEvent(
+                $userId,
+                $tokenRow,
+                $event,
+                $autoVacation,
+                $vacationCenters,
+                $hamdastAccessToken,
+                false,
+                $googleAccessToken
+            );
 
         }
 
@@ -310,7 +319,9 @@ final class VacationSyncService
 
                 $hamdastAccessToken,
 
-                true
+                true,
+
+                $googleAccessToken
 
             );
 
@@ -654,11 +665,33 @@ final class VacationSyncService
 
         string $hamdastAccessToken,
 
-        bool $trackAsBackfill = false
+        bool $trackAsBackfill = false,
+
+        string $googleAccessToken = ''
 
     ): string {
 
         $eventId = GoogleEventParser::extractEventId($googleEvent);
+
+        $isDeletedPreview = self::isDeletedGoogleEvent($googleEvent, null);
+
+
+
+        if (!$isDeletedPreview && $eventId !== null) {
+
+            $googleEvent = self::hydrateGoogleEventForVacationSync(
+
+                $googleEvent,
+
+                $tokenRow,
+
+                $googleAccessToken
+
+            );
+
+        }
+
+
 
         $parsed = GoogleEventParser::parseEvent($googleEvent);
 
@@ -738,17 +771,23 @@ final class VacationSyncService
 
         if ($seriesKey !== null && GoogleVacationRepository::hasProcessedEvent($userId, $seriesKey)) {
 
-            self::dissolveLegacyCollapsedSeriesVacation(
+            $legacyRows = GoogleVacationRepository::findProcessedEventsForGoogleEvent($userId, $seriesKey);
 
-                $userId,
+            if (self::isLegacyCollapsedSeriesTracking($legacyRows)) {
 
-                $seriesKey,
+                self::dissolveLegacyCollapsedSeriesVacation(
 
-                $tokenRow,
+                    $userId,
 
-                $hamdastAccessToken
+                    $seriesKey,
 
-            );
+                    $tokenRow,
+
+                    $hamdastAccessToken
+
+                );
+
+            }
 
         }
 
@@ -767,6 +806,10 @@ final class VacationSyncService
             $vacationCenters,
 
             $hamdastAccessToken,
+
+            $googleEvent,
+
+            $seriesKey,
 
             $trackAsBackfill
 
@@ -820,9 +863,49 @@ final class VacationSyncService
 
         string $hamdastAccessToken,
 
+        array $googleEvent,
+
+        ?string $seriesKey,
+
         bool $trackAsBackfill = false
 
     ): string {
+
+        if (!GoogleVacationRepository::hasProcessedEvent($userId, $parsed['event_id'])) {
+
+            if ($seriesKey !== null) {
+
+                $reconciled = self::tryReconcileMovedRecurringInstance(
+
+                    $userId,
+
+                    $parsed,
+
+                    $seriesKey,
+
+                    $autoVacation,
+
+                    $vacationCenters,
+
+                    $tokenRow,
+
+                    $hamdastAccessToken,
+
+                    $trackAsBackfill
+
+                );
+
+                if ($reconciled !== null) {
+
+                    return $reconciled;
+
+                }
+
+            }
+
+        }
+
+
 
         if (GoogleVacationRepository::hasProcessedEvent($userId, $parsed['event_id'])) {
 
@@ -840,7 +923,9 @@ final class VacationSyncService
 
                 $hamdastAccessToken,
 
-                $trackAsBackfill
+                $trackAsBackfill,
+
+                $seriesKey
 
             );
 
@@ -938,7 +1023,7 @@ final class VacationSyncService
 
                 $parsed['end_ts'],
 
-                self::attachGoogleSyncMetadata($response, $parsed),
+                self::attachGoogleSyncMetadata($response, $parsed, $seriesKey),
 
                 $vacationCenter['medical_center_id']
 
@@ -1141,6 +1226,10 @@ final class VacationSyncService
                 $vacationCenters,
 
                 $hamdastAccessToken,
+
+                $googleEvent,
+
+                $seriesKey,
 
                 $trackAsBackfill
 
@@ -2354,7 +2443,9 @@ final class VacationSyncService
 
         string $hamdastAccessToken,
 
-        bool $trackAsBackfill = false
+        bool $trackAsBackfill = false,
+
+        ?string $seriesKey = null
 
     ): bool {
 
@@ -2448,7 +2539,7 @@ final class VacationSyncService
 
                         $newTo,
 
-                        self::attachGoogleSyncMetadata(self::decodeStoredResponse($tracked), $parsed),
+                        self::attachGoogleSyncMetadata(self::decodeStoredResponse($tracked), $parsed, $seriesKey),
 
                         $medicalCenterId
 
@@ -2583,7 +2674,7 @@ final class VacationSyncService
 
                 $newTo,
 
-                self::attachGoogleSyncMetadata($response, $parsed),
+                self::attachGoogleSyncMetadata($response, $parsed, $seriesKey),
 
                 $medicalCenterId
 
@@ -2661,6 +2752,496 @@ final class VacationSyncService
 
     /**
 
+     * @param array<string, mixed> $googleEvent
+
+     * @param array<string, mixed> $tokenRow
+
+     * @return array<string, mixed>
+
+     */
+
+    private static function hydrateGoogleEventForVacationSync(
+
+        array $googleEvent,
+
+        array $tokenRow,
+
+        string $googleAccessToken
+
+    ): array {
+
+        $eventId = GoogleEventParser::extractEventId($googleEvent);
+
+        if ($eventId === null) {
+
+            return $googleEvent;
+
+        }
+
+
+
+        $accessToken = $googleAccessToken;
+
+        if ($accessToken === '') {
+
+            $refreshToken = (string) ($tokenRow['google_refresh_token'] ?? '');
+
+            if ($refreshToken === '') {
+
+                return $googleEvent;
+
+            }
+
+
+
+            $tokenData = GoogleCalendar::refreshAccessToken($refreshToken);
+
+            $accessToken = is_array($tokenData) ? (string) ($tokenData['access_token'] ?? '') : '';
+
+        }
+
+
+
+        if ($accessToken === '') {
+
+            return $googleEvent;
+
+        }
+
+
+
+        $fullEvent = GoogleCalendarWatch::getEvent($accessToken, $eventId);
+
+        if ($fullEvent === null) {
+
+            return $googleEvent;
+
+        }
+
+
+
+        $partialParsed = GoogleEventParser::parseEvent($googleEvent);
+
+        $fullParsed = GoogleEventParser::parseEvent($fullEvent);
+
+        if (
+
+            $partialParsed !== null
+
+            && $fullParsed !== null
+
+            && $partialParsed['start_ts'] !== $fullParsed['start_ts']
+
+        ) {
+
+            error_log(
+
+                '[google-vacation] hydrated event times id=' . $eventId
+
+                . ' partial_from=' . $partialParsed['start_ts']
+
+                . ' full_from=' . $fullParsed['start_ts']
+
+            );
+
+        }
+
+
+
+        return $fullEvent;
+
+    }
+
+
+
+    /**
+
+     * @param array<int, array<string, mixed>> $trackedRows
+
+     */
+
+    private static function isLegacyCollapsedSeriesTracking(array $trackedRows): bool
+
+    {
+
+        foreach ($trackedRows as $tracked) {
+
+            if (!is_array($tracked)) {
+
+                continue;
+
+            }
+
+
+
+            $eventId = is_string($tracked['google_event_id'] ?? null) ? $tracked['google_event_id'] : '';
+
+            if ($eventId === '' || str_contains($eventId, '_')) {
+
+                continue;
+
+            }
+
+
+
+            $from = isset($tracked['vacation_from']) ? (int) $tracked['vacation_from'] : 0;
+
+            $to = isset($tracked['vacation_to']) ? (int) $tracked['vacation_to'] : 0;
+
+            if ($from <= 0 || $to <= $from) {
+
+                continue;
+
+            }
+
+
+
+            $stored = self::decodeStoredResponse($tracked);
+
+            if (is_array($stored) && ($stored['_hamgam_collapsed_series'] ?? false) === true) {
+
+                return true;
+
+            }
+
+
+
+            if (($to - $from) > (36 * 3600)) {
+
+                return true;
+
+            }
+
+        }
+
+
+
+        return false;
+
+    }
+
+
+
+    /**
+
+     * When a recurring instance is dragged to a new day Google may issue a new instance id
+
+     * before the delete webhook arrives. Reconcile by updating the existing vacation slot.
+
+     *
+
+     * @param array{
+
+     *   event_id: string,
+
+     *   summary: string,
+
+     *   start_ts: int,
+
+     *   end_ts: int,
+
+     *   updated: ?string
+
+     * } $parsed
+
+     * @param array<int, array{medical_center_id: string, user_center_id: ?string, name: string}> $vacationCenters
+
+     * @param array<string, mixed> $tokenRow
+
+     * @return 'created'|'updated'|'skipped'|'failed'|null
+
+     */
+
+    private static function tryReconcileMovedRecurringInstance(
+
+        string $userId,
+
+        array $parsed,
+
+        string $seriesKey,
+
+        bool $autoVacation,
+
+        array $vacationCenters,
+
+        array $tokenRow,
+
+        string $hamdastAccessToken,
+
+        bool $trackAsBackfill
+
+    ): ?string {
+
+        $related = GoogleVacationRepository::findProcessedEventsRelatedToGoogleEvent($userId, $seriesKey);
+
+        if ($related === []) {
+
+            return null;
+
+        }
+
+
+
+        $duration = $parsed['end_ts'] - $parsed['start_ts'];
+
+        if ($duration <= 0) {
+
+            return null;
+
+        }
+
+
+
+        $candidates = [];
+
+        foreach ($related as $row) {
+
+            if (!is_array($row)) {
+
+                continue;
+
+            }
+
+
+
+            $rowEventId = is_string($row['google_event_id'] ?? null) ? trim($row['google_event_id']) : '';
+
+            if ($rowEventId === '' || $rowEventId === $parsed['event_id'] || $rowEventId === $seriesKey) {
+
+                continue;
+
+            }
+
+
+
+            $rowFrom = isset($row['vacation_from']) ? (int) $row['vacation_from'] : 0;
+
+            $rowTo = isset($row['vacation_to']) ? (int) $row['vacation_to'] : 0;
+
+            if ($rowFrom <= 0 || $rowTo <= $rowFrom) {
+
+                continue;
+
+            }
+
+
+
+            if (abs(($rowTo - $rowFrom) - $duration) > 120) {
+
+                continue;
+
+            }
+
+
+
+            $candidates[] = $row;
+
+        }
+
+
+
+        if (count($candidates) !== 1) {
+
+            return null;
+
+        }
+
+
+
+        if (!$autoVacation || $hamdastAccessToken === '') {
+
+            return 'skipped';
+
+        }
+
+
+
+        $candidate = $candidates[0];
+
+        $oldEventId = is_string($candidate['google_event_id'] ?? null) ? $candidate['google_event_id'] : '';
+
+        $oldFrom = (int) ($candidate['vacation_from'] ?? 0);
+
+        $oldTo = (int) ($candidate['vacation_to'] ?? 0);
+
+        $fallbackCenterId = isset($tokenRow['center_id']) && is_string($tokenRow['center_id'])
+
+            ? trim($tokenRow['center_id'])
+
+            : null;
+
+        $medicalCenterId = GoogleVacationRepository::resolveTrackedMedicalCenterId($candidate, $fallbackCenterId);
+
+
+
+        if ($medicalCenterId === '') {
+
+            return null;
+
+        }
+
+
+
+        if ($oldFrom === $parsed['start_ts'] && $oldTo === $parsed['end_ts']) {
+
+            GoogleVacationRepository::removeProcessedEvent($userId, $oldEventId, $medicalCenterId);
+
+            GoogleVacationRepository::recordProcessedEvent(
+
+                $userId,
+
+                $parsed['event_id'],
+
+                $parsed['summary'],
+
+                $parsed['start_ts'],
+
+                $parsed['end_ts'],
+
+                self::attachGoogleSyncMetadata(self::decodeStoredResponse($candidate), $parsed, $seriesKey),
+
+                $medicalCenterId
+
+            );
+
+
+
+            error_log(
+
+                '[google-vacation] recurring instance id migrated series=' . $seriesKey
+
+                . ' old_id=' . $oldEventId
+
+                . ' new_id=' . $parsed['event_id']
+
+            );
+
+
+
+            return 'updated';
+
+        }
+
+
+
+        $vacationCenter = self::findVacationCenterByMedicalId($vacationCenters, $medicalCenterId);
+
+        if ($vacationCenter === null) {
+
+            $vacationCenter = [
+
+                'medical_center_id' => $medicalCenterId,
+
+                'user_center_id' => null,
+
+                'name' => '',
+
+            ];
+
+        }
+
+
+
+        $response = self::updateVacationWithConflictResolution(
+
+            $userId,
+
+            $tokenRow,
+
+            $parsed['start_ts'],
+
+            $parsed['end_ts'],
+
+            $oldFrom,
+
+            $oldTo,
+
+            $vacationCenter,
+
+            $hamdastAccessToken
+
+        );
+
+
+
+        if ($response === null) {
+
+            return 'failed';
+
+        }
+
+
+
+        GoogleVacationRepository::removeProcessedEvent($userId, $oldEventId, $medicalCenterId);
+
+        GoogleVacationRepository::recordProcessedEvent(
+
+            $userId,
+
+            $parsed['event_id'],
+
+            $parsed['summary'],
+
+            $parsed['start_ts'],
+
+            $parsed['end_ts'],
+
+            self::attachGoogleSyncMetadata($response, $parsed, $seriesKey),
+
+            $medicalCenterId
+
+        );
+
+
+
+        if ($trackAsBackfill) {
+
+            ImportFutureVacationsRepository::syncBackfillSlotForEvent(
+
+                $userId,
+
+                $parsed['event_id'],
+
+                $medicalCenterId,
+
+                $parsed['start_ts'],
+
+                $parsed['end_ts'],
+
+                $oldFrom,
+
+                $oldTo
+
+            );
+
+        }
+
+
+
+        error_log(
+
+            '[google-vacation] recurring instance move reconciled series=' . $seriesKey
+
+            . ' old_id=' . $oldEventId
+
+            . ' new_id=' . $parsed['event_id']
+
+            . ' old_from=' . $oldFrom
+
+            . ' from=' . $parsed['start_ts']
+
+        );
+
+
+
+        return 'updated';
+
+    }
+
+
+
+    /**
+
      * @param array{updated: ?string} $parsed
 
      */
@@ -2711,7 +3292,7 @@ final class VacationSyncService
 
      */
 
-    private static function attachGoogleSyncMetadata(?array $response, array $parsed): ?array
+    private static function attachGoogleSyncMetadata(?array $response, array $parsed, ?string $seriesKey = null): ?array
 
     {
 
@@ -2732,6 +3313,14 @@ final class VacationSyncService
         $payload['_hamgam_event_start_ts'] = $parsed['start_ts'];
 
         $payload['_hamgam_event_end_ts'] = $parsed['end_ts'];
+
+
+
+        if (is_string($seriesKey) && $seriesKey !== '') {
+
+            $payload['_hamgam_recurring_series_id'] = $seriesKey;
+
+        }
 
 
 

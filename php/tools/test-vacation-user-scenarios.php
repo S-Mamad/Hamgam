@@ -51,6 +51,14 @@ userScenarioAssert(
     'stale google revision guard exists',
     is_string($syncSource) && str_contains($syncSource, 'shouldSkipStaleGoogleEventUpdate')
 );
+userScenarioAssert(
+    'sync hydrates events from Google before parsing',
+    is_string($syncSource) && str_contains($syncSource, 'hydrateGoogleEventForVacationSync')
+);
+userScenarioAssert(
+    'recurring instance move reconcile exists',
+    is_string($syncSource) && str_contains($syncSource, 'tryReconcileMovedRecurringInstance')
+);
 
 $timedSingle = [
     'id' => 'evt-single-1',

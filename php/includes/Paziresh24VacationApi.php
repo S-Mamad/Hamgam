@@ -196,6 +196,50 @@ final class Paziresh24VacationApi
     /**
      * @return array<string, mixed>|null
      */
+    public static function listVacations(
+        string $accessToken,
+        string $medicalCenterId,
+        ?int $from = null,
+        ?int $to = null
+    ): ?array {
+        $baseUrl = rtrim(
+            Config::require('PAZIRESH24_VACATION_URL'),
+            '/'
+        );
+        $url = $baseUrl . '/' . rawurlencode($medicalCenterId);
+
+        $query = [];
+        if ($from !== null) {
+            $query['from'] = $from;
+        }
+        if ($to !== null) {
+            $query['to'] = $to;
+        }
+        if ($query !== []) {
+            $url .= '?' . http_build_query($query);
+        }
+
+        $response = HttpClient::request(
+            'GET',
+            $url,
+            ['Authorization' => 'Bearer ' . $accessToken]
+        );
+
+        if ($response['status'] >= 200 && $response['status'] < 300) {
+            return is_array($response['body']) ? $response['body'] : [];
+        }
+
+        error_log(
+            '[google-vacation] listVacations failed: HTTP ' . $response['status']
+            . ' center=' . $medicalCenterId
+        );
+
+        return null;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
     public static function deleteVacation(
         string $accessToken,
         string $medicalCenterId,
