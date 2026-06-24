@@ -204,6 +204,85 @@ final class GoogleEventParser
     }
 
     /**
+     * Only daily (consecutive-day) recurring series should collapse into one vacation block.
+     * Weekly/monthly/yearly patterns must stay per-instance to avoid filling gaps between occurrences.
+     *
+     * @param array<string, mixed>|null $masterEvent
+     * @param array<int, array<string, mixed>> $instances
+     */
+    public static function shouldCollapseRecurringVacations(?array $masterEvent, array $instances): bool
+    {
+        if ($masterEvent !== null && self::extractRecurrenceFrequency($masterEvent) !== 'DAILY') {
+            return false;
+        }
+
+        return self::areConsecutiveDailyInstances($instances);
+    }
+
+    /**
+     * @param array<string, mixed> $googleEvent
+     */
+    public static function extractRecurrenceFrequency(array $googleEvent): ?string
+    {
+        $recurrence = $googleEvent['recurrence'] ?? null;
+        if (!is_array($recurrence)) {
+            return null;
+        }
+
+        foreach ($recurrence as $rule) {
+            if (!is_string($rule)) {
+                continue;
+            }
+
+            if (preg_match('/FREQ=([A-Z]+)/i', $rule, $matches) === 1) {
+                return strtoupper($matches[1]);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $instances
+     */
+    private static function areConsecutiveDailyInstances(array $instances): bool
+    {
+        $parsedList = [];
+
+        foreach ($instances as $googleEvent) {
+            if (!is_array($googleEvent)) {
+                continue;
+            }
+
+            $parsed = self::parseEvent($googleEvent);
+            if ($parsed !== null && $parsed['status'] === 'confirmed') {
+                $parsedList[] = $parsed;
+            }
+        }
+
+        if (count($parsedList) < 2) {
+            return false;
+        }
+
+        usort(
+            $parsedList,
+            static fn (array $left, array $right): int => $left['start_ts'] <=> $right['start_ts']
+        );
+
+        for ($index = 1, $count = count($parsedList); $index < $count; $index++) {
+            $previous = $parsedList[$index - 1];
+            $current = $parsedList[$index];
+            $startGap = $current['start_ts'] - $previous['start_ts'];
+
+            if ($startGap > (2 * 86400)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * @param array<int, array<string, mixed>> $googleEvents
      * @return array{
      *   event_id: string,

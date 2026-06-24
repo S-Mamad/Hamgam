@@ -275,6 +275,64 @@ final class VacationSyncService
                 $seriesKey = $group['seriesKey'];
                 $groupEvents = $group['events'];
                 $triggerEvent = $groupEvents[0];
+                $masterEvent = isset($triggerEvent['recurrence']) && is_array($triggerEvent['recurrence'])
+                    ? $triggerEvent
+                    : null;
+                if ($masterEvent === null) {
+                    $googleAccessToken = self::refreshGoogleAccessToken($tokenRow);
+                    if ($googleAccessToken !== null) {
+                        $fetchedMaster = GoogleCalendarWatch::getEvent($googleAccessToken, $seriesKey);
+                        if (is_array($fetchedMaster)) {
+                            $masterEvent = $fetchedMaster;
+                        }
+                    }
+                }
+                $shouldCollapse = GoogleEventParser::shouldCollapseRecurringVacations($masterEvent, $groupEvents);
+
+                if (!$shouldCollapse) {
+                    foreach ($groupEvents as $instanceEvent) {
+                        $parsedForCutoff = GoogleEventParser::parseEvent($instanceEvent);
+                        if ($parsedForCutoff === null) {
+                            $skipped++;
+                            $processedCount++;
+                            self::reportBackfillProgress($userId, $processedCount, $eventTotal);
+                            continue;
+                        }
+
+                        if (
+                            $cutoffTs !== null
+                            && !GoogleEventParser::isEventNewerThanCutoff($parsedForCutoff, $cutoffTs)
+                        ) {
+                            $skipped++;
+                            $processedCount++;
+                            self::reportBackfillProgress($userId, $processedCount, $eventTotal);
+                            continue;
+                        }
+
+                        $instanceResult = self::syncSingleEvent(
+                            $userId,
+                            $tokenRow,
+                            $instanceEvent,
+                            true,
+                            $vacationCenters,
+                            $hamdastAccessToken,
+                            true
+                        );
+
+                        if ($instanceResult === 'created') {
+                            $imported++;
+                        } elseif ($instanceResult === 'failed') {
+                            $failed++;
+                        } else {
+                            $skipped++;
+                        }
+
+                        $processedCount++;
+                        self::reportBackfillProgress($userId, $processedCount, $eventTotal);
+                    }
+
+                    continue;
+                }
 
                 $parsedForCutoff = GoogleEventParser::parseEvent($triggerEvent);
                 if ($parsedForCutoff === null) {
@@ -682,7 +740,10 @@ final class VacationSyncService
 
         $seriesKey = GoogleEventParser::extractRecurringSeriesKey($googleEvent);
 
-        if ($seriesKey !== null) {
+        if (
+            $seriesKey !== null
+            && GoogleVacationRepository::hasProcessedEvent($userId, $seriesKey)
+        ) {
 
             return self::syncRecurringSeriesEvent(
 
@@ -781,6 +842,76 @@ final class VacationSyncService
         }
 
 
+
+        return self::syncIndividualVacationEvent(
+
+            $userId,
+
+            $tokenRow,
+
+            $parsed,
+
+            $autoVacation,
+
+            $vacationCenters,
+
+            $hamdastAccessToken,
+
+            $trackAsBackfill
+
+        );
+
+    }
+
+
+
+    /**
+
+     * @param array{
+
+     *   event_id: string,
+
+     *   summary: string,
+
+     *   status: string,
+
+     *   start_ts: int,
+
+     *   end_ts: int,
+
+     *   timezone: string,
+
+     *   created: ?string,
+
+     *   updated: ?string,
+
+     *   is_deleted: bool
+
+     * } $parsed
+
+     * @param array<int, array{medical_center_id: string, user_center_id: ?string, name: string}> $vacationCenters
+
+     * @return 'created'|'updated'|'skipped'|'failed'
+
+     */
+
+    private static function syncIndividualVacationEvent(
+
+        string $userId,
+
+        array $tokenRow,
+
+        array $parsed,
+
+        bool $autoVacation,
+
+        array $vacationCenters,
+
+        string $hamdastAccessToken,
+
+        bool $trackAsBackfill = false
+
+    ): string {
 
         if (GoogleVacationRepository::hasProcessedEvent($userId, $parsed['event_id'])) {
 
@@ -1006,7 +1137,7 @@ final class VacationSyncService
 
                 if ($aggregatedRemaining !== null) {
 
-                    if (GoogleVacationRepository::hasProcessedRecurringSeries($userId, $seriesKey)) {
+                    if (GoogleVacationRepository::hasProcessedEvent($userId, $seriesKey)) {
 
                         $updated = self::processUpdatedRecurringSeries(
 
@@ -1068,7 +1199,45 @@ final class VacationSyncService
 
 
 
+        $masterEvent = isset($googleEvent['recurrence']) && is_array($googleEvent['recurrence'])
+
+            ? $googleEvent
+
+            : null;
+
         $instances = self::resolveRecurringInstances($tokenRow, $seriesKey, $prefetchedInstances);
+
+        if (!GoogleEventParser::shouldCollapseRecurringVacations($masterEvent, $instances)) {
+
+            if ($parsed === null) {
+
+                return 'skipped';
+
+            }
+
+
+
+            return self::syncIndividualVacationEvent(
+
+                $userId,
+
+                $tokenRow,
+
+                $parsed,
+
+                $autoVacation,
+
+                $vacationCenters,
+
+                $hamdastAccessToken,
+
+                $trackAsBackfill
+
+            );
+
+        }
+
+
 
         $aggregated = GoogleEventParser::aggregateRecurringInstances($instances, $seriesKey);
 
@@ -1096,7 +1265,7 @@ final class VacationSyncService
 
 
 
-        if (GoogleVacationRepository::hasProcessedRecurringSeries($userId, $seriesKey)) {
+        if (GoogleVacationRepository::hasProcessedEvent($userId, $seriesKey)) {
 
             $updated = self::processUpdatedRecurringSeries(
 

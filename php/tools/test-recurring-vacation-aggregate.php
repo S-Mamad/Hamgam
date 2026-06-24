@@ -106,6 +106,39 @@ assertRecurring(
     is_array($parsedDailyMaster) && $window['time_max_ts'] > $parsedDailyMaster['start_ts'] + (30 * 86400)
 );
 
+$dailyInstanceOne = [
+    'id' => 'daily-series_20260601',
+    'recurringEventId' => 'daily-series',
+    'summary' => 'مرخصی روزانه',
+    'status' => 'confirmed',
+    'start' => ['date' => '2026-06-01'],
+    'end' => ['date' => '2026-06-02'],
+];
+$dailyInstanceTwo = [
+    'id' => 'daily-series_20260602',
+    'recurringEventId' => 'daily-series',
+    'summary' => 'مرخصی روزانه',
+    'status' => 'confirmed',
+    'start' => ['date' => '2026-06-02'],
+    'end' => ['date' => '2026-06-03'],
+];
+$monthlyMaster = [
+    'id' => 'monthly-series',
+    'summary' => 'مرخصی ماهانه',
+    'status' => 'confirmed',
+    'recurrence' => ['RRULE:FREQ=MONTHLY;COUNT=6'],
+    'start' => ['date' => '2026-06-23'],
+    'end' => ['date' => '2026-06-24'],
+];
+assertRecurring(
+    'monthly recurring must not collapse',
+    !GoogleEventParser::shouldCollapseRecurringVacations($monthlyMaster, [$instanceOne, $instanceTwo])
+);
+assertRecurring(
+    'daily recurring should collapse',
+    GoogleEventParser::shouldCollapseRecurringVacations($dailyMaster, [$dailyInstanceOne, $dailyInstanceTwo])
+);
+
 $syncRef = new ReflectionClass(VacationSyncService::class);
 assertRecurring(
     'VacationSyncService groups recurring events',
