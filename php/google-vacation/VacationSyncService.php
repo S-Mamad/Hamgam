@@ -975,9 +975,85 @@ final class VacationSyncService
 
         foreach ($vacationCenters as $vacationCenter) {
 
-            $response = self::createVacationWithConflictResolution(
+            $medicalCenterId = $vacationCenter['medical_center_id'];
+
+            $covering = self::findCoveringTrackedVacation(
 
                 $userId,
+
+                $medicalCenterId,
+
+                $parsed['start_ts'],
+
+                $parsed['end_ts'],
+
+                $parsed['event_id']
+
+            );
+
+
+
+            if ($covering !== null) {
+
+                self::recordCoveredVacationTracking(
+
+                    $userId,
+
+                    $parsed,
+
+                    $seriesKey,
+
+                    $covering,
+
+                    $medicalCenterId
+
+                );
+
+
+
+                if ($trackAsBackfill) {
+
+                    ImportFutureVacationsRepository::upsertBackfillSlotForEvent(
+
+                        $userId,
+
+                        $parsed['event_id'],
+
+                        $medicalCenterId,
+
+                        $parsed['start_ts'],
+
+                        $parsed['end_ts']
+
+                    );
+
+                }
+
+
+
+                error_log(
+
+                    '[google-vacation] vacation create skipped (covered) event=' . $parsed['event_id']
+
+                    . ' parent=' . $covering['google_event_id']
+
+                );
+
+
+
+                $createdCount++;
+
+                continue;
+
+            }
+
+
+
+            $response = self::createVacationUnlessCovered(
+
+                $userId,
+
+                $parsed['event_id'],
 
                 $tokenRow,
 
@@ -987,7 +1063,9 @@ final class VacationSyncService
 
                 $vacationCenter,
 
-                $hamdastAccessToken
+                $hamdastAccessToken,
+
+                $seriesKey
 
             );
 
@@ -2624,6 +2702,90 @@ final class VacationSyncService
 
 
 
+            $coveringNew = self::findCoveringTrackedVacation(
+
+                $userId,
+
+                $medicalCenterId,
+
+                $newFrom,
+
+                $newTo,
+
+                $eventId
+
+            );
+
+            $coveringOld = self::isTrackedVacationCovered($tracked)
+
+                ? null
+
+                : self::findCoveringTrackedVacation($userId, $medicalCenterId, $oldFrom, $oldTo, $eventId);
+
+
+
+            $coverageResult = self::applyVacationMoveWithCoverageRules(
+
+                $userId,
+
+                $parsed,
+
+                $seriesKey,
+
+                $tracked,
+
+                $oldFrom,
+
+                $oldTo,
+
+                $newFrom,
+
+                $newTo,
+
+                $medicalCenterId,
+
+                $tokenRow,
+
+                $vacationCenters,
+
+                $hamdastAccessToken,
+
+                $trackAsBackfill,
+
+                $coveringNew,
+
+                $coveringOld
+
+            );
+
+
+
+            if ($coverageResult === 'updated') {
+
+                $anyUpdated = true;
+
+                continue;
+
+            }
+
+
+
+            if ($coverageResult === 'failed') {
+
+                error_log(
+
+                    '[google-vacation] vacation update failed (coverage move-out) event ' . $eventId
+
+                    . ' center=' . $medicalCenterId
+
+                );
+
+                continue;
+
+            }
+
+
+
             $response = self::updateVacationWithConflictResolution(
 
                 $userId,
@@ -2640,7 +2802,11 @@ final class VacationSyncService
 
                 $vacationCenter,
 
-                $hamdastAccessToken
+                $hamdastAccessToken,
+
+                $eventId,
+
+                $seriesKey
 
             );
 
@@ -2677,6 +2843,24 @@ final class VacationSyncService
                 self::attachGoogleSyncMetadata($response, $parsed, $seriesKey),
 
                 $medicalCenterId
+
+            );
+
+            self::absorbContainedTrackedVacations(
+
+                $userId,
+
+                $eventId,
+
+                $newFrom,
+
+                $newTo,
+
+                $medicalCenterId,
+
+                $hamdastAccessToken,
+
+                $seriesKey
 
             );
 
@@ -2849,6 +3033,738 @@ final class VacationSyncService
 
 
         return $fullEvent;
+
+    }
+
+
+
+    private static function isVacationRangeContained(
+
+        int $innerFrom,
+
+        int $innerTo,
+
+        int $outerFrom,
+
+        int $outerTo
+
+    ): bool {
+
+        if ($innerFrom <= 0 || $innerTo <= $innerFrom || $outerFrom <= 0 || $outerTo <= $outerFrom) {
+
+            return false;
+
+        }
+
+
+
+        return $outerFrom <= $innerFrom && $outerTo >= $innerTo;
+
+    }
+
+
+
+    /**
+
+     * @return array{
+
+     *   google_event_id: string,
+
+     *   medical_center_id: string,
+
+     *   vacation_from: int,
+
+     *   vacation_to: int
+
+     * }|null
+
+     */
+
+    private static function findCoveringTrackedVacation(
+
+        string $userId,
+
+        string $medicalCenterId,
+
+        int $from,
+
+        int $to,
+
+        string $excludeEventId
+
+    ): ?array {
+
+        if ($from <= 0 || $to <= $from || $medicalCenterId === '') {
+
+            return null;
+
+        }
+
+
+
+        $tracked = GoogleVacationRepository::listAllTrackedVacationsForDeletion($userId, $medicalCenterId);
+
+        $bestMatch = null;
+
+        $bestSpan = 0;
+
+
+
+        foreach ($tracked as $row) {
+
+            if (!is_array($row)) {
+
+                continue;
+
+            }
+
+
+
+            $eventId = is_string($row['google_event_id'] ?? null) ? trim($row['google_event_id']) : '';
+
+            $centerId = is_string($row['medical_center_id'] ?? null) ? trim($row['medical_center_id']) : '';
+
+            $outerFrom = (int) ($row['vacation_from'] ?? 0);
+
+            $outerTo = (int) ($row['vacation_to'] ?? 0);
+
+
+
+            if ($eventId === '' || $eventId === $excludeEventId || $centerId !== $medicalCenterId) {
+
+                continue;
+
+            }
+
+
+
+            if (!self::isVacationRangeContained($from, $to, $outerFrom, $outerTo)) {
+
+                continue;
+
+            }
+
+
+
+            $span = $outerTo - $outerFrom;
+
+            if ($bestMatch === null || $span > $bestSpan) {
+
+                $bestMatch = [
+
+                    'google_event_id' => $eventId,
+
+                    'medical_center_id' => $centerId,
+
+                    'vacation_from' => $outerFrom,
+
+                    'vacation_to' => $outerTo,
+
+                ];
+
+                $bestSpan = $span;
+
+            }
+
+        }
+
+
+
+        return $bestMatch;
+
+    }
+
+
+
+    private static function isTrackedVacationCovered(array $tracked): bool
+
+    {
+
+        $stored = self::decodeStoredResponse($tracked);
+
+
+
+        return is_array($stored)
+
+            && is_string($stored['_hamgam_covered_by_event_id'] ?? null)
+
+            && trim($stored['_hamgam_covered_by_event_id']) !== '';
+
+    }
+
+
+
+    private static function deleteStandalonePaziresh24Vacation(
+
+        string $hamdastAccessToken,
+
+        string $medicalCenterId,
+
+        int $from,
+
+        int $to
+
+    ): void {
+
+        if ($hamdastAccessToken === '' || $from <= 0 || $to <= $from) {
+
+            return;
+
+        }
+
+
+
+        Paziresh24VacationApi::deleteVacation($hamdastAccessToken, $medicalCenterId, $from, $to);
+
+    }
+
+
+
+    /**
+
+     * @param array{
+
+     *   google_event_id: string,
+
+     *   medical_center_id: string,
+
+     *   vacation_from: int,
+
+     *   vacation_to: int
+
+     * } $coveringVacation
+
+     */
+
+    private static function recordCoveredVacationTracking(
+
+        string $userId,
+
+        array $parsed,
+
+        ?string $seriesKey,
+
+        array $coveringVacation,
+
+        string $medicalCenterId,
+
+        ?array $previousResponse = null
+
+    ): void {
+
+        GoogleVacationRepository::recordProcessedEvent(
+
+            $userId,
+
+            $parsed['event_id'],
+
+            $parsed['summary'],
+
+            $parsed['start_ts'],
+
+            $parsed['end_ts'],
+
+            self::attachGoogleSyncMetadata($previousResponse, $parsed, $seriesKey, $coveringVacation),
+
+            $medicalCenterId
+
+        );
+
+    }
+
+
+
+    private static function absorbContainedTrackedVacations(
+
+        string $userId,
+
+        string $parentEventId,
+
+        int $parentFrom,
+
+        int $parentTo,
+
+        string $medicalCenterId,
+
+        string $hamdastAccessToken,
+
+        ?string $seriesKey = null
+
+    ): void {
+
+        if ($parentFrom <= 0 || $parentTo <= $parentFrom || $medicalCenterId === '') {
+
+            return;
+
+        }
+
+
+
+        $tracked = GoogleVacationRepository::listAllTrackedVacationsForDeletion($userId, $medicalCenterId);
+
+        $parentCovering = [
+
+            'google_event_id' => $parentEventId,
+
+            'medical_center_id' => $medicalCenterId,
+
+            'vacation_from' => $parentFrom,
+
+            'vacation_to' => $parentTo,
+
+        ];
+
+
+
+        foreach ($tracked as $row) {
+
+            if (!is_array($row)) {
+
+                continue;
+
+            }
+
+
+
+            $childEventId = is_string($row['google_event_id'] ?? null) ? trim($row['google_event_id']) : '';
+
+            if ($childEventId === '' || $childEventId === $parentEventId) {
+
+                continue;
+
+            }
+
+
+
+            $childFrom = (int) ($row['vacation_from'] ?? 0);
+
+            $childTo = (int) ($row['vacation_to'] ?? 0);
+
+            if (!self::isVacationRangeContained($childFrom, $childTo, $parentFrom, $parentTo)) {
+
+                continue;
+
+            }
+
+
+
+            $childRow = GoogleVacationRepository::findProcessedEvent($userId, $childEventId, $medicalCenterId);
+
+            if ($childRow === null) {
+
+                continue;
+
+            }
+
+
+
+            if (self::isTrackedVacationCovered($childRow)) {
+
+                continue;
+
+            }
+
+
+
+            self::deleteStandalonePaziresh24Vacation($hamdastAccessToken, $medicalCenterId, $childFrom, $childTo);
+
+
+
+            $childParsed = [
+
+                'event_id' => $childEventId,
+
+                'summary' => is_string($childRow['event_summary'] ?? null) ? $childRow['event_summary'] : '',
+
+                'start_ts' => $childFrom,
+
+                'end_ts' => $childTo,
+
+                'updated' => null,
+
+            ];
+
+
+
+            self::recordCoveredVacationTracking(
+
+                $userId,
+
+                $childParsed,
+
+                null,
+
+                $parentCovering,
+
+                $medicalCenterId,
+
+                self::decodeStoredResponse($childRow)
+
+            );
+
+
+
+            error_log(
+
+                '[google-vacation] absorbed nested vacation child=' . $childEventId
+
+                . ' into parent=' . $parentEventId
+
+                . ' center=' . $medicalCenterId
+
+            );
+
+        }
+
+    }
+
+
+
+    /**
+
+     * @param array<string, mixed> $tokenRow
+
+     * @param array{medical_center_id: string, user_center_id: ?string, name: string} $vacationCenter
+
+     * @return array<string, mixed>|null
+
+     */
+
+    private static function createVacationUnlessCovered(
+
+        string $userId,
+
+        string $googleEventId,
+
+        array $tokenRow,
+
+        int $from,
+
+        int $to,
+
+        array $vacationCenter,
+
+        string $hamdastAccessToken,
+
+        ?string $seriesKey = null
+
+    ): ?array {
+
+        $medicalCenterId = $vacationCenter['medical_center_id'];
+
+        $covering = self::findCoveringTrackedVacation($userId, $medicalCenterId, $from, $to, $googleEventId);
+
+        if ($covering !== null) {
+
+            return [];
+
+        }
+
+
+
+        $response = self::createVacationWithConflictResolution(
+
+            $userId,
+
+            $tokenRow,
+
+            $from,
+
+            $to,
+
+            $vacationCenter,
+
+            $hamdastAccessToken,
+
+            $googleEventId
+
+        );
+
+
+
+        if ($response !== null) {
+
+            self::absorbContainedTrackedVacations(
+
+                $userId,
+
+                $googleEventId,
+
+                $from,
+
+                $to,
+
+                $medicalCenterId,
+
+                $hamdastAccessToken,
+
+                $seriesKey
+
+            );
+
+        }
+
+
+
+        return $response;
+
+    }
+
+
+
+    /**
+
+     * @param array<string, mixed> $tracked
+
+     * @param array{
+
+     *   google_event_id: string,
+
+     *   medical_center_id: string,
+
+     *   vacation_from: int,
+
+     *   vacation_to: int
+
+     * }|null $coveringNew
+
+     * @param array{
+
+     *   google_event_id: string,
+
+     *   medical_center_id: string,
+
+     *   vacation_from: int,
+
+     *   vacation_to: int
+
+     * }|null $coveringOld
+
+     * @return 'updated'|'failed'|null null = continue with normal Paziresh24 update
+
+     */
+
+    private static function applyVacationMoveWithCoverageRules(
+
+        string $userId,
+
+        array $parsed,
+
+        ?string $seriesKey,
+
+        array $tracked,
+
+        int $oldFrom,
+
+        int $oldTo,
+
+        int $newFrom,
+
+        int $newTo,
+
+        string $medicalCenterId,
+
+        array $tokenRow,
+
+        array $vacationCenters,
+
+        string $hamdastAccessToken,
+
+        bool $trackAsBackfill,
+
+        ?array $coveringNew,
+
+        ?array $coveringOld
+
+    ): ?string {
+
+        $eventId = $parsed['event_id'];
+
+        $wasCovered = self::isTrackedVacationCovered($tracked);
+
+
+
+        if ($coveringNew !== null) {
+
+            if (!$wasCovered && $coveringOld === null) {
+
+                self::deleteStandalonePaziresh24Vacation($hamdastAccessToken, $medicalCenterId, $oldFrom, $oldTo);
+
+            }
+
+
+
+            self::recordCoveredVacationTracking(
+
+                $userId,
+
+                $parsed,
+
+                $seriesKey,
+
+                $coveringNew,
+
+                $medicalCenterId,
+
+                self::decodeStoredResponse($tracked)
+
+            );
+
+
+
+            if ($trackAsBackfill) {
+
+                ImportFutureVacationsRepository::syncBackfillSlotForEvent(
+
+                    $userId,
+
+                    $eventId,
+
+                    $medicalCenterId,
+
+                    $newFrom,
+
+                    $newTo,
+
+                    $oldFrom,
+
+                    $oldTo
+
+                );
+
+            }
+
+
+
+            error_log(
+
+                '[google-vacation] vacation covered by larger event child=' . $eventId
+
+                . ' parent=' . $coveringNew['google_event_id']
+
+                . ' center=' . $medicalCenterId
+
+            );
+
+
+
+            return 'updated';
+
+        }
+
+
+
+        if ($wasCovered || $coveringOld !== null) {
+
+            $vacationCenter = self::findVacationCenterByMedicalId($vacationCenters, $medicalCenterId);
+
+            if ($vacationCenter === null) {
+
+                $vacationCenter = [
+
+                    'medical_center_id' => $medicalCenterId,
+
+                    'user_center_id' => null,
+
+                    'name' => '',
+
+                ];
+
+            }
+
+
+
+            $response = self::createVacationUnlessCovered(
+
+                $userId,
+
+                $eventId,
+
+                $tokenRow,
+
+                $newFrom,
+
+                $newTo,
+
+                $vacationCenter,
+
+                $hamdastAccessToken,
+
+                $seriesKey
+
+            );
+
+
+
+            if ($response === null) {
+
+                return 'failed';
+
+            }
+
+
+
+            GoogleVacationRepository::recordProcessedEvent(
+
+                $userId,
+
+                $eventId,
+
+                $parsed['summary'],
+
+                $newFrom,
+
+                $newTo,
+
+                self::attachGoogleSyncMetadata($response, $parsed, $seriesKey),
+
+                $medicalCenterId
+
+            );
+
+
+
+            if ($trackAsBackfill) {
+
+                ImportFutureVacationsRepository::syncBackfillSlotForEvent(
+
+                    $userId,
+
+                    $eventId,
+
+                    $medicalCenterId,
+
+                    $newFrom,
+
+                    $newTo,
+
+                    $oldFrom,
+
+                    $oldTo
+
+                );
+
+            }
+
+
+
+            error_log(
+
+                '[google-vacation] vacation moved out of covering parent event=' . $eventId
+
+                . ' center=' . $medicalCenterId
+
+            );
+
+
+
+            return 'updated';
+
+        }
+
+
+
+        return null;
 
     }
 
@@ -3082,6 +3998,80 @@ final class VacationSyncService
 
 
 
+        $coveringNew = self::findCoveringTrackedVacation(
+
+            $userId,
+
+            $medicalCenterId,
+
+            $parsed['start_ts'],
+
+            $parsed['end_ts'],
+
+            $parsed['event_id']
+
+        );
+
+        $coveringOld = self::isTrackedVacationCovered($candidate)
+
+            ? null
+
+            : self::findCoveringTrackedVacation($userId, $medicalCenterId, $oldFrom, $oldTo, $parsed['event_id']);
+
+
+
+        $coverageResult = self::applyVacationMoveWithCoverageRules(
+
+            $userId,
+
+            $parsed,
+
+            $seriesKey,
+
+            $candidate,
+
+            $oldFrom,
+
+            $oldTo,
+
+            $parsed['start_ts'],
+
+            $parsed['end_ts'],
+
+            $medicalCenterId,
+
+            $tokenRow,
+
+            $vacationCenters,
+
+            $hamdastAccessToken,
+
+            $trackAsBackfill,
+
+            $coveringNew,
+
+            $coveringOld
+
+        );
+
+
+
+        if ($coverageResult === 'updated' || $coverageResult === 'failed') {
+
+            if ($coverageResult === 'updated') {
+
+                GoogleVacationRepository::removeProcessedEvent($userId, $oldEventId, $medicalCenterId);
+
+            }
+
+
+
+            return $coverageResult;
+
+        }
+
+
+
         if ($oldFrom === $parsed['start_ts'] && $oldTo === $parsed['end_ts']) {
 
             GoogleVacationRepository::removeProcessedEvent($userId, $oldEventId, $medicalCenterId);
@@ -3158,7 +4148,11 @@ final class VacationSyncService
 
             $vacationCenter,
 
-            $hamdastAccessToken
+            $hamdastAccessToken,
+
+            $parsed['event_id'],
+
+            $seriesKey
 
         );
 
@@ -3292,9 +4286,12 @@ final class VacationSyncService
 
      */
 
-    private static function attachGoogleSyncMetadata(?array $response, array $parsed, ?string $seriesKey = null): ?array
-
-    {
+    private static function attachGoogleSyncMetadata(
+        ?array $response,
+        array $parsed,
+        ?string $seriesKey = null,
+        ?array $coveringVacation = null
+    ): ?array {
 
         $payload = is_array($response) ? $response : [];
 
@@ -3319,6 +4316,40 @@ final class VacationSyncService
         if (is_string($seriesKey) && $seriesKey !== '') {
 
             $payload['_hamgam_recurring_series_id'] = $seriesKey;
+
+        }
+
+
+
+        if (is_array($coveringVacation)) {
+
+            $coveringEventId = is_string($coveringVacation['google_event_id'] ?? null)
+
+                ? trim($coveringVacation['google_event_id'])
+
+                : '';
+
+            if ($coveringEventId !== '') {
+
+                $payload['_hamgam_covered_by_event_id'] = $coveringEventId;
+
+                $payload['_hamgam_covered_by_from'] = (int) ($coveringVacation['vacation_from'] ?? 0);
+
+                $payload['_hamgam_covered_by_to'] = (int) ($coveringVacation['vacation_to'] ?? 0);
+
+            }
+
+        } else {
+
+            unset(
+
+                $payload['_hamgam_covered_by_event_id'],
+
+                $payload['_hamgam_covered_by_from'],
+
+                $payload['_hamgam_covered_by_to']
+
+            );
 
         }
 
@@ -4247,9 +5278,27 @@ final class VacationSyncService
 
         array $vacationCenter,
 
-        string $hamdastAccessToken
+        string $hamdastAccessToken,
+
+        string $googleEventId = ''
 
     ): ?array {
+
+        $medicalCenterId = $vacationCenter['medical_center_id'];
+
+        if ($googleEventId !== '') {
+
+            $covering = self::findCoveringTrackedVacation($userId, $medicalCenterId, $from, $to, $googleEventId);
+
+            if ($covering !== null) {
+
+                return [];
+
+            }
+
+        }
+
+
 
         if (
 
@@ -4411,7 +5460,11 @@ final class VacationSyncService
 
         array $vacationCenter,
 
-        string $hamdastAccessToken
+        string $hamdastAccessToken,
+
+        string $googleEventId = '',
+
+        ?string $seriesKey = null
 
     ): ?array {
 
@@ -4477,9 +5530,37 @@ final class VacationSyncService
 
             if ($result['not_found']) {
 
-                return self::createVacationWithConflictResolution(
+                if ($googleEventId !== '') {
+
+                    $covering = self::findCoveringTrackedVacation(
+
+                        $userId,
+
+                        $medicalCenterId,
+
+                        $from,
+
+                        $to,
+
+                        $googleEventId
+
+                    );
+
+                    if ($covering !== null) {
+
+                        return [];
+
+                    }
+
+                }
+
+
+
+                return self::createVacationUnlessCovered(
 
                     $userId,
+
+                    $googleEventId !== '' ? $googleEventId : 'unknown-event',
 
                     $tokenRow,
 
@@ -4489,7 +5570,9 @@ final class VacationSyncService
 
                     $vacationCenter,
 
-                    $hamdastAccessToken
+                    $hamdastAccessToken,
+
+                    $seriesKey
 
                 );
 
