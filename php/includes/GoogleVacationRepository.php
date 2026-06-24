@@ -264,6 +264,24 @@ final class GoogleVacationRepository
 
 
 
+    public static function hasProcessedRecurringSeries(string $userId, string $seriesKey): bool
+
+    {
+
+        if (self::hasProcessedEvent($userId, $seriesKey)) {
+
+            return true;
+
+        }
+
+
+
+        return self::findProcessedEventsRelatedToGoogleEvent($userId, $seriesKey) !== [];
+
+    }
+
+
+
     /**
 
      * @return array<int, array<string, mixed>>

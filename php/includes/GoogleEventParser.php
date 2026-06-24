@@ -180,6 +180,264 @@ final class GoogleEventParser
         return is_string($summary) && self::isHamgamGeneratedEvent($summary);
     }
 
+    /**
+     * Master id for a recurring series (recurringEventId on instances, or own id on the master row).
+     */
+    public static function extractRecurringSeriesKey(array $googleEvent): ?string
+    {
+        $recurringEventId = $googleEvent['recurringEventId'] ?? null;
+        if (is_string($recurringEventId) && $recurringEventId !== '') {
+            return $recurringEventId;
+        }
+
+        $recurrence = $googleEvent['recurrence'] ?? null;
+        if (is_array($recurrence) && $recurrence !== []) {
+            return self::extractEventId($googleEvent);
+        }
+
+        return null;
+    }
+
+    public static function isRecurringGoogleEvent(array $googleEvent): bool
+    {
+        return self::extractRecurringSeriesKey($googleEvent) !== null;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $googleEvents
+     * @return array{
+     *   event_id: string,
+     *   summary: string,
+     *   status: string,
+     *   start_ts: int,
+     *   end_ts: int,
+     *   timezone: string,
+     *   created: ?string,
+     *   updated: ?string,
+     *   is_deleted: bool
+     * }|null
+     */
+    public static function aggregateRecurringInstances(array $googleEvents, string $seriesKey): ?array
+    {
+        $parsedList = [];
+
+        foreach ($googleEvents as $googleEvent) {
+            if (!is_array($googleEvent)) {
+                continue;
+            }
+
+            if (($googleEvent['deleted'] ?? false) === true) {
+                continue;
+            }
+
+            $rawStatus = $googleEvent['status'] ?? null;
+            if (is_string($rawStatus) && $rawStatus === 'cancelled') {
+                continue;
+            }
+
+            $parsed = self::parseEvent($googleEvent);
+            if ($parsed === null || $parsed['status'] !== 'confirmed') {
+                continue;
+            }
+
+            $parsedList[] = $parsed;
+        }
+
+        if ($parsedList === []) {
+            return null;
+        }
+
+        $minStart = PHP_INT_MAX;
+        $maxEnd = 0;
+        $summary = '';
+        $created = null;
+        $updated = null;
+
+        foreach ($parsedList as $parsed) {
+            $minStart = min($minStart, $parsed['start_ts']);
+            $maxEnd = max($maxEnd, $parsed['end_ts']);
+
+            if ($summary === '' && $parsed['summary'] !== '') {
+                $summary = $parsed['summary'];
+            }
+
+            foreach (['created', 'updated'] as $field) {
+                $value = $parsed[$field] ?? null;
+                if (!is_string($value) || $value === '') {
+                    continue;
+                }
+
+                if ($field === 'created' && ($created === null || strcmp($value, $created) < 0)) {
+                    $created = $value;
+                }
+
+                if ($field === 'updated' && ($updated === null || strcmp($value, $updated) > 0)) {
+                    $updated = $value;
+                }
+            }
+        }
+
+        if ($minStart === PHP_INT_MAX || $maxEnd <= $minStart) {
+            return null;
+        }
+
+        $base = $parsedList[0];
+
+        return [
+            'event_id' => $seriesKey,
+            'summary' => $summary !== '' ? $summary : $base['summary'],
+            'status' => 'confirmed',
+            'start_ts' => $minStart,
+            'end_ts' => $maxEnd,
+            'timezone' => $base['timezone'],
+            'created' => $created,
+            'updated' => $updated,
+            'is_deleted' => false,
+        ];
+    }
+
+    /**
+     * Full-series query window for recurring instances (not limited to the 30-day backfill slice).
+     *
+     * @param array<string, mixed>|null $masterEvent
+     * @param array<int, array<string, mixed>>|null $prefetchedInstances
+     * @return array{time_min: string, time_max: string, time_min_ts: int, time_max_ts: int}
+     */
+    public static function resolveRecurringInstancesQueryWindow(
+        ?array $masterEvent,
+        ?array $prefetchedInstances,
+        int $horizonSeconds
+    ): array {
+        $now = time();
+        $timeMinTs = $now;
+        $timeMaxTs = $now + $horizonSeconds;
+        $parsedMaster = $masterEvent !== null ? self::parseEvent($masterEvent) : null;
+
+        if ($parsedMaster !== null) {
+            $timeMinTs = $parsedMaster['start_ts'];
+            $timeMaxTs = max(
+                $timeMaxTs,
+                self::estimateRecurringSeriesEndTs($masterEvent, $parsedMaster)
+            );
+        }
+
+        if ($prefetchedInstances !== null) {
+            foreach ($prefetchedInstances as $googleEvent) {
+                if (!is_array($googleEvent)) {
+                    continue;
+                }
+
+                $parsed = self::parseEvent($googleEvent);
+                if ($parsed === null) {
+                    continue;
+                }
+
+                $timeMinTs = min($timeMinTs, $parsed['start_ts']);
+                $timeMaxTs = max($timeMaxTs, $parsed['end_ts']);
+            }
+        }
+
+        $timeMinTs = max(0, $timeMinTs - 3600);
+        $timeMaxTs += 86400;
+
+        return [
+            'time_min' => gmdate('Y-m-d\TH:i:s\Z', $timeMinTs),
+            'time_max' => gmdate('Y-m-d\TH:i:s\Z', $timeMaxTs),
+            'time_min_ts' => $timeMinTs,
+            'time_max_ts' => $timeMaxTs,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $masterEvent
+     */
+    private static function estimateRecurringSeriesEndTs(array $masterEvent, array $parsedMaster): int
+    {
+        $fallbackEndTs = max($parsedMaster['end_ts'], $parsedMaster['start_ts'] + 86400);
+        $recurrence = $masterEvent['recurrence'] ?? null;
+        if (!is_array($recurrence) || $recurrence === []) {
+            return $fallbackEndTs;
+        }
+
+        foreach ($recurrence as $rule) {
+            if (!is_string($rule) || !str_starts_with($rule, 'RRULE:')) {
+                continue;
+            }
+
+            if (preg_match('/UNTIL=([^;]+)/i', $rule, $matches) === 1) {
+                $untilTs = self::parseRruleUntilTimestamp($matches[1]);
+                if ($untilTs !== null) {
+                    return max($fallbackEndTs, $untilTs + 86400);
+                }
+            }
+
+            if (preg_match('/COUNT=(\d+)/i', $rule, $matches) === 1) {
+                $count = (int) $matches[1];
+                if ($count > 0) {
+                    $freq = 'WEEKLY';
+                    if (preg_match('/FREQ=([A-Z]+)/i', $rule, $freqMatch) === 1) {
+                        $freq = strtoupper($freqMatch[1]);
+                    }
+
+                    $lastStart = self::estimateLastOccurrenceStartTs($parsedMaster['start_ts'], $freq, $count);
+                    if ($lastStart !== null) {
+                        $duration = max(86400, $parsedMaster['end_ts'] - $parsedMaster['start_ts']);
+
+                        return max($fallbackEndTs, $lastStart + $duration + 3600);
+                    }
+                }
+            }
+        }
+
+        return $fallbackEndTs;
+    }
+
+    private static function parseRruleUntilTimestamp(string $untilRaw): ?int
+    {
+        $untilRaw = trim($untilRaw);
+        if ($untilRaw === '') {
+            return null;
+        }
+
+        if (preg_match('/^\d{8}$/', $untilRaw) === 1) {
+            try {
+                return (new DateTimeImmutable($untilRaw . ' 23:59:59', new DateTimeZone('UTC')))->getTimestamp();
+            } catch (Throwable) {
+                return null;
+            }
+        }
+
+        $ts = strtotime($untilRaw);
+
+        return $ts === false ? null : $ts;
+    }
+
+    private static function estimateLastOccurrenceStartTs(int $startTs, string $freq, int $count): ?int
+    {
+        if ($count < 1) {
+            return null;
+        }
+
+        $offset = $count - 1;
+
+        try {
+            $dt = (new DateTimeImmutable('@' . $startTs))
+                ->setTimezone(new DateTimeZone(self::DEFAULT_TIMEZONE));
+
+            $modifier = match ($freq) {
+                'DAILY' => '+' . $offset . ' days',
+                'WEEKLY' => '+' . $offset . ' weeks',
+                'MONTHLY' => '+' . $offset . ' months',
+                'YEARLY' => '+' . $offset . ' years',
+                default => '+' . $offset . ' weeks',
+            };
+
+            return $dt->modify($modifier)->getTimestamp();
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
     private static function isUuid(string $value): bool
     {
         return preg_match(

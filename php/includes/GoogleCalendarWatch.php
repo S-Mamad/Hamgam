@@ -190,6 +190,112 @@ final class GoogleCalendarWatch
         return $events;
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
+    public static function getEvent(string $accessToken, string $eventId): ?array
+    {
+        $calendarId = rawurlencode('primary');
+        $encodedEventId = rawurlencode($eventId);
+        $url = Config::get(
+            'GOOGLE_CALENDAR_EVENT_GET_URL',
+            'https://www.googleapis.com/calendar/v3/calendars/' . $calendarId . '/events/' . $encodedEventId
+        );
+
+        $response = HttpClient::request(
+            'GET',
+            $url,
+            ['Authorization' => 'Bearer ' . $accessToken]
+        );
+
+        if ($response['status'] === 404) {
+            return null;
+        }
+
+        if ($response['status'] < 200 || $response['status'] >= 300) {
+            error_log(
+                '[google-vacation] getEvent failed: HTTP '
+                . $response['status']
+                . ' event=' . $eventId
+            );
+
+            return null;
+        }
+
+        $body = $response['body'] ?? null;
+
+        return is_array($body) ? $body : null;
+    }
+
+    /**
+     * Expanded instances of a recurring master event.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function listRecurringEventInstances(
+        string $accessToken,
+        string $recurringEventId,
+        string $timeMin,
+        string $timeMax
+    ): array {
+        $calendarId = rawurlencode('primary');
+        $eventId = rawurlencode($recurringEventId);
+        $baseUrl = Config::get(
+            'GOOGLE_CALENDAR_EVENTS_INSTANCES_URL',
+            'https://www.googleapis.com/calendar/v3/calendars/' . $calendarId . '/events/' . $eventId . '/instances'
+        );
+
+        $events = [];
+        $pageToken = null;
+
+        do {
+            $query = [
+                'maxResults' => 250,
+                'singleEvents' => 'true',
+                'orderBy' => 'startTime',
+                'timeMin' => $timeMin,
+                'timeMax' => $timeMax,
+            ];
+
+            if ($pageToken !== null) {
+                $query['pageToken'] = $pageToken;
+            }
+
+            $url = $baseUrl . '?' . http_build_query($query);
+
+            $response = HttpClient::request(
+                'GET',
+                $url,
+                ['Authorization' => 'Bearer ' . $accessToken]
+            );
+
+            if ($response['status'] < 200 || $response['status'] >= 300) {
+                error_log(
+                    '[google-vacation] listRecurringEventInstances failed: HTTP '
+                    . $response['status']
+                    . ' event=' . $recurringEventId
+                );
+                break;
+            }
+
+            $body = $response['body'] ?? [];
+            $items = $body['items'] ?? [];
+            if (is_array($items)) {
+                foreach ($items as $item) {
+                    if (is_array($item)) {
+                        $events[] = $item;
+                    }
+                }
+            }
+
+            $pageToken = isset($body['nextPageToken']) && is_string($body['nextPageToken'])
+                ? $body['nextPageToken']
+                : null;
+        } while ($pageToken !== null);
+
+        return $events;
+    }
+
     public static function establishSyncToken(string $accessToken): ?string
     {
         $baseUrl = Config::get(

@@ -16,6 +16,8 @@ final class VacationSyncService
 
 {
 
+    private const RECURRING_INSTANCE_HORIZON_SECONDS = 730 * 86400;
+
     public static function handleNotification(string $channelId, string $resourceId, string $resourceState): void
 
     {
@@ -265,67 +267,89 @@ final class VacationSyncService
             $cutoffTs = null;
         }
 
+        $groupedEvents = self::groupEventsForVacationSync($events);
+        $processedCount = 0;
 
+        foreach ($groupedEvents as $group) {
+            if ($group['type'] === 'recurring') {
+                $seriesKey = $group['seriesKey'];
+                $groupEvents = $group['events'];
+                $triggerEvent = $groupEvents[0];
 
-        foreach ($events as $eventIndex => $event) {
+                $parsedForCutoff = GoogleEventParser::parseEvent($triggerEvent);
+                if ($parsedForCutoff === null) {
+                    $skipped += count($groupEvents);
+                    $processedCount += count($groupEvents);
+                    self::reportBackfillProgress($userId, $processedCount, $eventTotal);
+                    continue;
+                }
 
-            if (!is_array($event)) {
+                if (
+                    $cutoffTs !== null
+                    && !GoogleEventParser::isEventNewerThanCutoff($parsedForCutoff, $cutoffTs)
+                ) {
+                    $skipped += count($groupEvents);
+                    $processedCount += count($groupEvents);
+                    self::reportBackfillProgress($userId, $processedCount, $eventTotal);
+                    continue;
+                }
 
-                self::reportBackfillProgress($userId, (int) $eventIndex + 1, $eventTotal);
-                continue;
+                $result = self::syncRecurringSeriesEvent(
+                    $userId,
+                    $tokenRow,
+                    $triggerEvent,
+                    $seriesKey,
+                    true,
+                    $vacationCenters,
+                    $hamdastAccessToken,
+                    true,
+                    $groupEvents
+                );
+            } else {
+                $event = $group['event'];
+                $parsedForCutoff = GoogleEventParser::parseEvent($event);
+                if ($parsedForCutoff === null) {
+                    $skipped++;
+                    $processedCount++;
+                    self::reportBackfillProgress($userId, $processedCount, $eventTotal);
+                    continue;
+                }
 
+                if (
+                    $cutoffTs !== null
+                    && !GoogleEventParser::isEventNewerThanCutoff($parsedForCutoff, $cutoffTs)
+                ) {
+                    $skipped++;
+                    $processedCount++;
+                    self::reportBackfillProgress($userId, $processedCount, $eventTotal);
+                    continue;
+                }
+
+                $result = self::syncSingleEvent(
+                    $userId,
+                    $tokenRow,
+                    $event,
+                    true,
+                    $vacationCenters,
+                    $hamdastAccessToken,
+                    true
+                );
+                $processedCount++;
             }
-
-            $parsedForCutoff = GoogleEventParser::parseEvent($event);
-            if ($parsedForCutoff === null) {
-                $skipped++;
-                self::reportBackfillProgress($userId, (int) $eventIndex + 1, $eventTotal);
-                continue;
-            }
-
-            if (
-                $cutoffTs !== null
-                && !GoogleEventParser::isEventNewerThanCutoff($parsedForCutoff, $cutoffTs)
-            ) {
-                $skipped++;
-                self::reportBackfillProgress($userId, (int) $eventIndex + 1, $eventTotal);
-                continue;
-            }
-
-
-
-            $result = self::syncSingleEvent(
-
-                $userId,
-
-                $tokenRow,
-
-                $event,
-
-                true,
-
-                $vacationCenters,
-
-                $hamdastAccessToken,
-
-                true
-
-            );
 
             if ($result === 'created') {
                 $imported++;
             } elseif ($result === 'failed') {
-
                 $failed++;
-
             } else {
-
-                $skipped++;
-
+                $skipped += $group['type'] === 'recurring' ? count($group['events']) : 1;
             }
 
-            self::reportBackfillProgress($userId, (int) $eventIndex + 1, $eventTotal);
+            if ($group['type'] === 'recurring') {
+                $processedCount += count($group['events']);
+            }
 
+            self::reportBackfillProgress($userId, $processedCount, $eventTotal);
         }
 
 
@@ -656,6 +680,32 @@ final class VacationSyncService
 
     ): string {
 
+        $seriesKey = GoogleEventParser::extractRecurringSeriesKey($googleEvent);
+
+        if ($seriesKey !== null) {
+
+            return self::syncRecurringSeriesEvent(
+
+                $userId,
+
+                $tokenRow,
+
+                $googleEvent,
+
+                $seriesKey,
+
+                $autoVacation,
+
+                $vacationCenters,
+
+                $hamdastAccessToken,
+
+                $trackAsBackfill
+
+            );
+
+        }
+
         $eventId = GoogleEventParser::extractEventId($googleEvent);
 
         $parsed = GoogleEventParser::parseEvent($googleEvent);
@@ -887,6 +937,1196 @@ final class VacationSyncService
 
 
         return $failedCount > 0 ? 'failed' : 'skipped';
+
+    }
+
+
+
+    /**
+
+     * @param array<string, mixed> $tokenRow
+
+     * @param array<string, mixed> $googleEvent
+
+     * @param array<int, array{medical_center_id: string, user_center_id: ?string, name: string}> $vacationCenters
+
+     * @param array<int, array<string, mixed>>|null $prefetchedInstances
+
+     * @return 'created'|'updated'|'skipped'|'failed'
+
+     */
+
+    private static function syncRecurringSeriesEvent(
+
+        string $userId,
+
+        array $tokenRow,
+
+        array $googleEvent,
+
+        string $seriesKey,
+
+        bool $autoVacation,
+
+        array $vacationCenters,
+
+        string $hamdastAccessToken,
+
+        bool $trackAsBackfill = false,
+
+        ?array $prefetchedInstances = null
+
+    ): string {
+
+        $eventId = GoogleEventParser::extractEventId($googleEvent);
+
+        $parsed = GoogleEventParser::parseEvent($googleEvent);
+
+        $isDeleted = self::isDeletedGoogleEvent($googleEvent, $parsed);
+
+
+
+        if ($isDeleted) {
+
+            $isWholeSeriesDelete = $eventId === null
+
+                || $eventId === ''
+
+                || $eventId === $seriesKey
+
+                || GoogleEventParser::extractRecurringSeriesKey($googleEvent) === $eventId;
+
+
+
+            if (!$isWholeSeriesDelete) {
+
+                $remainingInstances = self::resolveRecurringInstances($tokenRow, $seriesKey, $prefetchedInstances);
+
+                $aggregatedRemaining = GoogleEventParser::aggregateRecurringInstances($remainingInstances, $seriesKey);
+
+                if ($aggregatedRemaining !== null) {
+
+                    if (GoogleVacationRepository::hasProcessedRecurringSeries($userId, $seriesKey)) {
+
+                        $updated = self::processUpdatedRecurringSeries(
+
+                            $userId,
+
+                            $aggregatedRemaining,
+
+                            $autoVacation,
+
+                            $vacationCenters,
+
+                            $tokenRow,
+
+                            $hamdastAccessToken,
+
+                            $trackAsBackfill
+
+                        );
+
+
+
+                        return $updated ? 'updated' : 'skipped';
+
+                    }
+
+
+
+                    return 'skipped';
+
+                }
+
+            }
+
+
+
+            self::processDeletedEvent($userId, $seriesKey, $parsed, $tokenRow, $hamdastAccessToken);
+
+
+
+            if (GoogleEventParser::isHamgamAppointmentEvent($googleEvent)) {
+
+                self::processDeletedAppointmentEvent($userId, $tokenRow, $googleEvent, $hamdastAccessToken);
+
+            }
+
+
+
+            return 'skipped';
+
+        }
+
+
+
+        if (GoogleEventParser::isHamgamAppointmentEvent($googleEvent)) {
+
+            return 'skipped';
+
+        }
+
+
+
+        $instances = self::resolveRecurringInstances($tokenRow, $seriesKey, $prefetchedInstances);
+
+        $aggregated = GoogleEventParser::aggregateRecurringInstances($instances, $seriesKey);
+
+        if ($aggregated === null) {
+
+            error_log('[google-vacation] recurring series has no active instances series=' . $seriesKey);
+
+            return 'skipped';
+
+        }
+
+
+
+        error_log(
+
+            '[google-vacation] recurring series aggregated id=' . $seriesKey
+
+            . ' instances=' . count($instances)
+
+            . ' from=' . $aggregated['start_ts']
+
+            . ' to=' . $aggregated['end_ts']
+
+        );
+
+
+
+        if (GoogleVacationRepository::hasProcessedRecurringSeries($userId, $seriesKey)) {
+
+            $updated = self::processUpdatedRecurringSeries(
+
+                $userId,
+
+                $aggregated,
+
+                $autoVacation,
+
+                $vacationCenters,
+
+                $tokenRow,
+
+                $hamdastAccessToken,
+
+                $trackAsBackfill
+
+            );
+
+
+
+            return $updated ? 'updated' : 'skipped';
+
+        }
+
+
+
+        if (!$autoVacation) {
+
+            error_log('[google-vacation] auto_vacation off, no Paziresh24 action for recurring ' . $seriesKey);
+
+            return 'skipped';
+
+        }
+
+
+
+        if ($hamdastAccessToken === '') {
+
+            error_log('[google-vacation] missing hamdast token for user ' . $userId);
+
+            return 'failed';
+
+        }
+
+
+
+        if ($vacationCenters === []) {
+
+            error_log('[google-vacation] missing medical centers for user ' . $userId);
+
+            return 'failed';
+
+        }
+
+
+
+        $createdCount = 0;
+
+        $failedCount = 0;
+
+
+
+        foreach ($vacationCenters as $vacationCenter) {
+
+            $response = self::createVacationWithConflictResolution(
+
+                $userId,
+
+                $tokenRow,
+
+                $aggregated['start_ts'],
+
+                $aggregated['end_ts'],
+
+                $vacationCenter,
+
+                $hamdastAccessToken
+
+            );
+
+
+
+            if ($response === null) {
+
+                error_log(
+
+                    '[google-vacation] vacation create failed for recurring series ' . $seriesKey
+
+                    . ' center=' . $vacationCenter['medical_center_id']
+
+                );
+
+                $failedCount++;
+
+                continue;
+
+            }
+
+
+
+            self::migrateRecurringTrackingToSeriesKey(
+
+                $userId,
+
+                $seriesKey,
+
+                $vacationCenter['medical_center_id'],
+
+                $tokenRow,
+
+                $hamdastAccessToken
+
+            );
+
+
+
+            GoogleVacationRepository::recordProcessedEvent(
+
+                $userId,
+
+                $seriesKey,
+
+                $aggregated['summary'],
+
+                $aggregated['start_ts'],
+
+                $aggregated['end_ts'],
+
+                $response,
+
+                $vacationCenter['medical_center_id']
+
+            );
+
+            if ($trackAsBackfill) {
+                ImportFutureVacationsRepository::upsertBackfillSlotForEvent(
+                    $userId,
+                    $seriesKey,
+                    $vacationCenter['medical_center_id'],
+                    $aggregated['start_ts'],
+                    $aggregated['end_ts']
+                );
+            }
+
+
+
+            error_log(
+
+                '[google-vacation] vacation created for recurring series ' . $seriesKey
+
+                . ' center=' . $vacationCenter['medical_center_id']
+
+            );
+
+            $createdCount++;
+
+        }
+
+
+
+        if ($createdCount > 0) {
+
+            return 'created';
+
+        }
+
+
+
+        return $failedCount > 0 ? 'failed' : 'skipped';
+
+    }
+
+
+
+    /**
+
+     * @param array<int, array<string, mixed>> $events
+
+     * @return array<int, array{
+
+     *   type: 'single',
+
+     *   event: array<string, mixed>
+
+     * }|array{
+
+     *   type: 'recurring',
+
+     *   seriesKey: string,
+
+     *   events: array<int, array<string, mixed>>
+
+     * }>
+
+     */
+
+    private static function groupEventsForVacationSync(array $events): array
+
+    {
+
+        $recurringGroups = [];
+
+        $result = [];
+
+        $seenSingleIds = [];
+
+
+
+        foreach ($events as $event) {
+
+            if (!is_array($event)) {
+
+                continue;
+
+            }
+
+
+
+            $seriesKey = GoogleEventParser::extractRecurringSeriesKey($event);
+
+            if ($seriesKey !== null) {
+
+                if (!isset($recurringGroups[$seriesKey])) {
+
+                    $recurringGroups[$seriesKey] = [];
+
+                }
+
+                $recurringGroups[$seriesKey][] = $event;
+
+                continue;
+
+            }
+
+
+
+            $eventId = GoogleEventParser::extractEventId($event);
+
+            if ($eventId === null || isset($seenSingleIds[$eventId])) {
+
+                continue;
+
+            }
+
+
+
+            $seenSingleIds[$eventId] = true;
+
+            $result[] = [
+
+                'type' => 'single',
+
+                'event' => $event,
+
+            ];
+
+        }
+
+
+
+        foreach ($recurringGroups as $seriesKey => $groupEvents) {
+
+            $result[] = [
+
+                'type' => 'recurring',
+
+                'seriesKey' => $seriesKey,
+
+                'events' => $groupEvents,
+
+            ];
+
+        }
+
+
+
+        return $result;
+
+    }
+
+
+
+    /**
+
+     * @param array<int, array<string, mixed>>|null $prefetchedInstances
+
+     * @return array<int, array<string, mixed>>
+
+     */
+
+    private static function resolveRecurringInstances(
+
+        array $tokenRow,
+
+        string $seriesKey,
+
+        ?array $prefetchedInstances = null
+
+    ): array {
+
+        $googleAccessToken = self::refreshGoogleAccessToken($tokenRow);
+
+        if ($googleAccessToken === null) {
+
+            return self::fallbackPrefetchedRecurringInstances($prefetchedInstances, $seriesKey);
+
+        }
+
+
+
+        $masterEvent = GoogleCalendarWatch::getEvent($googleAccessToken, $seriesKey);
+
+        $window = GoogleEventParser::resolveRecurringInstancesQueryWindow(
+
+            $masterEvent,
+
+            $prefetchedInstances,
+
+            self::RECURRING_INSTANCE_HORIZON_SECONDS
+
+        );
+
+
+
+        $instances = GoogleCalendarWatch::listRecurringEventInstances(
+
+            $googleAccessToken,
+
+            $seriesKey,
+
+            $window['time_min'],
+
+            $window['time_max']
+
+        );
+
+
+
+        if ($instances !== []) {
+
+            error_log(
+
+                '[google-vacation] recurring instances fetched count=' . count($instances)
+
+                . ' series=' . $seriesKey
+
+                . ' from=' . $window['time_min']
+
+                . ' to=' . $window['time_max']
+
+            );
+
+
+
+            return $instances;
+
+        }
+
+
+
+        if ($masterEvent !== null && GoogleEventParser::aggregateRecurringInstances([$masterEvent], $seriesKey) !== null) {
+
+            return [$masterEvent];
+
+        }
+
+
+
+        return self::fallbackPrefetchedRecurringInstances($prefetchedInstances, $seriesKey);
+
+    }
+
+
+
+    /**
+
+     * @param array<int, array<string, mixed>>|null $prefetchedInstances
+
+     * @return array<int, array<string, mixed>>
+
+     */
+
+    private static function fallbackPrefetchedRecurringInstances(?array $prefetchedInstances, string $seriesKey): array
+
+    {
+
+        if ($prefetchedInstances === null || $prefetchedInstances === []) {
+
+            return [];
+
+        }
+
+
+
+        error_log(
+
+            '[google-vacation] recurring instances API unavailable, using prefetched slice series='
+
+            . $seriesKey
+
+            . ' count=' . count($prefetchedInstances)
+
+        );
+
+
+
+        return $prefetchedInstances;
+
+    }
+
+
+
+    /**
+
+     * @param array{
+
+     *   event_id: string,
+
+     *   summary: string,
+
+     *   status: string,
+
+     *   start_ts: int,
+
+     *   end_ts: int,
+
+     *   timezone: string,
+
+     *   created: ?string,
+
+     *   updated: ?string,
+
+     *   is_deleted: bool
+
+     * } $parsed
+
+     * @param array<int, array{medical_center_id: string, user_center_id: ?string, name: string}> $vacationCenters
+
+     * @param array<string, mixed> $tokenRow
+
+     */
+
+    private static function processUpdatedRecurringSeries(
+
+        string $userId,
+
+        array $parsed,
+
+        bool $autoVacation,
+
+        array $vacationCenters,
+
+        array $tokenRow,
+
+        string $hamdastAccessToken,
+
+        bool $trackAsBackfill = false
+
+    ): bool {
+
+        $seriesKey = $parsed['event_id'];
+
+        $trackedRows = GoogleVacationRepository::findProcessedEventsRelatedToGoogleEvent($userId, $seriesKey);
+
+        if ($trackedRows === []) {
+
+            error_log('[google-vacation] recurring update skipped: tracked rows missing for ' . $seriesKey);
+
+            return false;
+
+        }
+
+
+
+        $fallbackCenterId = isset($tokenRow['center_id']) && is_string($tokenRow['center_id'])
+
+            ? trim($tokenRow['center_id'])
+
+            : null;
+
+
+
+        $rowsByCenter = self::groupTrackedRowsByMedicalCenter($trackedRows, $fallbackCenterId);
+
+        $newFrom = $parsed['start_ts'];
+
+        $newTo = $parsed['end_ts'];
+
+        $anyUpdated = false;
+
+
+
+        foreach ($rowsByCenter as $medicalCenterId => $centerRows) {
+
+            $primary = $centerRows[0];
+
+            $oldFrom = isset($primary['vacation_from']) ? (int) $primary['vacation_from'] : 0;
+
+            $oldTo = isset($primary['vacation_to']) ? (int) $primary['vacation_to'] : 0;
+
+
+
+            if (count($centerRows) > 1) {
+
+                self::removeDuplicateRecurringTrackedRows(
+
+                    $userId,
+
+                    $seriesKey,
+
+                    $medicalCenterId,
+
+                    $centerRows,
+
+                    $hamdastAccessToken,
+
+                    $primary
+
+                );
+
+            }
+
+
+
+            $trackedEventId = is_string($primary['google_event_id'] ?? null) && $primary['google_event_id'] !== ''
+
+                ? $primary['google_event_id']
+
+                : $seriesKey;
+
+
+
+            if ($oldFrom <= 0 || $oldTo <= 0 || $newFrom <= 0 || $newTo <= $newFrom) {
+
+                error_log(
+
+                    '[google-vacation] recurring update skipped: invalid timestamps for ' . $seriesKey
+
+                    . ' center=' . $medicalCenterId
+
+                );
+
+                continue;
+
+            }
+
+
+
+            if ($oldFrom === $newFrom && $oldTo === $newTo) {
+
+                $oldSummary = is_string($primary['event_summary'] ?? null) ? $primary['event_summary'] : '';
+
+                if ($oldSummary !== $parsed['summary'] || $trackedEventId !== $seriesKey) {
+
+                    GoogleVacationRepository::recordProcessedEvent(
+
+                        $userId,
+
+                        $seriesKey,
+
+                        $parsed['summary'],
+
+                        $newFrom,
+
+                        $newTo,
+
+                        self::decodeStoredResponse($primary),
+
+                        $medicalCenterId
+
+                    );
+
+                    $anyUpdated = true;
+
+                }
+
+
+
+                if ($trackAsBackfill) {
+
+                    ImportFutureVacationsRepository::upsertBackfillSlotForEvent(
+
+                        $userId,
+
+                        $seriesKey,
+
+                        $medicalCenterId,
+
+                        $newFrom,
+
+                        $newTo
+
+                    );
+
+                    $anyUpdated = true;
+
+                } elseif (
+
+                    ImportFutureVacationsRepository::hasActiveBackfillSlotForEvent(
+
+                        $userId,
+
+                        $trackedEventId,
+
+                        $medicalCenterId
+
+                    )
+
+                    || ImportFutureVacationsRepository::hasActiveBackfillSlotForEvent(
+
+                        $userId,
+
+                        $seriesKey,
+
+                        $medicalCenterId
+
+                    )
+
+                ) {
+
+                    ImportFutureVacationsRepository::syncBackfillSlotForEvent(
+
+                        $userId,
+
+                        $seriesKey,
+
+                        $medicalCenterId,
+
+                        $newFrom,
+
+                        $newTo,
+
+                        $oldFrom,
+
+                        $oldTo
+
+                    );
+
+                }
+
+
+
+                continue;
+
+            }
+
+
+
+            if (!$autoVacation) {
+
+                error_log('[google-vacation] auto_vacation off, no recurring update for ' . $seriesKey);
+
+                continue;
+
+            }
+
+
+
+            if ($hamdastAccessToken === '') {
+
+                error_log('[google-vacation] missing hamdast token for recurring update user ' . $userId);
+
+                continue;
+
+            }
+
+
+
+            $vacationCenter = self::findVacationCenterByMedicalId($vacationCenters, $medicalCenterId);
+
+            if ($vacationCenter === null) {
+
+                $vacationCenter = [
+
+                    'medical_center_id' => $medicalCenterId,
+
+                    'user_center_id' => null,
+
+                    'name' => '',
+
+                ];
+
+            }
+
+
+
+            $response = self::updateVacationWithConflictResolution(
+
+                $userId,
+
+                $tokenRow,
+
+                $newFrom,
+
+                $newTo,
+
+                $oldFrom,
+
+                $oldTo,
+
+                $vacationCenter,
+
+                $hamdastAccessToken
+
+            );
+
+
+
+            if ($response === null) {
+
+                error_log(
+
+                    '[google-vacation] recurring vacation update failed for ' . $seriesKey
+
+                    . ' center=' . $medicalCenterId
+
+                );
+
+                continue;
+
+            }
+
+
+
+            GoogleVacationRepository::recordProcessedEvent(
+
+                $userId,
+
+                $seriesKey,
+
+                $parsed['summary'],
+
+                $newFrom,
+
+                $newTo,
+
+                $response,
+
+                $medicalCenterId
+
+            );
+
+            if ($trackAsBackfill) {
+
+                ImportFutureVacationsRepository::syncBackfillSlotForEvent(
+
+                    $userId,
+
+                    $seriesKey,
+
+                    $medicalCenterId,
+
+                    $newFrom,
+
+                    $newTo,
+
+                    $oldFrom,
+
+                    $oldTo
+
+                );
+
+            }
+
+
+
+            error_log(
+
+                '[google-vacation] recurring vacation updated for ' . $seriesKey
+
+                . ' center=' . $medicalCenterId
+
+                . ' old_from=' . $oldFrom
+
+                . ' old_to=' . $oldTo
+
+                . ' from=' . $newFrom
+
+                . ' to=' . $newTo
+
+            );
+
+            $anyUpdated = true;
+
+        }
+
+
+
+        return $anyUpdated;
+
+    }
+
+
+
+    /**
+
+     * @param array<int, array<string, mixed>> $trackedRows
+
+     * @return array<string, array<int, array<string, mixed>>>
+
+     */
+
+    private static function groupTrackedRowsByMedicalCenter(array $trackedRows, ?string $fallbackCenterId): array
+
+    {
+
+        $grouped = [];
+
+
+
+        foreach ($trackedRows as $tracked) {
+
+            $medicalCenterId = GoogleVacationRepository::resolveTrackedMedicalCenterId($tracked, $fallbackCenterId);
+
+            if ($medicalCenterId === '') {
+
+                continue;
+
+            }
+
+
+
+            if (!isset($grouped[$medicalCenterId])) {
+
+                $grouped[$medicalCenterId] = [];
+
+            }
+
+            $grouped[$medicalCenterId][] = $tracked;
+
+        }
+
+
+
+        foreach ($grouped as $medicalCenterId => $rows) {
+
+            usort(
+
+                $rows,
+
+                static function (array $left, array $right): int {
+
+                    $leftId = is_string($left['google_event_id'] ?? null) ? $left['google_event_id'] : '';
+
+                    $rightId = is_string($right['google_event_id'] ?? null) ? $right['google_event_id'] : '';
+
+                    if ($leftId === $rightId) {
+
+                        return ((int) ($left['id'] ?? 0)) <=> ((int) ($right['id'] ?? 0));
+
+                    }
+
+
+
+                    $leftIsMaster = !str_contains($leftId, '_');
+
+                    $rightIsMaster = !str_contains($rightId, '_');
+
+                    if ($leftIsMaster !== $rightIsMaster) {
+
+                        return $leftIsMaster ? -1 : 1;
+
+                    }
+
+
+
+                    return strcmp($leftId, $rightId);
+
+                }
+
+            );
+
+            $grouped[$medicalCenterId] = $rows;
+
+        }
+
+
+
+        return $grouped;
+
+    }
+
+
+
+    /**
+
+     * @param array<int, array<string, mixed>> $centerRows
+
+     * @param array<string, mixed> $keepRow
+
+     */
+
+    private static function removeDuplicateRecurringTrackedRows(
+
+        string $userId,
+
+        string $seriesKey,
+
+        string $medicalCenterId,
+
+        array $centerRows,
+
+        string $hamdastAccessToken,
+
+        array $keepRow
+
+    ): void {
+
+        $keepEventId = is_string($keepRow['google_event_id'] ?? null) ? $keepRow['google_event_id'] : $seriesKey;
+
+
+
+        foreach ($centerRows as $index => $tracked) {
+
+            if ($index === 0) {
+
+                continue;
+
+            }
+
+
+
+            $from = isset($tracked['vacation_from']) ? (int) $tracked['vacation_from'] : 0;
+
+            $to = isset($tracked['vacation_to']) ? (int) $tracked['vacation_to'] : 0;
+
+            $trackedEventId = is_string($tracked['google_event_id'] ?? null) ? $tracked['google_event_id'] : '';
+
+
+
+            if ($from > 0 && $to > $from && $trackedEventId !== '' && $trackedEventId !== $keepEventId) {
+
+                Paziresh24VacationApi::deleteVacation(
+
+                    $hamdastAccessToken,
+
+                    $medicalCenterId,
+
+                    $from,
+
+                    $to
+
+                );
+
+            }
+
+
+
+            if ($trackedEventId !== '') {
+
+                GoogleVacationRepository::removeProcessedEvent($userId, $trackedEventId, $medicalCenterId);
+
+                ImportFutureVacationsRepository::markBackfillSlotsDeletedByEvent(
+
+                    $userId,
+
+                    $trackedEventId,
+
+                    $medicalCenterId
+
+                );
+
+            }
+
+        }
+
+    }
+
+
+
+    private static function migrateRecurringTrackingToSeriesKey(
+
+        string $userId,
+
+        string $seriesKey,
+
+        string $medicalCenterId,
+
+        array $tokenRow,
+
+        string $hamdastAccessToken
+
+    ): void {
+
+        $trackedRows = GoogleVacationRepository::findProcessedEventsRelatedToGoogleEvent($userId, $seriesKey);
+
+        if ($trackedRows === []) {
+
+            return;
+
+        }
+
+
+
+        $fallbackCenterId = isset($tokenRow['center_id']) && is_string($tokenRow['center_id'])
+
+            ? trim($tokenRow['center_id'])
+
+            : null;
+
+
+
+        $rowsByCenter = self::groupTrackedRowsByMedicalCenter($trackedRows, $fallbackCenterId);
+
+        $centerRows = $rowsByCenter[$medicalCenterId] ?? [];
+
+        if (count($centerRows) <= 1) {
+
+            return;
+
+        }
+
+
+
+        self::removeDuplicateRecurringTrackedRows(
+
+            $userId,
+
+            $seriesKey,
+
+            $medicalCenterId,
+
+            $centerRows,
+
+            $hamdastAccessToken,
+
+            $centerRows[0]
+
+        );
 
     }
 
