@@ -267,147 +267,67 @@ final class VacationSyncService
             $cutoffTs = null;
         }
 
-        $groupedEvents = self::groupEventsForVacationSync($events);
-        $processedCount = 0;
 
-        foreach ($groupedEvents as $group) {
-            if ($group['type'] === 'recurring') {
-                $seriesKey = $group['seriesKey'];
-                $groupEvents = $group['events'];
-                $triggerEvent = $groupEvents[0];
-                $masterEvent = isset($triggerEvent['recurrence']) && is_array($triggerEvent['recurrence'])
-                    ? $triggerEvent
-                    : null;
-                if ($masterEvent === null) {
-                    $googleAccessToken = self::refreshGoogleAccessToken($tokenRow);
-                    if ($googleAccessToken !== null) {
-                        $fetchedMaster = GoogleCalendarWatch::getEvent($googleAccessToken, $seriesKey);
-                        if (is_array($fetchedMaster)) {
-                            $masterEvent = $fetchedMaster;
-                        }
-                    }
-                }
-                $shouldCollapse = GoogleEventParser::shouldCollapseRecurringVacations($masterEvent, $groupEvents);
 
-                if (!$shouldCollapse) {
-                    foreach ($groupEvents as $instanceEvent) {
-                        $parsedForCutoff = GoogleEventParser::parseEvent($instanceEvent);
-                        if ($parsedForCutoff === null) {
-                            $skipped++;
-                            $processedCount++;
-                            self::reportBackfillProgress($userId, $processedCount, $eventTotal);
-                            continue;
-                        }
+        foreach ($events as $eventIndex => $event) {
 
-                        if (
-                            $cutoffTs !== null
-                            && !GoogleEventParser::isEventNewerThanCutoff($parsedForCutoff, $cutoffTs)
-                        ) {
-                            $skipped++;
-                            $processedCount++;
-                            self::reportBackfillProgress($userId, $processedCount, $eventTotal);
-                            continue;
-                        }
+            if (!is_array($event)) {
 
-                        $instanceResult = self::syncSingleEvent(
-                            $userId,
-                            $tokenRow,
-                            $instanceEvent,
-                            true,
-                            $vacationCenters,
-                            $hamdastAccessToken,
-                            true
-                        );
+                self::reportBackfillProgress($userId, (int) $eventIndex + 1, $eventTotal);
+                continue;
 
-                        if ($instanceResult === 'created') {
-                            $imported++;
-                        } elseif ($instanceResult === 'failed') {
-                            $failed++;
-                        } else {
-                            $skipped++;
-                        }
-
-                        $processedCount++;
-                        self::reportBackfillProgress($userId, $processedCount, $eventTotal);
-                    }
-
-                    continue;
-                }
-
-                $parsedForCutoff = GoogleEventParser::parseEvent($triggerEvent);
-                if ($parsedForCutoff === null) {
-                    $skipped += count($groupEvents);
-                    $processedCount += count($groupEvents);
-                    self::reportBackfillProgress($userId, $processedCount, $eventTotal);
-                    continue;
-                }
-
-                if (
-                    $cutoffTs !== null
-                    && !GoogleEventParser::isEventNewerThanCutoff($parsedForCutoff, $cutoffTs)
-                ) {
-                    $skipped += count($groupEvents);
-                    $processedCount += count($groupEvents);
-                    self::reportBackfillProgress($userId, $processedCount, $eventTotal);
-                    continue;
-                }
-
-                $result = self::syncRecurringSeriesEvent(
-                    $userId,
-                    $tokenRow,
-                    $triggerEvent,
-                    $seriesKey,
-                    true,
-                    $vacationCenters,
-                    $hamdastAccessToken,
-                    true,
-                    $groupEvents
-                );
-            } else {
-                $event = $group['event'];
-                $parsedForCutoff = GoogleEventParser::parseEvent($event);
-                if ($parsedForCutoff === null) {
-                    $skipped++;
-                    $processedCount++;
-                    self::reportBackfillProgress($userId, $processedCount, $eventTotal);
-                    continue;
-                }
-
-                if (
-                    $cutoffTs !== null
-                    && !GoogleEventParser::isEventNewerThanCutoff($parsedForCutoff, $cutoffTs)
-                ) {
-                    $skipped++;
-                    $processedCount++;
-                    self::reportBackfillProgress($userId, $processedCount, $eventTotal);
-                    continue;
-                }
-
-                $result = self::syncSingleEvent(
-                    $userId,
-                    $tokenRow,
-                    $event,
-                    true,
-                    $vacationCenters,
-                    $hamdastAccessToken,
-                    true
-                );
-                $processedCount++;
             }
+
+            $parsedForCutoff = GoogleEventParser::parseEvent($event);
+            if ($parsedForCutoff === null) {
+                $skipped++;
+                self::reportBackfillProgress($userId, (int) $eventIndex + 1, $eventTotal);
+                continue;
+            }
+
+            if (
+                $cutoffTs !== null
+                && !GoogleEventParser::isEventNewerThanCutoff($parsedForCutoff, $cutoffTs)
+            ) {
+                $skipped++;
+                self::reportBackfillProgress($userId, (int) $eventIndex + 1, $eventTotal);
+                continue;
+            }
+
+
+
+            $result = self::syncSingleEvent(
+
+                $userId,
+
+                $tokenRow,
+
+                $event,
+
+                true,
+
+                $vacationCenters,
+
+                $hamdastAccessToken,
+
+                true
+
+            );
 
             if ($result === 'created') {
                 $imported++;
             } elseif ($result === 'failed') {
+
                 $failed++;
+
             } else {
-                $skipped += $group['type'] === 'recurring' ? count($group['events']) : 1;
+
+                $skipped++;
+
             }
 
-            if ($group['type'] === 'recurring') {
-                $processedCount += count($group['events']);
-            }
+            self::reportBackfillProgress($userId, (int) $eventIndex + 1, $eventTotal);
 
-            self::reportBackfillProgress($userId, $processedCount, $eventTotal);
         }
 
 
@@ -738,35 +658,6 @@ final class VacationSyncService
 
     ): string {
 
-        $seriesKey = GoogleEventParser::extractRecurringSeriesKey($googleEvent);
-
-        if (
-            $seriesKey !== null
-            && GoogleVacationRepository::hasProcessedEvent($userId, $seriesKey)
-        ) {
-
-            return self::syncRecurringSeriesEvent(
-
-                $userId,
-
-                $tokenRow,
-
-                $googleEvent,
-
-                $seriesKey,
-
-                $autoVacation,
-
-                $vacationCenters,
-
-                $hamdastAccessToken,
-
-                $trackAsBackfill
-
-            );
-
-        }
-
         $eventId = GoogleEventParser::extractEventId($googleEvent);
 
         $parsed = GoogleEventParser::parseEvent($googleEvent);
@@ -838,6 +729,26 @@ final class VacationSyncService
             // return $moved ? 'updated' : 'skipped';
 
             return 'skipped';
+
+        }
+
+
+
+        $seriesKey = GoogleEventParser::extractRecurringSeriesKey($googleEvent);
+
+        if ($seriesKey !== null && GoogleVacationRepository::hasProcessedEvent($userId, $seriesKey)) {
+
+            self::dissolveLegacyCollapsedSeriesVacation(
+
+                $userId,
+
+                $seriesKey,
+
+                $tokenRow,
+
+                $hamdastAccessToken
+
+            );
 
         }
 
@@ -2303,6 +2214,104 @@ final class VacationSyncService
 
     /**
 
+     * Removes a legacy collapsed recurring vacation (stored under series master id).
+
+     *
+
+     * @param array<string, mixed> $tokenRow
+
+     */
+
+    private static function dissolveLegacyCollapsedSeriesVacation(
+
+        string $userId,
+
+        string $seriesKey,
+
+        array $tokenRow,
+
+        string $hamdastAccessToken
+
+    ): void {
+
+        $trackedRows = GoogleVacationRepository::findProcessedEventsForGoogleEvent($userId, $seriesKey);
+
+        if ($trackedRows === []) {
+
+            return;
+
+        }
+
+
+
+        $fallbackCenterId = isset($tokenRow['center_id']) && is_string($tokenRow['center_id'])
+
+            ? trim($tokenRow['center_id'])
+
+            : null;
+
+
+
+        foreach ($trackedRows as $tracked) {
+
+            $from = isset($tracked['vacation_from']) ? (int) $tracked['vacation_from'] : 0;
+
+            $to = isset($tracked['vacation_to']) ? (int) $tracked['vacation_to'] : 0;
+
+            $medicalCenterId = GoogleVacationRepository::resolveTrackedMedicalCenterId($tracked, $fallbackCenterId);
+
+
+
+            if ($medicalCenterId === '') {
+
+                continue;
+
+            }
+
+
+
+            if ($hamdastAccessToken !== '' && $from > 0 && $to > $from) {
+
+                Paziresh24VacationApi::deleteVacation(
+
+                    $hamdastAccessToken,
+
+                    $medicalCenterId,
+
+                    $from,
+
+                    $to
+
+                );
+
+            }
+
+
+
+            GoogleVacationRepository::removeProcessedEvent($userId, $seriesKey, $medicalCenterId);
+
+            ImportFutureVacationsRepository::markBackfillSlotsDeletedByEvent(
+
+                $userId,
+
+                $seriesKey,
+
+                $medicalCenterId
+
+            );
+
+        }
+
+
+
+        error_log('[google-vacation] dissolved legacy collapsed recurring vacation series=' . $seriesKey);
+
+    }
+
+
+
+    /**
+
      * @param array{
 
      *   event_id: string,
@@ -2527,6 +2536,50 @@ final class VacationSyncService
                 $hamdastAccessToken
 
             );
+
+
+
+            if ($response === null) {
+
+                error_log(
+
+                    '[google-vacation] vacation update failed, trying delete+create recovery event='
+
+                    . $eventId
+
+                    . ' center=' . $medicalCenterId
+
+                );
+
+                Paziresh24VacationApi::deleteVacation(
+
+                    $hamdastAccessToken,
+
+                    $medicalCenterId,
+
+                    $oldFrom,
+
+                    $oldTo
+
+                );
+
+                $response = self::createVacationWithConflictResolution(
+
+                    $userId,
+
+                    $tokenRow,
+
+                    $newFrom,
+
+                    $newTo,
+
+                    $vacationCenter,
+
+                    $hamdastAccessToken
+
+                );
+
+            }
 
 
 
