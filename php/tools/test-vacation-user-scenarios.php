@@ -44,8 +44,12 @@ userScenarioAssert(
     is_string($syncSource) && str_contains($syncSource, 'dissolveLegacyCollapsedSeriesVacation')
 );
 userScenarioAssert(
-    'update recovery delete+create exists',
-    is_string($syncSource) && str_contains($syncSource, 'trying delete+create recovery')
+    'update recovery delete+create removed (prevents rapid-edit corruption)',
+    is_string($syncSource) && !str_contains($syncSource, 'trying delete+create recovery')
+);
+userScenarioAssert(
+    'stale google revision guard exists',
+    is_string($syncSource) && str_contains($syncSource, 'shouldSkipStaleGoogleEventUpdate')
 );
 
 $timedSingle = [
@@ -126,6 +130,52 @@ userScenarioAssert(
     is_array($parsedMulti)
         && $parsedMulti['start_ts'] === (new DateTimeImmutable('2026-07-10 00:00:00', $tz))->getTimestamp()
         && $parsedMulti['end_ts'] === (new DateTimeImmutable('2026-07-13 00:00:00', $tz))->getTimestamp()
+);
+
+$multiDayTimed = [
+    'id' => 'evt-multi-timed',
+    'summary' => 'مرخصی چند روزه',
+    'status' => 'confirmed',
+    'start' => ['dateTime' => '2026-07-10T09:00:00', 'timeZone' => 'Asia/Tehran'],
+    'end' => ['dateTime' => '2026-07-12T17:00:00', 'timeZone' => 'Asia/Tehran'],
+];
+$parsedMultiTimed = GoogleEventParser::parseEvent($multiDayTimed);
+userScenarioAssert(
+    'multi-day timed start keeps 09:00 on first day',
+    is_array($parsedMultiTimed)
+        && $parsedMultiTimed['start_ts'] === (new DateTimeImmutable('2026-07-10 09:00:00', $tz))->getTimestamp()
+);
+userScenarioAssert(
+    'multi-day timed end keeps 17:00 on last day',
+    is_array($parsedMultiTimed)
+        && $parsedMultiTimed['end_ts'] === (new DateTimeImmutable('2026-07-12 17:00:00', $tz))->getTimestamp()
+);
+
+$mixedBoundaryEvent = [
+    'id' => 'evt-mixed-boundary',
+    'summary' => 'مرخصی',
+    'status' => 'confirmed',
+    'start' => [
+        'date' => '2026-07-11',
+        'dateTime' => '2026-07-10T14:30:00',
+        'timeZone' => 'Asia/Tehran',
+    ],
+    'end' => [
+        'date' => '2026-07-13',
+        'dateTime' => '2026-07-12T18:00:00',
+        'timeZone' => 'Asia/Tehran',
+    ],
+];
+$parsedMixed = GoogleEventParser::parseEvent($mixedBoundaryEvent);
+userScenarioAssert(
+    'date+dateTime on start prefers dateTime (not next-day midnight)',
+    is_array($parsedMixed)
+        && $parsedMixed['start_ts'] === (new DateTimeImmutable('2026-07-10 14:30:00', $tz))->getTimestamp()
+);
+userScenarioAssert(
+    'date+dateTime on end prefers dateTime',
+    is_array($parsedMixed)
+        && $parsedMixed['end_ts'] === (new DateTimeImmutable('2026-07-12 18:00:00', $tz))->getTimestamp()
 );
 
 echo PHP_EOL . "Total: {$passed} passed, {$failed} failed" . PHP_EOL;

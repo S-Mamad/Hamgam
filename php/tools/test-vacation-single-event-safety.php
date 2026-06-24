@@ -63,6 +63,26 @@ $multiEnd = (new DateTimeImmutable('2026-06-23 00:00:00', new DateTimeZone('Asia
 assertSingle('multi-day all-day start preserved', is_array($parsedMultiDay) && $parsedMultiDay['start_ts'] === $multiStart);
 assertSingle('multi-day all-day end preserved', is_array($parsedMultiDay) && $parsedMultiDay['end_ts'] === $multiEnd);
 
+$multiDayTimedEvent = [
+    'id' => 'single-multi-day-timed',
+    'summary' => 'مرخصی چند روزه با ساعت',
+    'status' => 'confirmed',
+    'start' => ['dateTime' => '2026-06-20T11:00:00', 'timeZone' => 'Asia/Tehran'],
+    'end' => ['dateTime' => '2026-06-22T16:00:00', 'timeZone' => 'Asia/Tehran'],
+];
+$parsedMultiDayTimed = GoogleEventParser::parseEvent($multiDayTimedEvent);
+$iranTz = new DateTimeZone('Asia/Tehran');
+assertSingle(
+    'multi-day timed start is not midnight',
+    is_array($parsedMultiDayTimed)
+        && $parsedMultiDayTimed['start_ts'] === (new DateTimeImmutable('2026-06-20 11:00:00', $iranTz))->getTimestamp()
+);
+assertSingle(
+    'multi-day timed end preserves last-day clock',
+    is_array($parsedMultiDayTimed)
+        && $parsedMultiDayTimed['end_ts'] === (new DateTimeImmutable('2026-06-22 16:00:00', $iranTz))->getTimestamp()
+);
+
 $weeklyInstanceA = [
     'id' => 'weekly-series_20260620T100000Z',
     'recurringEventId' => 'weekly-series',

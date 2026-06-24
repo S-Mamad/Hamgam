@@ -938,7 +938,7 @@ final class VacationSyncService
 
                 $parsed['end_ts'],
 
-                $response,
+                self::attachGoogleSyncMetadata($response, $parsed),
 
                 $vacationCenter['medical_center_id']
 
@@ -2414,6 +2414,22 @@ final class VacationSyncService
 
 
 
+            if (self::shouldSkipStaleGoogleEventUpdate($parsed, $tracked)) {
+
+                error_log(
+
+                    '[google-vacation] update skipped: stale google revision for event ' . $eventId
+
+                    . ' center=' . $medicalCenterId
+
+                );
+
+                continue;
+
+            }
+
+
+
             if ($oldFrom === $newFrom && $oldTo === $newTo) {
 
                 $oldSummary = is_string($tracked['event_summary'] ?? null) ? $tracked['event_summary'] : '';
@@ -2432,7 +2448,7 @@ final class VacationSyncService
 
                         $newTo,
 
-                        self::decodeStoredResponse($tracked),
+                        self::attachGoogleSyncMetadata(self::decodeStoredResponse($tracked), $parsed),
 
                         $medicalCenterId
 
@@ -2543,50 +2559,6 @@ final class VacationSyncService
 
                 error_log(
 
-                    '[google-vacation] vacation update failed, trying delete+create recovery event='
-
-                    . $eventId
-
-                    . ' center=' . $medicalCenterId
-
-                );
-
-                Paziresh24VacationApi::deleteVacation(
-
-                    $hamdastAccessToken,
-
-                    $medicalCenterId,
-
-                    $oldFrom,
-
-                    $oldTo
-
-                );
-
-                $response = self::createVacationWithConflictResolution(
-
-                    $userId,
-
-                    $tokenRow,
-
-                    $newFrom,
-
-                    $newTo,
-
-                    $vacationCenter,
-
-                    $hamdastAccessToken
-
-                );
-
-            }
-
-
-
-            if ($response === null) {
-
-                error_log(
-
                     '[google-vacation] vacation update failed for event ' . $eventId
 
                     . ' center=' . $medicalCenterId
@@ -2611,7 +2583,7 @@ final class VacationSyncService
 
                 $newTo,
 
-                $response,
+                self::attachGoogleSyncMetadata($response, $parsed),
 
                 $medicalCenterId
 
@@ -2682,6 +2654,136 @@ final class VacationSyncService
         }
 
         return $anyUpdated;
+
+    }
+
+
+
+    /**
+
+     * @param array{updated: ?string} $parsed
+
+     */
+
+    private static function resolveGoogleUpdatedTs(array $parsed): ?int
+
+    {
+
+        $updated = $parsed['updated'] ?? null;
+
+        if (!is_string($updated) || $updated === '') {
+
+            return null;
+
+        }
+
+
+
+        try {
+
+            return (new DateTimeImmutable($updated))->getTimestamp();
+
+        } catch (Throwable) {
+
+            return null;
+
+        }
+
+    }
+
+
+
+    /**
+
+     * @param array<string, mixed>|null $response
+
+     * @param array{
+
+     *   updated: ?string,
+
+     *   start_ts: int,
+
+     *   end_ts: int
+
+     * } $parsed
+
+     * @return array<string, mixed>|null
+
+     */
+
+    private static function attachGoogleSyncMetadata(?array $response, array $parsed): ?array
+
+    {
+
+        $payload = is_array($response) ? $response : [];
+
+
+
+        $updatedTs = self::resolveGoogleUpdatedTs($parsed);
+
+        if ($updatedTs !== null) {
+
+            $payload['_hamgam_google_updated'] = $updatedTs;
+
+        }
+
+
+
+        $payload['_hamgam_event_start_ts'] = $parsed['start_ts'];
+
+        $payload['_hamgam_event_end_ts'] = $parsed['end_ts'];
+
+
+
+        return $payload;
+
+    }
+
+
+
+    /**
+
+     * @param array{updated: ?string} $parsed
+
+     * @param array<string, mixed> $tracked
+
+     */
+
+    private static function shouldSkipStaleGoogleEventUpdate(array $parsed, array $tracked): bool
+
+    {
+
+        $stored = self::decodeStoredResponse($tracked);
+
+        if ($stored === null) {
+
+            return false;
+
+        }
+
+
+
+        $storedUpdated = $stored['_hamgam_google_updated'] ?? null;
+
+        if (!is_numeric($storedUpdated)) {
+
+            return false;
+
+        }
+
+
+
+        $incomingUpdatedTs = self::resolveGoogleUpdatedTs($parsed);
+
+        if ($incomingUpdatedTs === null) {
+
+            return false;
+
+        }
+
+
+
+        return $incomingUpdatedTs < (int) $storedUpdated;
 
     }
 

@@ -549,14 +549,6 @@ final class GoogleEventParser
     {
         $iranTz = new DateTimeZone(self::DEFAULT_TIMEZONE);
 
-        if (isset($boundary['date']) && is_string($boundary['date']) && $boundary['date'] !== '') {
-            try {
-                return (new DateTimeImmutable($boundary['date'] . ' 00:00:00', $iranTz))->getTimestamp();
-            } catch (Throwable) {
-                return null;
-            }
-        }
-
         if (isset($boundary['dateTime']) && is_string($boundary['dateTime']) && $boundary['dateTime'] !== '') {
             try {
                 $dateTime = $boundary['dateTime'];
@@ -571,6 +563,18 @@ final class GoogleEventParser
                 $eventTz = new DateTimeZone($eventTimezone);
                 $parsed = new DateTimeImmutable($dateTime, $eventTz);
                 $wallClock = $parsed->format('Y-m-d H:i:s');
+
+                return (new DateTimeImmutable($wallClock, $iranTz))->getTimestamp();
+            } catch (Throwable) {
+                return null;
+            }
+        }
+
+        if (isset($boundary['date']) && is_string($boundary['date']) && $boundary['date'] !== '') {
+            try {
+                $eventTz = new DateTimeZone($eventTimezone);
+                $localMidnight = new DateTimeImmutable($boundary['date'] . ' 00:00:00', $eventTz);
+                $wallClock = $localMidnight->format('Y-m-d H:i:s');
 
                 return (new DateTimeImmutable($wallClock, $iranTz))->getTimestamp();
             } catch (Throwable) {
