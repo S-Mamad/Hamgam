@@ -199,5 +199,30 @@ try {
     echo 'SKIP db: ' . $e->getMessage() . PHP_EOL;
 }
 
+$weekdayMaster = [
+    'id' => 'weekday-series',
+    'summary' => 'مرخصی روزهای کاری',
+    'status' => 'confirmed',
+    'recurrence' => ['RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;COUNT=20'],
+    'start' => ['dateTime' => '2026-07-06T13:00:00', 'timeZone' => 'Asia/Tehran'],
+    'end' => ['dateTime' => '2026-07-06T14:00:00', 'timeZone' => 'Asia/Tehran'],
+];
+$weekdayInstance = [
+    'id' => 'weekday-series_20260706T093000Z',
+    'recurringEventId' => 'weekday-series',
+    'summary' => 'مرخصی روزهای کاری',
+    'status' => 'confirmed',
+    'start' => ['dateTime' => '2026-07-06T13:00:00', 'timeZone' => 'Asia/Tehran'],
+    'end' => ['dateTime' => '2026-07-06T14:00:00', 'timeZone' => 'Asia/Tehran'],
+];
+assertRecurring(
+    'weekday master is aggregatable',
+    GoogleEventParser::isAggregatableRecurrenceMaster($weekdayMaster)
+);
+assertRecurring(
+    'single weekday instance aggregates with master',
+    GoogleEventParser::shouldAggregateRecurringVacationSeries($weekdayMaster, [$weekdayInstance])
+);
+
 echo PHP_EOL . "Total: {$passed} passed, {$failed} failed" . PHP_EOL;
 exit($failed > 0 ? 1 : 0);

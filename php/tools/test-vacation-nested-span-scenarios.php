@@ -33,20 +33,17 @@ $tz = new DateTimeZone('Asia/Tehran');
 $syncSource = file_get_contents(__DIR__ . '/../google-vacation/VacationSyncService.php');
 
 nestedAssert(
-    'coverage detection helper exists',
-    is_string($syncSource) && str_contains($syncSource, 'findCoveringTrackedVacation')
+    'individual updates use delete+create (not risky Paziresh24 update)',
+    is_string($syncSource) && str_contains($syncSource, 'replaceIndividualVacationByDeleteAndCreate')
 );
 nestedAssert(
-    'move into span uses coverage rules',
-    is_string($syncSource) && str_contains($syncSource, 'applyVacationMoveWithCoverageRules')
+    'recurring series uses collapsed metadata helper',
+    is_string($syncSource) && str_contains($syncSource, 'attachCollapsedSeriesMetadata')
 );
 nestedAssert(
-    'nested vacations are absorbed into parent span',
-    is_string($syncSource) && str_contains($syncSource, 'absorbContainedTrackedVacations')
-);
-nestedAssert(
-    'create skips when already covered',
-    is_string($syncSource) && str_contains($syncSource, 'vacation create skipped (covered)')
+    'create does not skip nested events via covering guard',
+    is_string($syncSource)
+        && !preg_match('/findCoveringTrackedVacation\([^)]+\)\s*;\s*if\s*\(\$covering\s*!==\s*null\)\s*\{\s*return\s*\[\]/s', $syncSource)
 );
 
 $spanStart = (new DateTimeImmutable('2026-07-07 16:30:00', $tz))->getTimestamp();

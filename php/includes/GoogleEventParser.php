@@ -204,19 +204,130 @@ final class GoogleEventParser
     }
 
     /**
-     * Only daily (consecutive-day) recurring series should collapse into one vacation block.
-     * Weekly/monthly/yearly patterns must stay per-instance to avoid filling gaps between occurrences.
+     * Recurring series with the same timed slot (e.g. weekdays 13:00–14:00) sync as one Paziresh24 vacation.
      *
      * @param array<string, mixed>|null $masterEvent
      * @param array<int, array<string, mixed>> $instances
      */
     public static function shouldCollapseRecurringVacations(?array $masterEvent, array $instances): bool
     {
-        if ($masterEvent !== null && self::extractRecurrenceFrequency($masterEvent) !== 'DAILY') {
+        return self::shouldAggregateRecurringVacationSeries($masterEvent, $instances);
+    }
+
+    /**
+     * @param array<string, mixed>|null $masterEvent
+     * @param array<int, array<string, mixed>> $instances
+     */
+    public static function shouldAggregateRecurringVacationSeries(?array $masterEvent, array $instances): bool
+    {
+        if ($masterEvent !== null && self::isAggregatableRecurrenceMaster($masterEvent)) {
+            return $instances !== [];
+        }
+
+        if (count($instances) < 2) {
             return false;
         }
 
-        return self::areConsecutiveDailyInstances($instances);
+        if (self::instancesShareSameTimedSlot($instances)) {
+            return true;
+        }
+
+        $freq = self::extractRecurrenceFrequency($masterEvent);
+        if ($freq === 'DAILY') {
+            return self::areConsecutiveDailyInstances($instances);
+        }
+
+        return false;
+    }
+
+    /**
+     * Recurring masters that should become one Paziresh24 vacation (first start → last end).
+     *
+     * @param array<string, mixed> $masterEvent
+     */
+    public static function isAggregatableRecurrenceMaster(array $masterEvent): bool
+    {
+        $recurrence = $masterEvent['recurrence'] ?? null;
+        if (!is_array($recurrence)) {
+            return false;
+        }
+
+        foreach ($recurrence as $rule) {
+            if (!is_string($rule)) {
+                continue;
+            }
+
+            if (preg_match('/FREQ=DAILY/i', $rule) === 1) {
+                return true;
+            }
+
+            if (preg_match('/FREQ=WEEKLY/i', $rule) === 1) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $instances
+     */
+    public static function instancesShareSameTimedSlot(array $instances): bool
+    {
+        $iranTz = new DateTimeZone(self::DEFAULT_TIMEZONE);
+        $referenceDuration = null;
+        $referenceHour = null;
+        $referenceMinute = null;
+        $parsedCount = 0;
+
+        foreach ($instances as $googleEvent) {
+            if (!is_array($googleEvent)) {
+                continue;
+            }
+
+            $parsed = self::parseEvent($googleEvent);
+            if ($parsed === null || $parsed['status'] !== 'confirmed') {
+                continue;
+            }
+
+            $duration = $parsed['end_ts'] - $parsed['start_ts'];
+            if ($duration <= 0) {
+                return false;
+            }
+
+            $startLocal = (new DateTimeImmutable('@' . $parsed['start_ts']))->setTimezone($iranTz);
+            $hour = (int) $startLocal->format('G');
+            $minute = (int) $startLocal->format('i');
+
+            if ($referenceDuration === null) {
+                $referenceDuration = $duration;
+                $referenceHour = $hour;
+                $referenceMinute = $minute;
+                $parsedCount++;
+                continue;
+            }
+
+            if (abs($duration - $referenceDuration) > 120) {
+                return false;
+            }
+
+            if ($hour !== $referenceHour || $minute !== $referenceMinute) {
+                return false;
+            }
+
+            $parsedCount++;
+        }
+
+        if ($parsedCount < 2 || $referenceDuration === null) {
+            return false;
+        }
+
+        // All-day instances must use master RRULE aggregation, not slot matching alone.
+        if ($referenceDuration >= 86399) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
