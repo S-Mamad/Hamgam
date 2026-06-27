@@ -4032,7 +4032,7 @@ function getFieldState() {
         phone: document.querySelector('[data-field="phone"]').checked,
         autoVacation: document.querySelector('[data-field="autoVacation"]').checked,
         cancelAppointmentOnEventDelete: cancelOnDeleteEl ? cancelOnDeleteEl.checked : true,
-        cancelConflictingAppointments: cancelConflictEl ? cancelConflictEl.checked : false
+        cancelConflictingAppointments: cancelConflictEl ? cancelConflictEl.checked : true
     };
 }
 
@@ -4065,9 +4065,12 @@ function applySettingsToForm(settings) {
 
     const cancelConflictEl = document.querySelector('[data-field="cancelConflictingAppointments"]');
     if (cancelConflictEl) {
-        setVacationConflictMode(settings.cancel_conflicting_appointments ? "cancel" : "reschedule");
+        const useCancel = VACATION_CONFLICT_RESCHEDULE_UI_ENABLED
+            ? settings.cancel_conflicting_appointments
+            : true;
+        setVacationConflictMode(useCancel ? "cancel" : "reschedule");
     } else {
-        setVacationConflictMode("reschedule");
+        setVacationConflictMode("cancel");
     }
 
     if (settings.vacation_sync_centers) {

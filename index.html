@@ -11,10 +11,10 @@
     <meta name="description" content="شخصی‌سازی نحوه ثبت نوبت‌های پذیرش۲۴ در Google Calendar">
     <link rel="dns-prefetch" href="https://accounts.google.com">
     <link rel="preconnect" href="https://accounts.google.com" crossorigin>
-    <link rel="stylesheet" href="style.css?v=9ea32cbe">
+    <link rel="stylesheet" href="style.css?v=e63695ba">
     <link href="https://fonts.paziresh24.com/iran-sans-x.css" rel="stylesheet">
     <script src="https://hamdast.paziresh24.com/sdk/hamdast.js"></script>
-    <script src="script.js?v=9ea32cbe" defer></script>
+    <script src="script.js?v=e63695ba" defer></script>
 </head>
 
 <body>
@@ -155,15 +155,15 @@
                         <p id="vacationConflictTitle" class="vacation-conflict__title">تداخل بازه مرخصی با نوبت بیمار</p>
                         <p class="vacation-conflict__desc">هرگاه نوبتی با بازه انتخابی شما به عنوان مرخصی تداخل داشت آنگاه :</p>
 
-                        <input type="checkbox" id="cancelConflictingAppointments" data-field="cancelConflictingAppointments" hidden tabindex="-1" aria-hidden="true">
-                        <input type="checkbox" id="vacationConflictCancelSwitch" hidden tabindex="-1" aria-hidden="true">
-                        <input type="checkbox" id="vacationConflictRescheduleSwitch" checked hidden tabindex="-1" aria-hidden="true">
+                        <input type="checkbox" id="cancelConflictingAppointments" data-field="cancelConflictingAppointments" checked hidden tabindex="-1" aria-hidden="true">
+                        <input type="checkbox" id="vacationConflictCancelSwitch" checked hidden tabindex="-1" aria-hidden="true">
+                        <input type="checkbox" id="vacationConflictRescheduleSwitch" hidden tabindex="-1" aria-hidden="true">
 
                         <div id="vacationConflictSegment" class="vacation-conflict-segment">
-                            <button type="button" id="vacationConflictCancelBtn" class="vacation-conflict-segment__option" data-conflict-mode="cancel" aria-pressed="false">
+                            <button type="button" id="vacationConflictCancelBtn" class="vacation-conflict-segment__option is-active" data-conflict-mode="cancel" aria-pressed="true">
                                 نوبت بیمار لغو شود
                             </button>
-                            <button type="button" id="vacationConflictRescheduleBtn" class="vacation-conflict-segment__option is-active" data-conflict-mode="reschedule" aria-pressed="true">
+                            <button type="button" id="vacationConflictRescheduleBtn" class="vacation-conflict-segment__option" data-conflict-mode="reschedule" aria-pressed="false">
                                 به اولین زمان آزاد انتقال یابد
                             </button>
                         </div>
