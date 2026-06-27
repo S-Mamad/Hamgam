@@ -128,10 +128,6 @@ final class BookingAppointmentResolver
             }
         }
 
-        if ($hintUserCenterId !== '' && $hintUserCenterId !== $medicalCenterId) {
-            return $hintUserCenterId;
-        }
-
         foreach (Paziresh24VacationApi::normalizeMedicalCenters($accessToken) as $center) {
             if (($center['medical_center_id'] ?? '') !== $medicalCenterId) {
                 continue;
@@ -146,34 +142,36 @@ final class BookingAppointmentResolver
         }
 
         $rawCenters = Paziresh24VacationApi::listMedicalCenters($accessToken);
-        if (!is_array($rawCenters)) {
-            return null;
-        }
-
-        foreach ($rawCenters as $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-
-            $flat = Paziresh24VacationApi::flattenMedicalCenterRow($row);
-            if (Paziresh24VacationApi::resolveMedicalCenterId($flat) !== $medicalCenterId) {
-                continue;
-            }
-
-            foreach (['user_center_id', 'id'] as $key) {
-                $value = $flat[$key] ?? null;
-                if (!is_scalar($value) || trim((string) $value) === '') {
+        if (is_array($rawCenters)) {
+            foreach ($rawCenters as $row) {
+                if (!is_array($row)) {
                     continue;
                 }
 
-                $candidate = trim((string) $value);
-                if ($candidate !== $medicalCenterId) {
-                    return $candidate;
+                $flat = Paziresh24VacationApi::flattenMedicalCenterRow($row);
+                if (Paziresh24VacationApi::resolveMedicalCenterId($flat) !== $medicalCenterId) {
+                    continue;
+                }
+
+                foreach (['user_center_id', 'id'] as $key) {
+                    $value = $flat[$key] ?? null;
+                    if (!is_scalar($value) || trim((string) $value) === '') {
+                        continue;
+                    }
+
+                    $candidate = trim((string) $value);
+                    if ($candidate !== $medicalCenterId) {
+                        return $candidate;
+                    }
                 }
             }
         }
 
-        return null;
+        if ($hintUserCenterId !== '') {
+            return $hintUserCenterId;
+        }
+
+        return $medicalCenterId;
     }
 
     /**
@@ -296,6 +294,22 @@ final class BookingAppointmentResolver
         }
 
         return null;
+    }
+
+    /**
+     * Resolve appointment start/end from API or webhook payload (from/to, book_timestamp, dates, …).
+     *
+     * @param array<string, mixed> $booking
+     * @return array{from: int, to: int}|null
+     */
+    public static function extractRangeFromPayload(array $booking): ?array
+    {
+        $range = GoogleCalendar::extractAppointmentRange($booking);
+        if ($range !== null) {
+            return $range;
+        }
+
+        return self::extractFromBooking($booking);
     }
 
     /**

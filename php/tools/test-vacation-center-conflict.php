@@ -219,6 +219,25 @@ assertTest(
 );
 
 assertTest(
+    'extractRangeFromPayload reads from_date and from_hour',
+    BookingAppointmentResolver::extractRangeFromPayload([
+        'from_date' => '2026-06-20',
+        'from_hour' => '10:30',
+        'to' => '1781932500',
+    ]) !== null
+);
+
+assertTest(
+    'resolveUserCenterIdForReschedule falls back to medical_center_id',
+    BookingAppointmentResolver::resolveUserCenterIdForReschedule(
+        null,
+        '',
+        'a1111111-1111-4111-8111-111111111111',
+        null
+    ) === 'a1111111-1111-4111-8111-111111111111'
+);
+
+assertTest(
     'VacationSyncService has resolveOverlappingAppointments',
     $syncRef->hasMethod('resolveOverlappingAppointments')
 );

@@ -420,7 +420,7 @@ final class Paziresh24AppointmentApi
             return ['from' => $fallbackFrom, 'to' => $fallbackTo];
         }
 
-        $range = GoogleCalendar::extractAppointmentRange($appointment);
+        $range = BookingAppointmentResolver::extractRangeFromPayload($appointment);
         if ($range !== null) {
             return $range;
         }
@@ -512,7 +512,7 @@ final class Paziresh24AppointmentApi
     private static function moveCenterPathCandidates(string $medicalCenterId, ?string $userCenterId): array
     {
         $candidates = [];
-        foreach ([$medicalCenterId, $userCenterId] as $candidate) {
+        foreach ([$userCenterId, $medicalCenterId] as $candidate) {
             $candidate = is_string($candidate) ? trim($candidate) : '';
             if ($candidate === '' || in_array($candidate, $candidates, true)) {
                 continue;

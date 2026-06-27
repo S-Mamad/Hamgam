@@ -5596,6 +5596,10 @@ final class VacationSyncService
 
 
 
+        $expected = count($targets);
+
+
+
         if (GoogleTokensRepository::isCancelConflictingAppointmentsEnabled($tokenRow)) {
 
             $cancelled = self::cancelOverlappingAppointments(
@@ -5683,8 +5687,6 @@ final class VacationSyncService
         );
 
 
-
-        $expected = count($targets);
 
         if ($rescheduled < $expected) {
 
