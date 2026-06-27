@@ -2000,14 +2000,6 @@ body {
     cursor: not-allowed;
 }
 
-.vacation-conflict-segment__option.is-temporarily-unavailable:not(.is-active) {
-    opacity: 0.45;
-}
-
-.vacation-conflict-segment__option.is-temporarily-unavailable.is-active {
-    opacity: 0.72;
-}
-
 .vacation-sub-options-block--inactive .vacation-conflict-segment {
     opacity: 0.52;
     pointer-events: none;

@@ -13,8 +13,6 @@ const PAZIRESH24_LAUNCHER_APP = "https://www.paziresh24.com/_/hamgam/launcher/?d
 const DEFAULT_COLOR_ID = "9";
 const TOAST_VISIBLE_MS = 4500;
 const VACATION_GUIDE_HINT_VISIBLE_MS = 14000;
-/** موقت: false = گزینه «انتقال به اولین زمان آزاد» در UI غیرقابل انتخاب (منطق بک‌اند بدون تغییر) */
-const VACATION_CONFLICT_RESCHEDULE_UI_ENABLED = false;
 
 const googleColors = {
     "11": { name: "قرمز", hex: "#DA5234" },
@@ -2678,7 +2676,6 @@ function bindUiEvents() {
     }
 
     bindVacationConflictSwitches();
-    updateVacationConflictOptionStates();
 
     document.getElementById("saveSettings").addEventListener("click", handleSaveClick);
 
@@ -3198,12 +3195,10 @@ function updateVacationConflictOptionStates() {
     }
 
     const inactive = subOptionsBlock?.classList.contains("vacation-sub-options-block--inactive") ?? false;
-    const rescheduleUnavailable = !VACATION_CONFLICT_RESCHEDULE_UI_ENABLED;
     cancelBtn.disabled = inactive;
-    rescheduleBtn.disabled = inactive || rescheduleUnavailable;
+    rescheduleBtn.disabled = inactive;
     cancelBtn.setAttribute("aria-disabled", inactive ? "true" : "false");
-    rescheduleBtn.setAttribute("aria-disabled", inactive || rescheduleUnavailable ? "true" : "false");
-    rescheduleBtn.classList.toggle("is-temporarily-unavailable", rescheduleUnavailable);
+    rescheduleBtn.setAttribute("aria-disabled", inactive ? "true" : "false");
     segment?.classList.toggle("is-disabled", inactive);
 }
 
@@ -3224,11 +3219,7 @@ function bindVacationConflictSwitches() {
     });
 
     rescheduleBtn.addEventListener("click", () => {
-        if (
-            !VACATION_CONFLICT_RESCHEDULE_UI_ENABLED
-            || rescheduleBtn.disabled
-            || rescheduleBtn.classList.contains("is-active")
-        ) {
+        if (rescheduleBtn.disabled || rescheduleBtn.classList.contains("is-active")) {
             return;
         }
         setVacationConflictMode("reschedule");
@@ -4032,7 +4023,7 @@ function getFieldState() {
         phone: document.querySelector('[data-field="phone"]').checked,
         autoVacation: document.querySelector('[data-field="autoVacation"]').checked,
         cancelAppointmentOnEventDelete: cancelOnDeleteEl ? cancelOnDeleteEl.checked : true,
-        cancelConflictingAppointments: cancelConflictEl ? cancelConflictEl.checked : true
+        cancelConflictingAppointments: cancelConflictEl ? cancelConflictEl.checked : false
     };
 }
 
@@ -4065,12 +4056,9 @@ function applySettingsToForm(settings) {
 
     const cancelConflictEl = document.querySelector('[data-field="cancelConflictingAppointments"]');
     if (cancelConflictEl) {
-        const useCancel = VACATION_CONFLICT_RESCHEDULE_UI_ENABLED
-            ? settings.cancel_conflicting_appointments
-            : true;
-        setVacationConflictMode(useCancel ? "cancel" : "reschedule");
+        setVacationConflictMode(settings.cancel_conflicting_appointments ? "cancel" : "reschedule");
     } else {
-        setVacationConflictMode("cancel");
+        setVacationConflictMode("reschedule");
     }
 
     if (settings.vacation_sync_centers) {
