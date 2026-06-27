@@ -13,6 +13,8 @@ const PAZIRESH24_LAUNCHER_APP = "https://www.paziresh24.com/_/hamgam/launcher/?d
 const DEFAULT_COLOR_ID = "9";
 const TOAST_VISIBLE_MS = 4500;
 const VACATION_GUIDE_HINT_VISIBLE_MS = 14000;
+/** true = گزینه «انتقال به اولین زمان آزاد» در UI فعال و قابل انتخاب */
+const VACATION_CONFLICT_RESCHEDULE_UI_ENABLED = true;
 
 const googleColors = {
     "11": { name: "قرمز", hex: "#DA5234" },
@@ -2676,6 +2678,7 @@ function bindUiEvents() {
     }
 
     bindVacationConflictSwitches();
+    updateVacationConflictOptionStates();
 
     document.getElementById("saveSettings").addEventListener("click", handleSaveClick);
 
@@ -3195,10 +3198,12 @@ function updateVacationConflictOptionStates() {
     }
 
     const inactive = subOptionsBlock?.classList.contains("vacation-sub-options-block--inactive") ?? false;
+    const rescheduleUnavailable = !VACATION_CONFLICT_RESCHEDULE_UI_ENABLED;
     cancelBtn.disabled = inactive;
-    rescheduleBtn.disabled = inactive;
+    rescheduleBtn.disabled = inactive || rescheduleUnavailable;
     cancelBtn.setAttribute("aria-disabled", inactive ? "true" : "false");
-    rescheduleBtn.setAttribute("aria-disabled", inactive ? "true" : "false");
+    rescheduleBtn.setAttribute("aria-disabled", inactive || rescheduleUnavailable ? "true" : "false");
+    rescheduleBtn.classList.toggle("is-temporarily-unavailable", rescheduleUnavailable);
     segment?.classList.toggle("is-disabled", inactive);
 }
 
@@ -3219,7 +3224,11 @@ function bindVacationConflictSwitches() {
     });
 
     rescheduleBtn.addEventListener("click", () => {
-        if (rescheduleBtn.disabled || rescheduleBtn.classList.contains("is-active")) {
+        if (
+            !VACATION_CONFLICT_RESCHEDULE_UI_ENABLED
+            || rescheduleBtn.disabled
+            || rescheduleBtn.classList.contains("is-active")
+        ) {
             return;
         }
         setVacationConflictMode("reschedule");
