@@ -940,6 +940,40 @@ final class GoogleVacationRepository
 
 
 
+    /**
+
+     * @return array<int, array<string, mixed>>
+
+     */
+
+    public static function findUsersWithAutoVacationEnabled(): array
+
+    {
+
+        $stmt = Database::connection()->prepare(
+
+            'SELECT * FROM google_tokens
+
+             WHERE google_refresh_token IS NOT NULL
+
+               AND google_refresh_token != \'\'
+
+               AND auto_vacation = 1'
+
+        );
+
+        $stmt->execute();
+
+        $rows = $stmt->fetchAll();
+
+
+
+        return is_array($rows) ? $rows : [];
+
+    }
+
+
+
     public static function resolveTrackedMedicalCenterId(array $tracked, ?string $fallbackCenterId = null): string
 
     {

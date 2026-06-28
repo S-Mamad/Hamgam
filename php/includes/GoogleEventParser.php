@@ -5,6 +5,7 @@ declare(strict_types=1);
 final class GoogleEventParser
 {
     private const DEFAULT_TIMEZONE = 'Asia/Tehran';
+    public const VACATION_SYNC_HORIZON_DAYS = 30;
 
     /**
      * @param array<string, mixed> $googleEvent
@@ -529,6 +530,150 @@ final class GoogleEventParser
 
         $timeMinTs = max(0, $timeMinTs - 3600);
         $timeMaxTs += 86400;
+
+        return [
+            'time_min' => gmdate('Y-m-d\TH:i:s\Z', $timeMinTs),
+            'time_max' => gmdate('Y-m-d\TH:i:s\Z', $timeMaxTs),
+            'time_min_ts' => $timeMinTs,
+            'time_max_ts' => $timeMaxTs,
+        ];
+    }
+
+    public static function vacationSyncHorizonSeconds(): int
+    {
+        return self::VACATION_SYNC_HORIZON_DAYS * 86400;
+    }
+
+    /**
+     * Active sync window: from now through the end of the 30th Iran calendar day ahead.
+     *
+     * @return array{from_ts: int, to_ts: int}
+     */
+    public static function resolveVacationSyncHorizonBounds(?int $now = null): array
+    {
+        $now = $now ?? time();
+        $iranTz = new DateTimeZone(self::DEFAULT_TIMEZONE);
+        $todayStart = (new DateTimeImmutable('@' . $now))->setTimezone($iranTz)->setTime(0, 0, 0);
+        $horizonEndExclusive = $todayStart->modify('+' . (self::VACATION_SYNC_HORIZON_DAYS + 1) . ' days');
+
+        return [
+            'from_ts' => $now,
+            'to_ts' => $horizonEndExclusive->getTimestamp(),
+        ];
+    }
+
+    /**
+     * Iran-local calendar day that enters the horizon after each midnight roll-forward.
+     *
+     * @return array{from_ts: int, to_ts: int}
+     */
+    public static function resolveRollingSyncTargetDayBounds(?int $now = null): array
+    {
+        $now = $now ?? time();
+        $iranTz = new DateTimeZone(self::DEFAULT_TIMEZONE);
+        $todayStart = (new DateTimeImmutable('@' . $now))->setTimezone($iranTz)->setTime(0, 0, 0);
+        $targetDayStart = $todayStart->modify('+' . self::VACATION_SYNC_HORIZON_DAYS . ' days');
+        $targetDayEndExclusive = $targetDayStart->modify('+1 day');
+
+        return [
+            'from_ts' => $targetDayStart->getTimestamp(),
+            'to_ts' => $targetDayEndExclusive->getTimestamp(),
+        ];
+    }
+
+    /**
+     * @param array{
+     *   event_id: string,
+     *   summary: string,
+     *   status: string,
+     *   start_ts: int,
+     *   end_ts: int,
+     *   timezone: string,
+     *   created: ?string,
+     *   updated: ?string,
+     *   is_deleted: bool
+     * } $parsed
+     */
+    public static function eventOverlapsVacationSyncHorizon(array $parsed, ?int $now = null): bool
+    {
+        $bounds = self::resolveVacationSyncHorizonBounds($now);
+
+        return $parsed['end_ts'] > $bounds['from_ts'] && $parsed['start_ts'] < $bounds['to_ts'];
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $googleEvents
+     * @return array<int, array<string, mixed>>
+     */
+    public static function filterRecurringInstancesToHorizon(array $googleEvents, ?int $now = null): array
+    {
+        $filtered = [];
+
+        foreach ($googleEvents as $googleEvent) {
+            if (!is_array($googleEvent)) {
+                continue;
+            }
+
+            $parsed = self::parseEvent($googleEvent);
+            if ($parsed === null || !self::eventOverlapsVacationSyncHorizon($parsed, $now)) {
+                continue;
+            }
+
+            $filtered[] = $googleEvent;
+        }
+
+        return $filtered;
+    }
+
+    /**
+     * Query window for recurring instances limited to the rolling 30-day vacation horizon.
+     *
+     * @param array<string, mixed>|null $masterEvent
+     * @param array<int, array<string, mixed>>|null $prefetchedInstances
+     * @return array{time_min: string, time_max: string, time_min_ts: int, time_max_ts: int}
+     */
+    public static function resolveRecurringInstancesVacationSyncWindow(
+        ?array $masterEvent,
+        ?array $prefetchedInstances,
+        ?int $now = null
+    ): array {
+        $bounds = self::resolveVacationSyncHorizonBounds($now);
+        $timeMinTs = max(0, $bounds['from_ts'] - 3600);
+        $timeMaxTs = $bounds['to_ts'] + 3600;
+
+        if ($prefetchedInstances !== null) {
+            foreach ($prefetchedInstances as $googleEvent) {
+                if (!is_array($googleEvent)) {
+                    continue;
+                }
+
+                $parsed = self::parseEvent($googleEvent);
+                if ($parsed === null) {
+                    continue;
+                }
+
+                if (!self::eventOverlapsVacationSyncHorizon($parsed, $now)) {
+                    continue;
+                }
+
+                $timeMinTs = min($timeMinTs, max(0, $parsed['start_ts'] - 3600));
+                $timeMaxTs = max($timeMaxTs, min($bounds['to_ts'] + 3600, $parsed['end_ts'] + 3600));
+            }
+        }
+
+        if ($masterEvent !== null) {
+            $parsedMaster = self::parseEvent($masterEvent);
+            if ($parsedMaster !== null && self::eventOverlapsVacationSyncHorizon($parsedMaster, $now)) {
+                $timeMinTs = min($timeMinTs, max(0, $parsedMaster['start_ts'] - 3600));
+                $timeMaxTs = max(
+                    $timeMaxTs,
+                    min($bounds['to_ts'] + 3600, $parsedMaster['end_ts'] + 3600)
+                );
+            }
+        }
+
+        $timeMinTs = max(0, min($timeMinTs, $bounds['to_ts']));
+        $timeMaxTs = max($timeMinTs + 60, min($timeMaxTs, $bounds['to_ts'] + 3600));
 
         return [
             'time_min' => gmdate('Y-m-d\TH:i:s\Z', $timeMinTs),

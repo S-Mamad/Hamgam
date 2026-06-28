@@ -94,16 +94,18 @@ $dailyMaster = [
     'start' => ['date' => '2026-01-01'],
     'end' => ['date' => '2026-01-02'],
 ];
-$window = GoogleEventParser::resolveRecurringInstancesQueryWindow(
+$parsedDailyMaster = GoogleEventParser::parseEvent($dailyMaster);
+$fixedNow = is_array($parsedDailyMaster) ? $parsedDailyMaster['start_ts'] : time();
+$window = GoogleEventParser::resolveRecurringInstancesVacationSyncWindow(
     $dailyMaster,
     [$instanceOne],
-    730 * 86400
+    $fixedNow
 );
-$parsedDailyMaster = GoogleEventParser::parseEvent($dailyMaster);
-assertRecurring('backfill window starts at series beginning', is_array($parsedDailyMaster) && $window['time_min_ts'] <= $parsedDailyMaster['start_ts']);
+assertRecurring('vacation sync window starts at or after now', is_array($parsedDailyMaster) && $window['time_min_ts'] >= $fixedNow - 3600);
+$horizonBounds = GoogleEventParser::resolveVacationSyncHorizonBounds($fixedNow);
 assertRecurring(
-    'backfill window extends beyond 30-day slice',
-    is_array($parsedDailyMaster) && $window['time_max_ts'] > $parsedDailyMaster['start_ts'] + (30 * 86400)
+    'vacation sync window capped at 30-day horizon',
+    is_array($parsedDailyMaster) && $window['time_max_ts'] <= $horizonBounds['to_ts'] + 3600
 );
 
 $dailyInstanceOne = [

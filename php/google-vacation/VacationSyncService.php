@@ -16,8 +16,6 @@ final class VacationSyncService
 
 {
 
-    private const RECURRING_INSTANCE_HORIZON_SECONDS = 730 * 86400;
-
     public static function handleNotification(string $channelId, string $resourceId, string $resourceState): void
 
     {
@@ -415,6 +413,129 @@ final class VacationSyncService
 
         ]);
 
+    }
+
+
+
+    /**
+     * Daily roll-forward: sync vacation events on the Iran calendar day 30 days ahead.
+     *
+     * @return array{users: int, imported: int, skipped: int, failed: int}
+     */
+    public static function runDailyRollingVacationSync(?int $now = null): array
+    {
+        $now = $now ?? time();
+        $summary = ['users' => 0, 'imported' => 0, 'skipped' => 0, 'failed' => 0];
+        $dayBounds = GoogleEventParser::resolveRollingSyncTargetDayBounds($now);
+        $timeMin = gmdate('Y-m-d\TH:i:s\Z', $dayBounds['from_ts']);
+        $timeMax = gmdate('Y-m-d\TH:i:s\Z', $dayBounds['to_ts']);
+
+        foreach (GoogleVacationRepository::findUsersWithAutoVacationEnabled() as $tokenRow) {
+            if (!is_array($tokenRow)) {
+                continue;
+            }
+
+            $userId = (string) ($tokenRow['paziresh24_user_id'] ?? '');
+            $refreshToken = (string) ($tokenRow['google_refresh_token'] ?? '');
+            $hamdastAccessToken = (string) ($tokenRow['hamdast_access_token'] ?? '');
+
+            if ($userId === '' || $refreshToken === '') {
+                continue;
+            }
+
+            $summary['users']++;
+
+            $googleTokenData = GoogleCalendar::refreshAccessToken($refreshToken);
+            $googleAccessToken = is_array($googleTokenData) ? ($googleTokenData['access_token'] ?? '') : '';
+            if (!is_string($googleAccessToken) || $googleAccessToken === '') {
+                error_log('[google-vacation] rolling sync token refresh failed user=' . $userId);
+                $summary['failed']++;
+                continue;
+            }
+
+            $events = GoogleCalendarWatch::listEventsInRange($googleAccessToken, $timeMin, $timeMax);
+            if ($events === []) {
+                continue;
+            }
+
+            $autoVacation = GoogleVacationRepository::isAutoVacationEnabled($tokenRow);
+            $vacationCenters = self::resolveVacationCentersForUser($userId, $tokenRow, $hamdastAccessToken);
+            if ($vacationCenters === []) {
+                error_log('[google-vacation] rolling sync skipped: no vacation centers user=' . $userId);
+                continue;
+            }
+
+            foreach (self::groupEventsForVacationSync($events) as $group) {
+                if (($group['type'] ?? '') === 'single') {
+                    $event = $group['event'] ?? null;
+                    if (!is_array($event)) {
+                        continue;
+                    }
+
+                    $result = self::syncSingleEvent(
+                        $userId,
+                        $tokenRow,
+                        $event,
+                        $autoVacation,
+                        $vacationCenters,
+                        $hamdastAccessToken,
+                        false,
+                        $googleAccessToken
+                    );
+                } else {
+                    $seriesEvents = $group['events'] ?? [];
+                    if (!is_array($seriesEvents) || $seriesEvents === []) {
+                        continue;
+                    }
+
+                    $seriesKey = is_string($group['seriesKey'] ?? null) ? $group['seriesKey'] : '';
+                    if ($seriesKey === '') {
+                        continue;
+                    }
+
+                    $representative = $seriesEvents[0];
+                    if (!is_array($representative)) {
+                        continue;
+                    }
+
+                    $result = self::syncRecurringSeriesEvent(
+                        $userId,
+                        $tokenRow,
+                        $representative,
+                        $seriesKey,
+                        $autoVacation,
+                        $vacationCenters,
+                        $hamdastAccessToken,
+                        false,
+                        $seriesEvents,
+                        $googleAccessToken
+                    );
+                }
+
+                if ($result === 'created' || $result === 'updated') {
+                    $summary['imported']++;
+                } elseif ($result === 'failed') {
+                    $summary['failed']++;
+                } else {
+                    $summary['skipped']++;
+                }
+            }
+
+            GoogleTokensRepository::saveImportBackfillWindowEnd(
+                $userId,
+                GoogleEventParser::resolveVacationSyncHorizonBounds($now)['to_ts']
+            );
+        }
+
+        error_log(
+            '[google-vacation] rolling sync completed users=' . $summary['users']
+            . ' imported=' . $summary['imported']
+            . ' skipped=' . $summary['skipped']
+            . ' failed=' . $summary['failed']
+            . ' target_from=' . $dayBounds['from_ts']
+        );
+
+        return $summary;
     }
 
 
@@ -818,6 +939,19 @@ final class VacationSyncService
                 $googleAccessToken
 
             );
+
+        }
+
+
+
+        if (
+            !GoogleVacationRepository::hasProcessedEvent($userId, $parsed['event_id'])
+            && !GoogleEventParser::eventOverlapsVacationSyncHorizon($parsed)
+        ) {
+
+            error_log('[google-vacation] skipped event outside 30-day horizon ' . $parsed['event_id']);
+
+            return 'skipped';
 
         }
 
@@ -1255,6 +1389,25 @@ final class VacationSyncService
 
 
 
+            if (
+                !GoogleVacationRepository::hasProcessedEvent($userId, $parsed['event_id'])
+                && !GoogleEventParser::eventOverlapsVacationSyncHorizon($parsed)
+            ) {
+
+                error_log(
+
+                    '[google-vacation] skipped recurring instance outside 30-day horizon '
+
+                    . $parsed['event_id']
+
+                );
+
+                return 'skipped';
+
+            }
+
+
+
             return self::syncIndividualVacationEvent(
 
                 $userId,
@@ -1623,13 +1776,11 @@ final class VacationSyncService
 
         $masterEvent = GoogleCalendarWatch::getEvent($googleAccessToken, $seriesKey);
 
-        $window = GoogleEventParser::resolveRecurringInstancesQueryWindow(
+        $window = GoogleEventParser::resolveRecurringInstancesVacationSyncWindow(
 
             $masterEvent,
 
-            $prefetchedInstances,
-
-            self::RECURRING_INSTANCE_HORIZON_SECONDS
+            $prefetchedInstances
 
         );
 
@@ -1651,6 +1802,10 @@ final class VacationSyncService
 
         if ($instances !== []) {
 
+            $instances = GoogleEventParser::filterRecurringInstancesToHorizon($instances);
+
+
+
             error_log(
 
                 '[google-vacation] recurring instances fetched count=' . count($instances)
@@ -1671,9 +1826,19 @@ final class VacationSyncService
 
 
 
-        if ($masterEvent !== null && GoogleEventParser::aggregateRecurringInstances([$masterEvent], $seriesKey) !== null) {
+        if ($masterEvent !== null) {
 
-            return [$masterEvent];
+            $parsedMaster = GoogleEventParser::parseEvent($masterEvent);
+
+            if (
+                $parsedMaster !== null
+                && GoogleEventParser::eventOverlapsVacationSyncHorizon($parsedMaster)
+                && GoogleEventParser::aggregateRecurringInstances([$masterEvent], $seriesKey) !== null
+            ) {
+
+                return [$masterEvent];
+
+            }
 
         }
 
@@ -1717,7 +1882,7 @@ final class VacationSyncService
 
 
 
-        return $prefetchedInstances;
+        return GoogleEventParser::filterRecurringInstancesToHorizon($prefetchedInstances);
 
     }
 
