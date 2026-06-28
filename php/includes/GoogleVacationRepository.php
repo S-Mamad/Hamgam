@@ -882,6 +882,10 @@ final class GoogleVacationRepository
 
                     OR google_channel_id = \'\'
 
+                    OR google_resource_id IS NULL
+
+                    OR google_resource_id = \'\'
+
                     OR google_watch_expiration IS NULL
 
                )'

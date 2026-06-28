@@ -30,6 +30,7 @@ final class WatchRegistrar
         );
 
         if (!is_array($watchResponse)) {
+            GoogleVacationRepository::clearWatchData($userId);
             error_log('[google-vacation] watch registration failed for user ' . $userId);
             return false;
         }
@@ -38,6 +39,7 @@ final class WatchRegistrar
         $expiration = $watchResponse['expiration'] ?? null;
 
         if ($resourceId === '' || !is_numeric($expiration)) {
+            GoogleVacationRepository::clearWatchData($userId);
             error_log('[google-vacation] invalid watch response for user ' . $userId);
             return false;
         }

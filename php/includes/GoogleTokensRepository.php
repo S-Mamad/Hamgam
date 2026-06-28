@@ -317,6 +317,11 @@ final class GoogleTokensRepository
             return true;
         }
 
+        $resourceId = $row['google_resource_id'] ?? '';
+        if (!is_string($resourceId) || trim($resourceId) === '') {
+            return true;
+        }
+
         $expiration = $row['google_watch_expiration'] ?? null;
         if (!is_numeric($expiration)) {
             return true;
