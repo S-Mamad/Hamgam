@@ -43,6 +43,11 @@ final class Paziresh24AppointmentApi
         unset(self::$appointmentCacheByBookId[$bookId]);
     }
 
+    public static function invalidateSlotsCache(): void
+    {
+        self::$slotsBodyCache = [];
+    }
+
     /**
      * @return array<string, mixed>|null
      */
@@ -864,6 +869,9 @@ final class Paziresh24AppointmentApi
             return array_merge($empty, ['stage' => 'invalid_input']);
         }
 
+        self::invalidateAppointmentCache($bookId);
+        self::invalidateSlotsCache();
+
         $appointment = self::fetchAppointmentForMove($bookId, $accessToken);
         $moveRange = self::resolveMoveRange($accessToken, $bookId, $fallbackBookFrom, $fallbackBookTo);
         $bookFrom = $moveRange['from'];
@@ -980,6 +988,7 @@ final class Paziresh24AppointmentApi
         );
 
         self::invalidateAppointmentCache($bookId);
+        self::invalidateSlotsCache();
 
         return [
             'success' => true,

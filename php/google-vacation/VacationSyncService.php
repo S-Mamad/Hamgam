@@ -6035,6 +6035,8 @@ final class VacationSyncService
 
     ): int {
 
+        Paziresh24AppointmentApi::resetAppointmentCache();
+
         if (GoogleTokensRepository::isCancelConflictingAppointmentsEnabled($tokenRow)) {
 
             $cancelled = self::cancelOverlappingAppointments(
@@ -6399,25 +6401,29 @@ final class VacationSyncService
 
 
 
-        if ($targets === []) {
+        foreach (GoogleCalendarBookingRepository::listBookIdsForUser($userId) as $bookId) {
 
-            foreach (GoogleCalendarBookingRepository::listBookIdsForUser($userId) as $bookId) {
+            if (isset($seenBookIds[$bookId])) {
 
-                $addTarget(self::buildOverlappingAppointmentTargetFromApi(
-
-                    $bookId,
-
-                    $from,
-
-                    $to,
-
-                    $medicalCenterId,
-
-                    $hamdastAccessToken
-
-                ));
+                continue;
 
             }
+
+
+
+            $addTarget(self::buildOverlappingAppointmentTargetFromApi(
+
+                $bookId,
+
+                $from,
+
+                $to,
+
+                $medicalCenterId,
+
+                $hamdastAccessToken
+
+            ));
 
         }
 
@@ -6485,17 +6491,21 @@ final class VacationSyncService
 
 
 
-        $moveRange = Paziresh24AppointmentApi::resolveMoveRange($hamdastAccessToken, $bookId, 0, 0);
+        $overlapRange = self::resolveOverlappingAppointmentRange(
 
-        if ($moveRange['from'] <= 0 || $moveRange['to'] <= $moveRange['from']) {
+            $bookId,
 
-            return null;
+            $hamdastAccessToken,
 
-        }
+            $from,
 
+            $to,
 
+            null
 
-        if (!self::rangesOverlap($moveRange['from'], $moveRange['to'], $from, $to)) {
+        );
+
+        if ($overlapRange === null) {
 
             return null;
 
@@ -6537,13 +6547,145 @@ final class VacationSyncService
 
             'event' => [],
 
-            'from' => $moveRange['from'],
+            'from' => $overlapRange['from'],
 
-            'to' => $moveRange['to'],
+            'to' => $overlapRange['to'],
 
             'medical_center_id' => $appointmentCenterId,
 
         ];
+
+    }
+
+
+
+    /**
+
+     * @param ?array<string, mixed> $googleEvent
+
+     * @return array{from: int, to: int}|null
+
+     */
+
+    private static function resolveOverlappingAppointmentRange(
+
+        string $bookId,
+
+        string $hamdastAccessToken,
+
+        int $vacationFrom,
+
+        int $vacationTo,
+
+        ?array $googleEvent = null
+
+    ): ?array {
+
+        $bookId = trim($bookId);
+
+        if ($bookId === '') {
+
+            return null;
+
+        }
+
+
+
+        $moveRange = Paziresh24AppointmentApi::resolveMoveRange($hamdastAccessToken, $bookId, 0, 0);
+
+        $hasApiRange = $moveRange['from'] > 0 && $moveRange['to'] > $moveRange['from'];
+
+
+
+        $calendarFrom = null;
+
+        $calendarTo = null;
+
+        if ($googleEvent !== null) {
+
+            $parsed = GoogleEventParser::parseEvent($googleEvent);
+
+            if ($parsed !== null) {
+
+                $calendarFrom = $parsed['start_ts'];
+
+                $calendarTo = $parsed['end_ts'];
+
+            }
+
+        }
+
+
+
+        $overlapsVacation = false;
+
+        if (
+
+            $hasApiRange
+
+            && self::rangesOverlap($moveRange['from'], $moveRange['to'], $vacationFrom, $vacationTo)
+
+        ) {
+
+            $overlapsVacation = true;
+
+        }
+
+        if (
+
+            $calendarFrom !== null
+
+            && $calendarTo !== null
+
+            && $calendarTo > $calendarFrom
+
+            && self::rangesOverlap($calendarFrom, $calendarTo, $vacationFrom, $vacationTo)
+
+        ) {
+
+            $overlapsVacation = true;
+
+        }
+
+
+
+        if (!$overlapsVacation) {
+
+            return null;
+
+        }
+
+
+
+        if ($hasApiRange) {
+
+            return [
+
+                'from' => $moveRange['from'],
+
+                'to' => $moveRange['to'],
+
+            ];
+
+        }
+
+
+
+        if ($calendarFrom !== null && $calendarTo !== null && $calendarTo > $calendarFrom) {
+
+            return [
+
+                'from' => $calendarFrom,
+
+                'to' => $calendarTo,
+
+            ];
+
+        }
+
+
+
+        return null;
 
     }
 
@@ -6603,35 +6745,21 @@ final class VacationSyncService
 
 
 
-        $moveRange = Paziresh24AppointmentApi::resolveMoveRange($hamdastAccessToken, $bookId, 0, 0);
+        $overlapRange = self::resolveOverlappingAppointmentRange(
 
-        if ($moveRange['from'] > 0 && $moveRange['to'] > $moveRange['from']) {
+            $bookId,
 
-            $eventFrom = $moveRange['from'];
+            $hamdastAccessToken,
 
-            $eventTo = $moveRange['to'];
+            $from,
 
-        } else {
+            $to,
 
-            $parsed = GoogleEventParser::parseEvent($event);
+            $event
 
-            if ($parsed === null) {
+        );
 
-                return null;
-
-            }
-
-
-
-            $eventFrom = $parsed['start_ts'];
-
-            $eventTo = $parsed['end_ts'];
-
-        }
-
-
-
-        if (!self::rangesOverlap($eventFrom, $eventTo, $from, $to)) {
+        if ($overlapRange === null) {
 
             return null;
 
@@ -6663,9 +6791,9 @@ final class VacationSyncService
 
             'event' => $event,
 
-            'from' => $eventFrom,
+            'from' => $overlapRange['from'],
 
-            'to' => $eventTo,
+            'to' => $overlapRange['to'],
 
             'medical_center_id' => $appointmentCenterId,
 

@@ -314,6 +314,22 @@ assertTest(
 );
 
 assertTest(
+    'VacationSyncService has resolveOverlappingAppointmentRange',
+    $syncRef->hasMethod('resolveOverlappingAppointmentRange')
+);
+
+$rangesOverlapMethod = $syncRef->getMethod('rangesOverlap');
+$rangesOverlapMethod->setAccessible(true);
+assertTest(
+    'rangesOverlap true when calendar event intersects vacation after API move',
+    $rangesOverlapMethod->invoke(null, 1_780_000_000, 1_780_003_600, 1_779_990_000, 1_780_010_000) === true
+);
+assertTest(
+    'rangesOverlap false when API time no longer intersects vacation window',
+    $rangesOverlapMethod->invoke(null, 1_790_000_000, 1_790_003_600, 1_779_990_000, 1_780_010_000) === false
+);
+
+assertTest(
     'VacationSyncService has resolveOverlappingAppointments',
     $syncRef->hasMethod('resolveOverlappingAppointments')
 );
