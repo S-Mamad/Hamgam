@@ -238,6 +238,36 @@ assertTest(
 );
 
 assertTest(
+    'extractFirstWorkhourTurnNum prefers workhour_turn_num over from',
+    Paziresh24AppointmentApi::extractFirstWorkhourTurnNum([
+        'data' => [
+            ['from' => 1782073800, 'workhour_turn_num' => 1782077400],
+        ],
+    ]) === 1782077400
+);
+
+assertTest(
+    'extractFirstWorkhourTurnNum reads slots nested under date key',
+    Paziresh24AppointmentApi::extractFirstWorkhourTurnNum([
+        '2026-07-15' => [
+            'slots' => [
+                ['workhour_turn_num' => 1784226600],
+            ],
+        ],
+    ]) === 1784226600
+);
+
+assertTest(
+    'extractFirstWorkhourTurnNum skips exact appointment timestamp',
+    Paziresh24AppointmentApi::extractFirstWorkhourTurnNum([
+        'data' => [
+            ['workhour_turn_num' => 1782073800],
+            ['workhour_turn_num' => 1782077400],
+        ],
+    ], 0, null, null, 1782073800) === 1782077400
+);
+
+assertTest(
     'VacationSyncService has resolveOverlappingAppointments',
     $syncRef->hasMethod('resolveOverlappingAppointments')
 );

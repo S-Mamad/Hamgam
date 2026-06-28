@@ -4,6 +4,31 @@ declare(strict_types=1);
 
 final class Paziresh24AppointmentApi
 {
+    /** @var array<string, array<string, mixed>|null> */
+    private static array $appointmentCacheByBookId = [];
+
+    public static function resetAppointmentCache(): void
+    {
+        self::$appointmentCacheByBookId = [];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public static function fetchAppointmentForMove(string $bookId, string $accessToken): ?array
+    {
+        $bookId = trim($bookId);
+        if ($bookId === '') {
+            return null;
+        }
+
+        if (!array_key_exists($bookId, self::$appointmentCacheByBookId)) {
+            self::$appointmentCacheByBookId[$bookId] = GoogleCalendar::getAppointment($bookId, $accessToken);
+        }
+
+        return self::$appointmentCacheByBookId[$bookId];
+    }
+
     /**
      * @return array<string, mixed>|null
      */
@@ -238,13 +263,15 @@ final class Paziresh24AppointmentApi
      *
      * @param ?int $excludeRangeFrom When set with $excludeRangeTo, slots inside this range are skipped.
      * @param ?int $excludeRangeTo
+     * @param ?int $excludeExactTimestamp Skip the appointment's current slot (book_from).
      */
     public static function getFirstAvailableSlot(
         string $accessToken,
         string $centerId,
         string $userCenterId,
         ?int $excludeRangeFrom = null,
-        ?int $excludeRangeTo = null
+        ?int $excludeRangeTo = null,
+        ?int $excludeExactTimestamp = null
     ): ?int {
         $centerId = trim($centerId);
         $userCenterId = trim($userCenterId);
@@ -262,6 +289,60 @@ final class Paziresh24AppointmentApi
         $fromTs = $now->getTimestamp();
         $toTs = $now->modify('+3 months')->getTimestamp();
 
+        $searchWindows = [[$fromTs, $toTs]];
+
+        if (
+            $excludeRangeTo !== null
+            && $excludeRangeTo > $fromTs
+            && $excludeRangeTo < $toTs
+        ) {
+            $searchWindows[] = [$excludeRangeTo, $toTs];
+        }
+
+        $seenWindows = [];
+        foreach ($searchWindows as [$windowFrom, $windowTo]) {
+            if ($windowTo <= $windowFrom) {
+                continue;
+            }
+
+            $windowKey = $windowFrom . ':' . $windowTo;
+            if (isset($seenWindows[$windowKey])) {
+                continue;
+            }
+
+            $seenWindows[$windowKey] = true;
+
+            $slot = self::fetchFirstAvailableSlotInWindow(
+                $accessToken,
+                $centerId,
+                $userCenterId,
+                $windowFrom,
+                $windowTo,
+                $fromTs,
+                $excludeRangeFrom,
+                $excludeRangeTo,
+                $excludeExactTimestamp
+            );
+
+            if ($slot !== null) {
+                return $slot;
+            }
+        }
+
+        return null;
+    }
+
+    private static function fetchFirstAvailableSlotInWindow(
+        string $accessToken,
+        string $centerId,
+        string $userCenterId,
+        int $windowFrom,
+        int $windowTo,
+        int $minTimestamp,
+        ?int $excludeRangeFrom,
+        ?int $excludeRangeTo,
+        ?int $excludeExactTimestamp
+    ): ?int {
         $baseUrl = rtrim(
             Config::get(
                 'PAZIRESH24_BOOKING_SLOTS_URL',
@@ -269,67 +350,53 @@ final class Paziresh24AppointmentApi
             ),
             '/'
         );
-        $url = $baseUrl . '?' . http_build_query([
-            'center_id' => $centerId,
-            'user_center_id' => $userCenterId,
-            'from' => (string) $fromTs,
-            'to' => (string) $toTs,
-        ]);
 
-        $response = HttpClient::request(
-            'GET',
-            $url,
-            [
-                'Authorization' => 'Bearer ' . $accessToken,
-                'Accept' => '*/*',
-            ]
-        );
-
-        if ($response['status'] < 200 || $response['status'] >= 300) {
-            error_log(
-                '[hamgam-appointment] getAvailableSlots failed: HTTP ' . $response['status']
-                . ' center_id=' . $centerId
-                . ' user_center_id=' . $userCenterId
-                . ' body=' . $response['raw']
-            );
-
-            return self::getFirstAvailableSlotFromBody(null, $fromTs, $excludeRangeFrom, $excludeRangeTo);
-        }
-
-        $body = is_array($response['body']) ? $response['body'] : null;
-        $slot = self::getFirstAvailableSlotFromBody($body, $fromTs, $excludeRangeFrom, $excludeRangeTo);
-        if ($slot !== null) {
-            return $slot;
-        }
-
+        $centerPairs = [[$centerId, $userCenterId]];
         if ($userCenterId !== $centerId) {
-            $fallbackUrl = $baseUrl . '?' . http_build_query([
-                'center_id' => $userCenterId,
-                'user_center_id' => $userCenterId,
-                'from' => (string) $fromTs,
-                'to' => (string) $toTs,
+            $centerPairs[] = [$userCenterId, $userCenterId];
+        }
+
+        foreach ($centerPairs as [$queryCenterId, $queryUserCenterId]) {
+            $url = $baseUrl . '?' . http_build_query([
+                'center_id' => $queryCenterId,
+                'user_center_id' => $queryUserCenterId,
+                'from' => (string) $windowFrom,
+                'to' => (string) $windowTo,
             ]);
 
-            $fallbackResponse = HttpClient::request(
+            $response = HttpClient::request(
                 'GET',
-                $fallbackUrl,
+                $url,
                 [
                     'Authorization' => 'Bearer ' . $accessToken,
                     'Accept' => '*/*',
                 ]
             );
 
-            if ($fallbackResponse['status'] >= 200 && $fallbackResponse['status'] < 300) {
-                $fallbackBody = is_array($fallbackResponse['body']) ? $fallbackResponse['body'] : null;
-                $slot = self::getFirstAvailableSlotFromBody(
-                    $fallbackBody,
-                    $fromTs,
-                    $excludeRangeFrom,
-                    $excludeRangeTo
+            if ($response['status'] < 200 || $response['status'] >= 300) {
+                error_log(
+                    '[hamgam-appointment] getAvailableSlots failed: HTTP ' . $response['status']
+                    . ' center_id=' . $queryCenterId
+                    . ' user_center_id=' . $queryUserCenterId
+                    . ' from=' . $windowFrom
+                    . ' to=' . $windowTo
+                    . ' body=' . $response['raw']
                 );
-                if ($slot !== null) {
-                    return $slot;
-                }
+
+                continue;
+            }
+
+            $body = is_array($response['body']) ? $response['body'] : null;
+            $slot = self::getFirstAvailableSlotFromBody(
+                $body,
+                max($minTimestamp, $windowFrom),
+                $excludeRangeFrom,
+                $excludeRangeTo,
+                $excludeExactTimestamp
+            );
+
+            if ($slot !== null) {
+                return $slot;
             }
         }
 
@@ -340,15 +407,28 @@ final class Paziresh24AppointmentApi
         ?array $body,
         int $fromTs,
         ?int $excludeRangeFrom = null,
-        ?int $excludeRangeTo = null
+        ?int $excludeRangeTo = null,
+        ?int $excludeExactTimestamp = null
     ): ?int {
-        $slot = self::extractFirstWorkhourTurnNum($body, $fromTs, $excludeRangeFrom, $excludeRangeTo);
+        $slot = self::extractFirstWorkhourTurnNum(
+            $body,
+            $fromTs,
+            $excludeRangeFrom,
+            $excludeRangeTo,
+            $excludeExactTimestamp
+        );
         if ($slot !== null) {
             return $slot;
         }
 
         if ($excludeRangeTo !== null && $excludeRangeTo > $fromTs) {
-            $slot = self::extractFirstWorkhourTurnNum($body, $excludeRangeTo, null, null);
+            $slot = self::extractFirstWorkhourTurnNum(
+                $body,
+                $excludeRangeTo,
+                null,
+                null,
+                $excludeExactTimestamp
+            );
             if ($slot !== null) {
                 return $slot;
             }
@@ -364,7 +444,8 @@ final class Paziresh24AppointmentApi
         ?array $body,
         int $minTimestamp = 0,
         ?int $excludeRangeFrom = null,
-        ?int $excludeRangeTo = null
+        ?int $excludeRangeTo = null,
+        ?int $excludeExactTimestamp = null
     ): ?int {
         if ($body === null) {
             return null;
@@ -385,6 +466,10 @@ final class Paziresh24AppointmentApi
                 continue;
             }
 
+            if ($excludeExactTimestamp !== null && $candidate === $excludeExactTimestamp) {
+                continue;
+            }
+
             if (
                 $excludeRangeFrom !== null
                 && $excludeRangeTo !== null
@@ -402,6 +487,23 @@ final class Paziresh24AppointmentApi
     }
 
     /**
+     * @param ?array<string, mixed> $body
+     */
+    public static function extractNextWorkhourTurnNumAfter(
+        ?array $body,
+        int $afterTimestamp,
+        ?int $excludeExactTimestamp = null
+    ): ?int {
+        return self::extractFirstWorkhourTurnNum(
+            $body,
+            $afterTimestamp + 1,
+            null,
+            null,
+            $excludeExactTimestamp
+        );
+    }
+
+    /**
      * @return array{from: int, to: int}
      */
     public static function resolveMoveRange(
@@ -415,17 +517,40 @@ final class Paziresh24AppointmentApi
             return ['from' => $fallbackFrom, 'to' => $fallbackTo];
         }
 
-        $appointment = GoogleCalendar::getAppointment($bookId, $accessToken);
+        $appointment = self::fetchAppointmentForMove($bookId, $accessToken);
         if (!is_array($appointment)) {
             return ['from' => $fallbackFrom, 'to' => $fallbackTo];
         }
 
         $range = BookingAppointmentResolver::extractRangeFromPayload($appointment);
         if ($range !== null) {
-            return $range;
+            return self::normalizeMoveRange($range, $appointment);
         }
 
         return ['from' => $fallbackFrom, 'to' => $fallbackTo];
+    }
+
+    /**
+     * @param array{from: int, to: int} $range
+     * @param array<string, mixed> $appointment
+     * @return array{from: int, to: int}
+     */
+    private static function normalizeMoveRange(array $range, array $appointment): array
+    {
+        $from = $range['from'];
+        $to = $range['to'];
+
+        $duration = $appointment['duration'] ?? $appointment['book_duration'] ?? null;
+        if (is_numeric($duration) && (int) $duration > 0) {
+            $expectedTo = $from + ((int) $duration * 60);
+            if ($to <= $from || abs($to - $expectedTo) > 120) {
+                $to = $expectedTo;
+            }
+        } elseif ($to <= $from) {
+            $to = $from + (30 * 60);
+        }
+
+        return ['from' => $from, 'to' => $to];
     }
 
     /**
@@ -459,7 +584,10 @@ final class Paziresh24AppointmentApi
                 || $key === 'slots'
                 || $key === 'items'
                 || $key === 'result'
+                || $key === 'days'
+                || $key === 'dates'
                 || (is_string($key) && self::isUuid($key))
+                || (is_string($key) && preg_match('/^\d{4}[-\/]\d{2}[-\/]\d{2}/', $key) === 1)
             ) {
                 self::collectSlotTimestamps($value, $candidates);
             }
@@ -471,14 +599,14 @@ final class Paziresh24AppointmentApi
      */
     private static function extractSlotTimestampFromItem(array $item): ?int
     {
-        foreach (['from', 'start_timestamp', 'book_timestamp'] as $key) {
+        foreach (['workhour_turn_num', 'turn_num'] as $key) {
             $ts = self::normalizeUnixTimestamp($item[$key] ?? null);
             if ($ts !== null) {
                 return $ts;
             }
         }
 
-        foreach (['workhour_turn_num', 'turn_num'] as $key) {
+        foreach (['from', 'start_timestamp', 'book_timestamp'] as $key) {
             $ts = self::normalizeUnixTimestamp($item[$key] ?? null);
             if ($ts !== null) {
                 return $ts;
@@ -612,7 +740,7 @@ final class Paziresh24AppointmentApi
             return array_merge($empty, ['stage' => 'invalid_input']);
         }
 
-        $appointment = GoogleCalendar::getAppointment($bookId, $accessToken);
+        $appointment = self::fetchAppointmentForMove($bookId, $accessToken);
         $moveRange = self::resolveMoveRange($accessToken, $bookId, $fallbackBookFrom, $fallbackBookTo);
         $bookFrom = $moveRange['from'];
         $bookTo = $moveRange['to'];
@@ -643,7 +771,8 @@ final class Paziresh24AppointmentApi
             $medicalCenterId,
             $userCenterId,
             $vacationFrom,
-            $vacationTo
+            $vacationTo,
+            $bookFrom > 0 ? $bookFrom : null
         );
 
         if ($targetFrom === null) {
@@ -652,6 +781,8 @@ final class Paziresh24AppointmentApi
                 . $bookId
                 . ' center=' . $medicalCenterId
                 . ' user_center_id=' . $userCenterId
+                . ' vacation_from=' . ($vacationFrom ?? '')
+                . ' vacation_to=' . ($vacationTo ?? '')
             );
 
             return array_merge($empty, [
@@ -670,6 +801,29 @@ final class Paziresh24AppointmentApi
             $bookTo,
             $targetFrom
         );
+
+        if (!$moveResult['success']) {
+            $retryTarget = self::getFirstAvailableSlot(
+                $accessToken,
+                $medicalCenterId,
+                $userCenterId,
+                $vacationFrom,
+                $vacationTo,
+                max($bookFrom, $targetFrom)
+            );
+
+            if ($retryTarget !== null && $retryTarget !== $targetFrom) {
+                $targetFrom = $retryTarget;
+                $moveResult = self::moveAppointmentWithCenterFallback(
+                    $accessToken,
+                    $medicalCenterId,
+                    $userCenterId,
+                    $bookFrom,
+                    $bookTo,
+                    $targetFrom
+                );
+            }
+        }
 
         if (!$moveResult['success']) {
             error_log(

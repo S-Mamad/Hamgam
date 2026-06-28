@@ -5560,6 +5560,8 @@ final class VacationSyncService
 
     ): bool {
 
+        Paziresh24AppointmentApi::resetAppointmentCache();
+
         $googleAccessToken = self::refreshGoogleAccessToken($tokenRow);
 
         if ($googleAccessToken === null) {
@@ -5614,7 +5616,9 @@ final class VacationSyncService
 
                 $vacationCenter,
 
-                $hamdastAccessToken
+                $hamdastAccessToken,
+
+                $targets
 
             );
 
@@ -5640,11 +5644,15 @@ final class VacationSyncService
 
 
 
+                Paziresh24AppointmentApi::resetAppointmentCache();
+
                 return false;
 
             }
 
 
+
+            Paziresh24AppointmentApi::resetAppointmentCache();
 
             return true;
 
@@ -5682,7 +5690,9 @@ final class VacationSyncService
 
             $vacationCenter,
 
-            $hamdastAccessToken
+            $hamdastAccessToken,
+
+            $targets
 
         );
 
@@ -5708,13 +5718,129 @@ final class VacationSyncService
 
 
 
+            Paziresh24AppointmentApi::resetAppointmentCache();
+
             return false;
 
         }
 
 
 
+        Paziresh24AppointmentApi::resetAppointmentCache();
+
         return true;
+
+    }
+
+
+
+    /**
+
+     * @param array<string, mixed> $tokenRow
+
+     * @param array{medical_center_id: string, user_center_id: ?string, name: string} $vacationCenter
+
+     * @param array<int, array{
+
+     *   book_id: string,
+
+     *   event: array<string, mixed>,
+
+     *   from: int,
+
+     *   to: int,
+
+     *   medical_center_id: string
+
+     * }>|null $prefetchedTargets
+
+     */
+
+    private static function rescheduleOverlappingAppointments(
+
+        string $userId,
+
+        array $tokenRow,
+
+        int $from,
+
+        int $to,
+
+        array $vacationCenter,
+
+        string $hamdastAccessToken,
+
+        ?array $prefetchedTargets = null
+
+    ): int {
+
+        $googleAccessToken = self::refreshGoogleAccessToken($tokenRow);
+
+        if ($googleAccessToken === null) {
+
+            return 0;
+
+        }
+
+
+
+        $targets = $prefetchedTargets ?? self::findOverlappingAppointments(
+
+            $userId,
+
+            $googleAccessToken,
+
+            $hamdastAccessToken,
+
+            $from,
+
+            $to,
+
+            $vacationCenter
+
+        );
+
+
+
+        $rescheduled = 0;
+
+        foreach ($targets as $target) {
+
+            if (
+
+                self::rescheduleSingleOverlappingAppointment(
+
+                    $userId,
+
+                    $target['book_id'],
+
+                    $target['from'],
+
+                    $target['to'],
+
+                    $target['medical_center_id'],
+
+                    $vacationCenter,
+
+                    $hamdastAccessToken,
+
+                    $from,
+
+                    $to
+
+                )
+
+            ) {
+
+                $rescheduled++;
+
+            }
+
+        }
+
+
+
+        return $rescheduled;
 
     }
 
@@ -5831,102 +5957,6 @@ final class VacationSyncService
             . ' center=' . $vacationCenter['medical_center_id']
 
         );
-
-
-
-        return $rescheduled;
-
-    }
-
-
-
-    /**
-
-     * @param array<string, mixed> $tokenRow
-
-     * @param array{medical_center_id: string, user_center_id: ?string, name: string} $vacationCenter
-
-     */
-
-    private static function rescheduleOverlappingAppointments(
-
-        string $userId,
-
-        array $tokenRow,
-
-        int $from,
-
-        int $to,
-
-        array $vacationCenter,
-
-        string $hamdastAccessToken
-
-    ): int {
-
-        $googleAccessToken = self::refreshGoogleAccessToken($tokenRow);
-
-        if ($googleAccessToken === null) {
-
-            return 0;
-
-        }
-
-
-
-        $targets = self::findOverlappingAppointments(
-
-            $userId,
-
-            $googleAccessToken,
-
-            $hamdastAccessToken,
-
-            $from,
-
-            $to,
-
-            $vacationCenter
-
-        );
-
-
-
-        $rescheduled = 0;
-
-        foreach ($targets as $target) {
-
-            if (
-
-                self::rescheduleSingleOverlappingAppointment(
-
-                    $userId,
-
-                    $target['book_id'],
-
-                    $target['from'],
-
-                    $target['to'],
-
-                    $target['medical_center_id'],
-
-                    $vacationCenter,
-
-                    $hamdastAccessToken,
-
-                    $from,
-
-                    $to
-
-                )
-
-            ) {
-
-                $rescheduled++;
-
-            }
-
-        }
 
 
 
@@ -6166,26 +6196,6 @@ final class VacationSyncService
 
 
 
-        foreach (GoogleCalendarBookingRepository::listBookIdsForUser($userId) as $bookId) {
-
-            $addTarget(self::buildOverlappingAppointmentTargetFromApi(
-
-                $bookId,
-
-                $from,
-
-                $to,
-
-                $medicalCenterId,
-
-                $hamdastAccessToken
-
-            ));
-
-        }
-
-
-
         $timeMin = gmdate('Y-m-d\TH:i:s\Z', $from - 3600);
 
         $timeMax = gmdate('Y-m-d\TH:i:s\Z', $to + 3600);
@@ -6232,49 +6242,19 @@ final class VacationSyncService
 
 
 
-            $bookEvents = GoogleCalendar::findEventsByBookId($googleAccessToken, $bookId);
+            $addTarget(self::buildOverlappingAppointmentTargetFromApi(
 
-            if ($bookEvents === []) {
+                $bookId,
 
-                $storedEventId = GoogleCalendarBookingRepository::getGoogleEventId($userId, $bookId);
+                $from,
 
-                if ($storedEventId !== null) {
+                $to,
 
-                    $bookEvents = [['id' => $storedEventId]];
+                $medicalCenterId,
 
-                }
+                $hamdastAccessToken
 
-            }
-
-
-
-            foreach ($bookEvents as $event) {
-
-                if (!is_array($event)) {
-
-                    continue;
-
-                }
-
-
-
-                $addTarget(self::buildOverlappingAppointmentTarget(
-
-                    $event,
-
-                    $from,
-
-                    $to,
-
-                    $medicalCenterId,
-
-                    $hamdastAccessToken,
-
-                    $bookId
-
-                ));
-
-            }
+            ));
 
         }
 
@@ -6867,7 +6847,9 @@ final class VacationSyncService
 
         array $vacationCenter,
 
-        string $hamdastAccessToken
+        string $hamdastAccessToken,
+
+        ?array $prefetchedTargets = null
 
     ): int {
 
@@ -6881,7 +6863,7 @@ final class VacationSyncService
 
 
 
-        $targets = self::findOverlappingAppointments(
+        $targets = $prefetchedTargets ?? self::findOverlappingAppointments(
 
             $userId,
 
