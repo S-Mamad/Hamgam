@@ -293,6 +293,27 @@ assertTest(
 );
 
 assertTest(
+    'extractWorkhourTurnNumCandidates returns multiple ordered slots',
+    Paziresh24AppointmentApi::extractWorkhourTurnNumCandidates([
+        'data' => [
+            ['workhour_turn_num' => 1_800_000_000],
+            ['workhour_turn_num' => 1_790_000_000],
+            ['workhour_turn_num' => 1_810_000_000],
+        ],
+    ], 0, null, null, null, 2) === [1_790_000_000, 1_800_000_000]
+);
+
+assertTest(
+    'extractWorkhourTurnNumCandidates skips slots before vacation end',
+    Paziresh24AppointmentApi::extractWorkhourTurnNumCandidates([
+        'data' => [
+            ['workhour_turn_num' => 1_780_000_000],
+            ['workhour_turn_num' => 1_790_000_000],
+        ],
+    ], 1_785_000_000, 1_770_000_000, 1_785_000_000) === [1_790_000_000]
+);
+
+assertTest(
     'VacationSyncService has resolveOverlappingAppointments',
     $syncRef->hasMethod('resolveOverlappingAppointments')
 );

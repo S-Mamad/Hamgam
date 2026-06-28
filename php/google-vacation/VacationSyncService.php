@@ -6159,7 +6159,7 @@ final class VacationSyncService
 
     ): bool {
 
-        $appointment = GoogleCalendar::getAppointment($bookId, $hamdastAccessToken);
+        $appointment = Paziresh24AppointmentApi::fetchAppointmentForMove($bookId, $hamdastAccessToken);
 
         $hintUserCenterId = is_array($appointment)
 
@@ -6248,6 +6248,8 @@ final class VacationSyncService
         string $hamdastAccessToken
 
     ): void {
+
+        Paziresh24AppointmentApi::invalidateAppointmentCache($bookId);
 
         $appointment = GoogleCalendar::getAppointment($bookId, $hamdastAccessToken);
 
@@ -6397,29 +6399,25 @@ final class VacationSyncService
 
 
 
-        foreach (GoogleCalendarBookingRepository::listBookIdsForUser($userId) as $bookId) {
+        if ($targets === []) {
 
-            if (isset($seenBookIds[$bookId])) {
+            foreach (GoogleCalendarBookingRepository::listBookIdsForUser($userId) as $bookId) {
 
-                continue;
+                $addTarget(self::buildOverlappingAppointmentTargetFromApi(
+
+                    $bookId,
+
+                    $from,
+
+                    $to,
+
+                    $medicalCenterId,
+
+                    $hamdastAccessToken
+
+                ));
 
             }
-
-
-
-            $addTarget(self::buildOverlappingAppointmentTargetFromApi(
-
-                $bookId,
-
-                $from,
-
-                $to,
-
-                $medicalCenterId,
-
-                $hamdastAccessToken
-
-            ));
 
         }
 
@@ -6505,13 +6503,25 @@ final class VacationSyncService
 
 
 
-        $appointmentCenterId = BookingAppointmentResolver::resolveAppointmentMedicalCenterId(
+        $cachedAppointment = Paziresh24AppointmentApi::fetchAppointmentForMove($bookId, $hamdastAccessToken);
 
-            $bookId,
+        $appointmentCenterId = is_array($cachedAppointment)
 
-            $hamdastAccessToken
+            ? BookingAppointmentResolver::extractCenterId($cachedAppointment)
 
-        );
+            : null;
+
+        if ($appointmentCenterId === null || $appointmentCenterId === '') {
+
+            $appointmentCenterId = BookingAppointmentResolver::resolveAppointmentMedicalCenterId(
+
+                $bookId,
+
+                $hamdastAccessToken
+
+            );
+
+        }
 
         if ($appointmentCenterId === null || $appointmentCenterId !== $medicalCenterId) {
 

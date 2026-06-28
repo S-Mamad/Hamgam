@@ -7,9 +7,13 @@ final class Paziresh24AppointmentApi
     /** @var array<string, array<string, mixed>|null> */
     private static array $appointmentCacheByBookId = [];
 
+    /** @var array<string, array<string, mixed>|null> */
+    private static array $slotsBodyCache = [];
+
     public static function resetAppointmentCache(): void
     {
         self::$appointmentCacheByBookId = [];
+        self::$slotsBodyCache = [];
     }
 
     /**
@@ -27,6 +31,16 @@ final class Paziresh24AppointmentApi
         }
 
         return self::$appointmentCacheByBookId[$bookId];
+    }
+
+    public static function invalidateAppointmentCache(string $bookId): void
+    {
+        $bookId = trim($bookId);
+        if ($bookId === '') {
+            return;
+        }
+
+        unset(self::$appointmentCacheByBookId[$bookId]);
     }
 
     /**
@@ -274,45 +288,182 @@ final class Paziresh24AppointmentApi
         ?int $excludeRangeTo = null,
         ?int $excludeExactTimestamp = null
     ): ?int {
+        $candidates = self::collectSlotMoveCandidates(
+            $accessToken,
+            $centerId,
+            $userCenterId,
+            $excludeRangeFrom,
+            $excludeRangeTo,
+            $excludeExactTimestamp,
+            1
+        );
+
+        return $candidates[0] ?? null;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private static function collectSlotMoveCandidates(
+        string $accessToken,
+        string $centerId,
+        string $userCenterId,
+        ?int $excludeRangeFrom,
+        ?int $excludeRangeTo,
+        ?int $excludeExactTimestamp,
+        int $maxCandidates
+    ): array {
         $centerId = trim($centerId);
         $userCenterId = trim($userCenterId);
-        if ($centerId === '' || $userCenterId === '') {
-            return null;
+        if ($centerId === '' || $userCenterId === '' || $maxCandidates <= 0) {
+            return [];
         }
 
         $searchRange = self::resolveSlotSearchRange();
         if ($searchRange === null) {
+            return [];
+        }
+
+        $pickMinTs = self::resolveSlotPickMinTimestamp(
+            $searchRange['now'],
+            $searchRange['range_start'],
+            $excludeRangeFrom,
+            $excludeRangeTo
+        );
+
+        $merged = [];
+        foreach (self::slotsCenterPairs($centerId, $userCenterId) as [$queryCenterId, $queryUserCenterId]) {
+            $body = self::fetchSlotsBody(
+                $accessToken,
+                $queryCenterId,
+                $queryUserCenterId,
+                $searchRange['range_start'],
+                $searchRange['range_end']
+            );
+
+            foreach (
+                self::extractWorkhourTurnNumCandidates(
+                    $body,
+                    $pickMinTs,
+                    $excludeRangeFrom,
+                    $excludeRangeTo,
+                    $excludeExactTimestamp,
+                    $maxCandidates
+                ) as $candidate
+            ) {
+                $merged[$candidate] = true;
+            }
+        }
+
+        if ($merged === []) {
+            return [];
+        }
+
+        $sorted = array_keys($merged);
+        sort($sorted, SORT_NUMERIC);
+
+        return array_slice($sorted, 0, $maxCandidates);
+    }
+
+    private static function resolveSlotPickMinTimestamp(
+        int $nowTs,
+        int $rangeStartTs,
+        ?int $excludeRangeFrom,
+        ?int $excludeRangeTo
+    ): int {
+        $pickMinTs = max($nowTs, $rangeStartTs);
+
+        if (
+            $excludeRangeFrom !== null
+            && $excludeRangeTo !== null
+            && $excludeRangeTo > $excludeRangeFrom
+            && $excludeRangeTo > $pickMinTs
+        ) {
+            return $excludeRangeTo;
+        }
+
+        return $pickMinTs;
+    }
+
+    /**
+     * @return array<int, array{0: string, 1: string}>
+     */
+    private static function slotsCenterPairs(string $centerId, string $userCenterId): array
+    {
+        $pairs = [[$centerId, $userCenterId]];
+        if ($userCenterId !== $centerId) {
+            $pairs[] = [$userCenterId, $userCenterId];
+        }
+
+        return $pairs;
+    }
+
+    private static function slotsCacheKey(
+        string $centerId,
+        string $userCenterId,
+        int $windowFrom,
+        int $windowTo
+    ): string {
+        return $centerId . '|' . $userCenterId . '|' . $windowFrom . '|' . $windowTo;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function fetchSlotsBody(
+        string $accessToken,
+        string $queryCenterId,
+        string $queryUserCenterId,
+        int $windowFrom,
+        int $windowTo
+    ): ?array {
+        $cacheKey = self::slotsCacheKey($queryCenterId, $queryUserCenterId, $windowFrom, $windowTo);
+        if (array_key_exists($cacheKey, self::$slotsBodyCache)) {
+            return self::$slotsBodyCache[$cacheKey];
+        }
+
+        $baseUrl = rtrim(
+            Config::get(
+                'PAZIRESH24_BOOKING_SLOTS_URL',
+                'https://apigw.paziresh24.com/open-platform/v1/booking/slots'
+            ),
+            '/'
+        );
+        $url = $baseUrl . '?' . http_build_query([
+            'center_id' => $queryCenterId,
+            'user_center_id' => $queryUserCenterId,
+            'from' => (string) $windowFrom,
+            'to' => (string) $windowTo,
+        ]);
+
+        $response = HttpClient::request(
+            'GET',
+            $url,
+            [
+                'Authorization' => 'Bearer ' . $accessToken,
+                'Accept' => '*/*',
+            ]
+        );
+
+        if ($response['status'] < 200 || $response['status'] >= 300) {
+            error_log(
+                '[hamgam-appointment] getAvailableSlots failed: HTTP ' . $response['status']
+                . ' center_id=' . $queryCenterId
+                . ' user_center_id=' . $queryUserCenterId
+                . ' from=' . $windowFrom
+                . ' to=' . $windowTo
+                . ' body=' . $response['raw']
+            );
+
+            self::$slotsBodyCache[$cacheKey] = null;
+
             return null;
         }
 
-        $pickMinTs = max($searchRange['now'], $searchRange['range_start']);
+        $body = is_array($response['body']) ? $response['body'] : null;
+        self::$slotsBodyCache[$cacheKey] = $body;
 
-        $chunkSeconds = 30 * 86400;
-        $chunkFrom = $searchRange['range_start'];
-
-        while ($chunkFrom < $searchRange['range_end']) {
-            $chunkTo = min($chunkFrom + $chunkSeconds, $searchRange['range_end']);
-
-            $slot = self::fetchFirstAvailableSlotInWindow(
-                $accessToken,
-                $centerId,
-                $userCenterId,
-                $chunkFrom,
-                $chunkTo,
-                $pickMinTs,
-                $excludeRangeFrom,
-                $excludeRangeTo,
-                $excludeExactTimestamp
-            );
-
-            if ($slot !== null) {
-                return $slot;
-            }
-
-            $chunkFrom = $chunkTo;
-        }
-
-        return null;
+        return $body;
     }
 
     /**
@@ -335,118 +486,33 @@ final class Paziresh24AppointmentApi
         }
     }
 
-    private static function fetchFirstAvailableSlotInWindow(
-        string $accessToken,
-        string $centerId,
-        string $userCenterId,
-        int $windowFrom,
-        int $windowTo,
-        int $minTimestamp,
-        ?int $excludeRangeFrom,
-        ?int $excludeRangeTo,
-        ?int $excludeExactTimestamp
-    ): ?int {
-        $baseUrl = rtrim(
-            Config::get(
-                'PAZIRESH24_BOOKING_SLOTS_URL',
-                'https://apigw.paziresh24.com/open-platform/v1/booking/slots'
-            ),
-            '/'
-        );
-
-        $centerPairs = [[$centerId, $userCenterId]];
-        if ($userCenterId !== $centerId) {
-            $centerPairs[] = [$userCenterId, $userCenterId];
-        }
-
-        foreach ($centerPairs as [$queryCenterId, $queryUserCenterId]) {
-            $url = $baseUrl . '?' . http_build_query([
-                'center_id' => $queryCenterId,
-                'user_center_id' => $queryUserCenterId,
-                'from' => (string) $windowFrom,
-                'to' => (string) $windowTo,
-            ]);
-
-            $response = HttpClient::request(
-                'GET',
-                $url,
-                [
-                    'Authorization' => 'Bearer ' . $accessToken,
-                    'Accept' => '*/*',
-                ]
-            );
-
-            if ($response['status'] < 200 || $response['status'] >= 300) {
-                error_log(
-                    '[hamgam-appointment] getAvailableSlots failed: HTTP ' . $response['status']
-                    . ' center_id=' . $queryCenterId
-                    . ' user_center_id=' . $queryUserCenterId
-                    . ' from=' . $windowFrom
-                    . ' to=' . $windowTo
-                    . ' body=' . $response['raw']
-                );
-
-                continue;
-            }
-
-            $body = is_array($response['body']) ? $response['body'] : null;
-            $slot = self::getFirstAvailableSlotFromBody(
-                $body,
-                max($minTimestamp, $windowFrom),
-                $excludeRangeFrom,
-                $excludeRangeTo,
-                $excludeExactTimestamp
-            );
-
-            if ($slot !== null) {
-                return $slot;
-            }
-        }
-
-        return null;
-    }
-
-    private static function getFirstAvailableSlotFromBody(
-        ?array $body,
-        int $fromTs,
-        ?int $excludeRangeFrom = null,
-        ?int $excludeRangeTo = null,
-        ?int $excludeExactTimestamp = null
-    ): ?int {
-        return self::extractFirstWorkhourTurnNum(
-            $body,
-            $fromTs,
-            $excludeRangeFrom,
-            $excludeRangeTo,
-            $excludeExactTimestamp
-        );
-    }
-
     /**
      * @param ?array<string, mixed> $body
+     * @return array<int, int>
      */
-    public static function extractFirstWorkhourTurnNum(
+    public static function extractWorkhourTurnNumCandidates(
         ?array $body,
         int $minTimestamp = 0,
         ?int $excludeRangeFrom = null,
         ?int $excludeRangeTo = null,
-        ?int $excludeExactTimestamp = null
-    ): ?int {
-        if ($body === null) {
-            return null;
+        ?int $excludeExactTimestamp = null,
+        int $maxCandidates = 8
+    ): array {
+        if ($body === null || $maxCandidates <= 0) {
+            return [];
         }
 
-        $candidates = [];
-        self::collectSlotTimestamps($body, $candidates);
-
-        if ($candidates === []) {
-            return null;
+        $raw = [];
+        self::collectSlotTimestamps($body, $raw);
+        if ($raw === []) {
+            return [];
         }
 
-        $candidates = array_values(array_unique($candidates));
-        sort($candidates, SORT_NUMERIC);
+        $raw = array_values(array_unique($raw));
+        sort($raw, SORT_NUMERIC);
 
-        foreach ($candidates as $candidate) {
+        $valid = [];
+        foreach ($raw as $candidate) {
             if ($candidate < $minTimestamp) {
                 continue;
             }
@@ -465,10 +531,35 @@ final class Paziresh24AppointmentApi
                 continue;
             }
 
-            return $candidate;
+            $valid[] = $candidate;
+            if (count($valid) >= $maxCandidates) {
+                break;
+            }
         }
 
-        return null;
+        return $valid;
+    }
+
+    /**
+     * @param ?array<string, mixed> $body
+     */
+    public static function extractFirstWorkhourTurnNum(
+        ?array $body,
+        int $minTimestamp = 0,
+        ?int $excludeRangeFrom = null,
+        ?int $excludeRangeTo = null,
+        ?int $excludeExactTimestamp = null
+    ): ?int {
+        $candidates = self::extractWorkhourTurnNumCandidates(
+            $body,
+            $minTimestamp,
+            $excludeRangeFrom,
+            $excludeRangeTo,
+            $excludeExactTimestamp,
+            1
+        );
+
+        return $candidates[0] ?? null;
     }
 
     /**
@@ -799,16 +890,18 @@ final class Paziresh24AppointmentApi
             ]);
         }
 
-        $targetFrom = self::getFirstAvailableSlot(
+        $excludeExact = $bookFrom > 0 ? $bookFrom : null;
+        $candidates = self::collectSlotMoveCandidates(
             $accessToken,
             $medicalCenterId,
             $userCenterId,
             $vacationFrom,
             $vacationTo,
-            $bookFrom > 0 ? $bookFrom : null
+            $excludeExact,
+            8
         );
 
-        if ($targetFrom === null) {
+        if ($candidates === []) {
             error_log(
                 '[hamgam-appointment] reschedule failed stage=slots book_id='
                 . $bookId
@@ -826,35 +919,32 @@ final class Paziresh24AppointmentApi
             ]);
         }
 
-        $moveResult = self::moveAppointmentWithCenterFallback(
-            $accessToken,
-            $medicalCenterId,
-            $userCenterId,
-            $bookFrom,
-            $bookTo,
-            $targetFrom
-        );
+        $moveResult = [
+            'success' => false,
+            'body' => null,
+            'http_status' => 0,
+            'permission_denied' => false,
+            'center_id_used' => null,
+        ];
+        $targetFrom = null;
 
-        if (!$moveResult['success']) {
-            $retryTarget = self::getFirstAvailableSlot(
+        foreach ($candidates as $candidate) {
+            $targetFrom = $candidate;
+            $moveResult = self::moveAppointmentWithCenterFallback(
                 $accessToken,
                 $medicalCenterId,
                 $userCenterId,
-                $vacationFrom,
-                $vacationTo,
-                max($bookFrom, $targetFrom)
+                $bookFrom,
+                $bookTo,
+                $targetFrom
             );
 
-            if ($retryTarget !== null && $retryTarget !== $targetFrom) {
-                $targetFrom = $retryTarget;
-                $moveResult = self::moveAppointmentWithCenterFallback(
-                    $accessToken,
-                    $medicalCenterId,
-                    $userCenterId,
-                    $bookFrom,
-                    $bookTo,
-                    $targetFrom
-                );
+            if ($moveResult['success']) {
+                break;
+            }
+
+            if ($moveResult['permission_denied'] ?? false) {
+                break;
             }
         }
 
@@ -888,6 +978,8 @@ final class Paziresh24AppointmentApi
             . ' center_path=' . ($moveResult['center_id_used'] ?? '')
             . ' target_from=' . $targetFrom
         );
+
+        self::invalidateAppointmentCache($bookId);
 
         return [
             'success' => true,
