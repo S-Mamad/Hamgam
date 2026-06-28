@@ -268,6 +268,31 @@ assertTest(
 );
 
 assertTest(
+    'extractFirstWorkhourTurnNum picks next day when today is inside vacation',
+    Paziresh24AppointmentApi::extractFirstWorkhourTurnNum([
+        '2026-06-28' => [
+            ['workhour_turn_num' => 1_780_000_000],
+        ],
+        '2026-06-29' => [
+            ['workhour_turn_num' => 1_790_000_000],
+        ],
+    ], 0, 1_770_000_000, 1_785_000_000) === 1_790_000_000
+);
+
+assertTest(
+    'resolveSlotSearchRange spans three months from start of today',
+    (static function (): bool {
+        $range = Paziresh24AppointmentApi::resolveSlotSearchRange();
+        if ($range === null) {
+            return false;
+        }
+
+        return $range['range_end'] > $range['range_start']
+            && ($range['range_end'] - $range['range_start']) >= (89 * 86400);
+    })()
+);
+
+assertTest(
     'VacationSyncService has resolveOverlappingAppointments',
     $syncRef->hasMethod('resolveOverlappingAppointments')
 );

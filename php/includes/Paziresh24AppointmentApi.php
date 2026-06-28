@@ -260,6 +260,7 @@ final class Paziresh24AppointmentApi
 
     /**
      * Fetch the first available slot (workhour_turn_num) within the next 3 months (Asia/Tehran).
+     * Search is anchored to start-of-today and scans the full range (chunked API calls).
      *
      * @param ?int $excludeRangeFrom When set with $excludeRangeTo, slots inside this range are skipped.
      * @param ?int $excludeRangeTo
@@ -279,46 +280,26 @@ final class Paziresh24AppointmentApi
             return null;
         }
 
-        try {
-            $tz = new DateTimeZone('Asia/Tehran');
-            $now = new DateTimeImmutable('now', $tz);
-        } catch (Throwable) {
+        $searchRange = self::resolveSlotSearchRange();
+        if ($searchRange === null) {
             return null;
         }
 
-        $fromTs = $now->getTimestamp();
-        $toTs = $now->modify('+3 months')->getTimestamp();
+        $pickMinTs = max($searchRange['now'], $searchRange['range_start']);
 
-        $searchWindows = [[$fromTs, $toTs]];
+        $chunkSeconds = 30 * 86400;
+        $chunkFrom = $searchRange['range_start'];
 
-        if (
-            $excludeRangeTo !== null
-            && $excludeRangeTo > $fromTs
-            && $excludeRangeTo < $toTs
-        ) {
-            $searchWindows[] = [$excludeRangeTo, $toTs];
-        }
-
-        $seenWindows = [];
-        foreach ($searchWindows as [$windowFrom, $windowTo]) {
-            if ($windowTo <= $windowFrom) {
-                continue;
-            }
-
-            $windowKey = $windowFrom . ':' . $windowTo;
-            if (isset($seenWindows[$windowKey])) {
-                continue;
-            }
-
-            $seenWindows[$windowKey] = true;
+        while ($chunkFrom < $searchRange['range_end']) {
+            $chunkTo = min($chunkFrom + $chunkSeconds, $searchRange['range_end']);
 
             $slot = self::fetchFirstAvailableSlotInWindow(
                 $accessToken,
                 $centerId,
                 $userCenterId,
-                $windowFrom,
-                $windowTo,
-                $fromTs,
+                $chunkFrom,
+                $chunkTo,
+                $pickMinTs,
                 $excludeRangeFrom,
                 $excludeRangeTo,
                 $excludeExactTimestamp
@@ -327,9 +308,31 @@ final class Paziresh24AppointmentApi
             if ($slot !== null) {
                 return $slot;
             }
+
+            $chunkFrom = $chunkTo;
         }
 
         return null;
+    }
+
+    /**
+     * @return array{now: int, range_start: int, range_end: int}|null
+     */
+    public static function resolveSlotSearchRange(): ?array
+    {
+        try {
+            $tz = new DateTimeZone('Asia/Tehran');
+            $now = new DateTimeImmutable('now', $tz);
+            $startOfToday = $now->setTime(0, 0, 0);
+
+            return [
+                'now' => $now->getTimestamp(),
+                'range_start' => $startOfToday->getTimestamp(),
+                'range_end' => $startOfToday->modify('+3 months')->getTimestamp(),
+            ];
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     private static function fetchFirstAvailableSlotInWindow(
@@ -410,31 +413,13 @@ final class Paziresh24AppointmentApi
         ?int $excludeRangeTo = null,
         ?int $excludeExactTimestamp = null
     ): ?int {
-        $slot = self::extractFirstWorkhourTurnNum(
+        return self::extractFirstWorkhourTurnNum(
             $body,
             $fromTs,
             $excludeRangeFrom,
             $excludeRangeTo,
             $excludeExactTimestamp
         );
-        if ($slot !== null) {
-            return $slot;
-        }
-
-        if ($excludeRangeTo !== null && $excludeRangeTo > $fromTs) {
-            $slot = self::extractFirstWorkhourTurnNum(
-                $body,
-                $excludeRangeTo,
-                null,
-                null,
-                $excludeExactTimestamp
-            );
-            if ($slot !== null) {
-                return $slot;
-            }
-        }
-
-        return null;
     }
 
     /**
@@ -579,6 +564,10 @@ final class Paziresh24AppointmentApi
                 continue;
             }
 
+            if (is_string($key) && self::shouldSkipSlotRecursionKey($key)) {
+                continue;
+            }
+
             if (
                 $key === 'data'
                 || $key === 'slots'
@@ -586,12 +575,56 @@ final class Paziresh24AppointmentApi
                 || $key === 'result'
                 || $key === 'days'
                 || $key === 'dates'
+                || $key === 'turns'
+                || $key === 'free_turns'
+                || $key === 'calendar'
                 || (is_string($key) && self::isUuid($key))
-                || (is_string($key) && preg_match('/^\d{4}[-\/]\d{2}[-\/]\d{2}/', $key) === 1)
+                || (is_string($key) && preg_match('/^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}/', $key) === 1)
+                || self::looksLikeSlotContainer($value)
             ) {
                 self::collectSlotTimestamps($value, $candidates);
             }
         }
+    }
+
+    private static function shouldSkipSlotRecursionKey(string $key): bool
+    {
+        static $skip = [
+            'meta' => true,
+            'pagination' => true,
+            'message' => true,
+            'status' => true,
+            'errors' => true,
+            'error' => true,
+            'total' => true,
+            'count' => true,
+            'success' => true,
+        ];
+
+        return isset($skip[strtolower($key)]);
+    }
+
+    /**
+     * @param array<mixed> $value
+     */
+    private static function looksLikeSlotContainer(array $value): bool
+    {
+        if (self::isListArray($value)) {
+            foreach ($value as $item) {
+                if (is_array($item) && self::extractSlotTimestampFromItem($item) !== null) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return self::extractSlotTimestampFromItem($value) === null
+            && (
+                ($value['slots'] ?? null) !== null
+                || ($value['items'] ?? null) !== null
+                || ($value['turns'] ?? null) !== null
+            );
     }
 
     /**
