@@ -522,7 +522,10 @@ final class Paziresh24AppointmentApi
                 continue;
             }
 
-            if ($excludeExactTimestamp !== null && $candidate === $excludeExactTimestamp) {
+            if (
+                $excludeExactTimestamp !== null
+                && abs($candidate - $excludeExactTimestamp) < 60
+            ) {
                 continue;
             }
 
@@ -585,6 +588,58 @@ final class Paziresh24AppointmentApi
     }
 
     /**
+     * Resolve book_from/book_to for the move API from a fetched appointment payload.
+     *
+     * @param array<string, mixed> $appointment
+     * @return array{from: int, to: int}
+     */
+    public static function resolveMoveRangeFromAppointment(
+        array $appointment,
+        int $fallbackFrom = 0,
+        int $fallbackTo = 0
+    ): array {
+        $payloadRange = BookingAppointmentResolver::extractRangeFromPayload($appointment);
+        $moveFrom = self::extractMoveFromTimestamp($appointment);
+
+        if ($moveFrom !== null) {
+            $to = $fallbackTo;
+            if ($payloadRange !== null && $payloadRange['to'] > $moveFrom) {
+                $to = $payloadRange['to'];
+            }
+
+            return self::normalizeMoveRange(['from' => $moveFrom, 'to' => $to], $appointment);
+        }
+
+        if ($payloadRange !== null) {
+            return self::normalizeMoveRange($payloadRange, $appointment);
+        }
+
+        return ['from' => $fallbackFrom, 'to' => $fallbackTo];
+    }
+
+    /**
+     * @param array<string, mixed> $appointment
+     */
+    public static function extractMoveFromTimestamp(array $appointment): ?int
+    {
+        foreach (['workhour_turn_num', 'turn_num'] as $key) {
+            $ts = self::normalizeUnixTimestamp($appointment[$key] ?? null);
+            if ($ts !== null) {
+                return $ts;
+            }
+        }
+
+        foreach (['from', 'book_timestamp', 'start_timestamp'] as $key) {
+            $ts = self::normalizeUnixTimestamp($appointment[$key] ?? null);
+            if ($ts !== null) {
+                return $ts;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * @return array{from: int, to: int}
      */
     public static function resolveMoveRange(
@@ -603,12 +658,7 @@ final class Paziresh24AppointmentApi
             return ['from' => $fallbackFrom, 'to' => $fallbackTo];
         }
 
-        $range = BookingAppointmentResolver::extractRangeFromPayload($appointment);
-        if ($range !== null) {
-            return self::normalizeMoveRange($range, $appointment);
-        }
-
-        return ['from' => $fallbackFrom, 'to' => $fallbackTo];
+        return self::resolveMoveRangeFromAppointment($appointment, $fallbackFrom, $fallbackTo);
     }
 
     /**
@@ -938,14 +988,39 @@ final class Paziresh24AppointmentApi
 
         foreach ($candidates as $candidate) {
             $targetFrom = $candidate;
-            $moveResult = self::moveAppointmentWithCenterFallback(
-                $accessToken,
-                $medicalCenterId,
-                $userCenterId,
-                $bookFrom,
-                $bookTo,
-                $targetFrom
-            );
+            $moveResult = [
+                'success' => false,
+                'body' => null,
+                'http_status' => 0,
+                'permission_denied' => false,
+                'center_id_used' => null,
+            ];
+
+            for ($moveAttempt = 0; $moveAttempt < 2; $moveAttempt++) {
+                $moveResult = self::moveAppointmentWithCenterFallback(
+                    $accessToken,
+                    $medicalCenterId,
+                    $userCenterId,
+                    $bookFrom,
+                    $bookTo,
+                    $targetFrom
+                );
+
+                if ($moveResult['success'] || ($moveResult['permission_denied'] ?? false)) {
+                    break;
+                }
+
+                if ($moveAttempt === 0) {
+                    self::invalidateAppointmentCache($bookId);
+                    $freshRange = self::resolveMoveRange($accessToken, $bookId, $bookFrom, $bookTo);
+                    if ($freshRange['from'] <= 0 || $freshRange['to'] <= $freshRange['from']) {
+                        break;
+                    }
+
+                    $bookFrom = $freshRange['from'];
+                    $bookTo = $freshRange['to'];
+                }
+            }
 
             if ($moveResult['success']) {
                 break;

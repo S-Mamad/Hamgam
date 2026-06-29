@@ -3165,6 +3165,46 @@ final class VacationSyncService
 
 
 
+        if (
+
+            !self::clearConflictingAppointmentsBeforeVacation(
+
+                $userId,
+
+                $tokenRow,
+
+                $newFrom,
+
+                $newTo,
+
+                $vacationCenter,
+
+                $hamdastAccessToken
+
+            )
+
+        ) {
+
+            error_log(
+
+                '[google-vacation] vacation replace aborted: overlapping appointments not moved event='
+
+                . $googleEventId
+
+                . ' center='
+
+                . $medicalCenterId
+
+            );
+
+
+
+            return null;
+
+        }
+
+
+
         if ($oldFrom > 0 && $oldTo > $oldFrom && $hamdastAccessToken !== '') {
 
             Paziresh24VacationApi::deleteVacation($hamdastAccessToken, $medicalCenterId, $oldFrom, $oldTo);

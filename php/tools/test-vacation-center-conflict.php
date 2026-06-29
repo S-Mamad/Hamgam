@@ -280,6 +280,49 @@ assertTest(
 );
 
 assertTest(
+    'resolveMoveRangeFromAppointment prefers workhour_turn_num for book_from',
+    Paziresh24AppointmentApi::resolveMoveRangeFromAppointment([
+        'from' => 1782073800,
+        'to' => 1782075600,
+        'workhour_turn_num' => 1782077400,
+        'duration' => 30,
+    ])['from'] === 1782077400
+);
+
+assertTest(
+    'resolveMoveRangeFromAppointment normalizes book_to from duration',
+    (static function (): bool {
+        $range = Paziresh24AppointmentApi::resolveMoveRangeFromAppointment([
+            'workhour_turn_num' => 1782077400,
+            'duration' => 30,
+        ]);
+
+        return $range['to'] === 1782077400 + (30 * 60);
+    })()
+);
+
+assertTest(
+    'replaceIndividualVacation reschedules appointments before deleting old vacation',
+    (static function (): bool {
+        $source = file_get_contents(__DIR__ . '/../google-vacation/VacationSyncService.php');
+        if (!is_string($source)) {
+            return false;
+        }
+
+        $start = strpos($source, 'private static function replaceIndividualVacationByDeleteAndCreate');
+        if ($start === false) {
+            return false;
+        }
+
+        $chunk = substr($source, $start, 2500);
+
+        return str_contains($chunk, 'clearConflictingAppointmentsBeforeVacation')
+            && str_contains($chunk, 'deleteVacation')
+            && strpos($chunk, 'clearConflictingAppointmentsBeforeVacation') < strpos($chunk, 'deleteVacation');
+    })()
+);
+
+assertTest(
     'resolveSlotSearchRange spans three months from start of today',
     (static function (): bool {
         $range = Paziresh24AppointmentApi::resolveSlotSearchRange();
