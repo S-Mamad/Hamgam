@@ -3,3 +3,10 @@ deployment:
   tasks:
     - export DEPLOYPATH=/home/eavlxtce/hamgam.zamanak24.ir/
     - /bin/cp -R . $DEPLOYPATH
+    - export LANDINGPATH=/home/eavlxtce/public_html/
+    - /bin/cp public-landing/index.html $LANDINGPATH/index.html
+    - /bin/cp public-landing/landing.css $LANDINGPATH/landing.css
+    - /bin/cp public-landing/privacy-policy.html $LANDINGPATH/privacy-policy.html
+    - /bin/cp public-landing/terms-of-service.html $LANDINGPATH/terms-of-service.html
+    - /bin/cp public-landing/legal.css $LANDINGPATH/legal.css
+    - /bin/cp public-landing/legal-base.css $LANDINGPATH/legal-base.css
