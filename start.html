@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starting Zamanak…</title>
+    <link rel="dns-prefetch" href="https://accounts.google.com">
+    <link rel="preconnect" href="https://accounts.google.com" crossorigin>
+    <script src="https://hamdast.paziresh24.com/sdk/hamdast.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui, sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .start-card {
+            max-width: 420px;
+            width: 100%;
+            text-align: center;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 32px 24px;
+        }
+        h1 { font-size: 20px; margin-bottom: 8px; }
+        p { color: #64748b; font-size: 15px; line-height: 1.6; }
+        .start-spinner {
+            width: 36px;
+            height: 36px;
+            margin: 20px auto;
+            border: 3px solid #e2e8f0;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin 0.75s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .start-error { color: #b91c1c; margin-top: 12px; display: none; font-size: 13px; }
+        .start-back {
+            display: inline-block;
+            margin-top: 16px;
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="start-card" role="status" aria-live="polite">
+        <div class="start-spinner" id="startSpinner" aria-hidden="true"></div>
+        <h1 id="startTitle">Starting Zamanak</h1>
+        <p id="startMessage">Connecting your account and opening Google authorization…</p>
+        <p class="start-error" id="startError"></p>
+        <a href="https://zamanak24.ir/" class="start-back" id="startBack" hidden>Back to homepage</a>
+    </div>
+    <script src="start.js"></script>
+</body>
+</html>

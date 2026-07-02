@@ -1,5 +1,14 @@
 RewriteEngine On
 
+# zamanak24.ir → English landing (Google verification home page)
+RewriteCond %{HTTP_HOST} ^(www\.)?zamanak24\.ir$ [NC]
+RewriteRule ^index\.html$ index.php [L,QSA]
+
+RewriteCond %{HTTP_HOST} ^(www\.)?zamanak24\.ir$ [NC]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L,QSA]
+
 # HTML همیشه تازه — CSS/JS با ?v= در index به‌روز می‌شوند
 <IfModule mod_headers.c>
     <FilesMatch "\.(html?)$">
@@ -47,4 +56,4 @@ RewriteRule ^zamanak/updatesetting/?$ php/hamgam/updatesetting.php [L,QSA]
 RewriteRule ^webhook/paziresh24-zamanak/?$ php/webhook/paziresh24-hamgam.php [L,QSA]
 
 # صفحه پیش‌فرض
-DirectoryIndex index.html
+DirectoryIndex index.php index.html
