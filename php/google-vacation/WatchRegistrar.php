@@ -44,19 +44,28 @@ final class WatchRegistrar
             return false;
         }
 
+        // Persist the watch identity immediately after Google accepts the watch.
+        // The sync-token step below pages through the whole calendar and can be slow
+        // enough on large accounts that the background worker is killed before it
+        // returns — which previously left channel/resource/expiration NULL even though
+        // Google had already registered the watch. Saving first makes this recoverable.
+        GoogleVacationRepository::saveWatchData(
+            $userId,
+            $channelId,
+            $resourceId,
+            (int) $expiration,
+            null
+        );
+
         $syncResult = GoogleCalendarWatch::listChangedEvents($googleAccessToken, null);
         $syncToken = $syncResult['nextSyncToken'];
         if ($syncToken === null) {
             $syncToken = GoogleCalendarWatch::establishSyncToken($googleAccessToken);
         }
 
-        GoogleVacationRepository::saveWatchData(
-            $userId,
-            $channelId,
-            $resourceId,
-            (int) $expiration,
-            $syncToken
-        );
+        if (is_string($syncToken) && $syncToken !== '') {
+            GoogleVacationRepository::saveSyncToken($userId, $syncToken);
+        }
 
         $vacationCenter = Paziresh24VacationApi::resolveVacationCenter($hamdastAccessToken);
         if ($vacationCenter !== null) {
