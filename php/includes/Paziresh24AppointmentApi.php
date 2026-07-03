@@ -323,6 +323,82 @@ final class Paziresh24AppointmentApi
     }
 
     /**
+     * Read-only diagnostics for slot selection. Returns the raw free slots and the
+     * candidate list the reschedule flow would pick from. Does NOT move anything.
+     *
+     * @return array<string, mixed>
+     */
+    public static function debugSlotDiagnostics(
+        string $accessToken,
+        string $centerId,
+        string $userCenterId,
+        ?int $excludeRangeFrom = null,
+        ?int $excludeRangeTo = null,
+        ?int $excludeExactTimestamp = null,
+        int $maxRawSlots = 40
+    ): array {
+        $centerId = trim($centerId);
+        $userCenterId = trim($userCenterId);
+
+        $searchRange = self::resolveSlotSearchRange();
+        if ($searchRange === null || $centerId === '' || $userCenterId === '') {
+            return ['error' => 'invalid_input_or_range'];
+        }
+
+        $pickMinTs = self::resolveSlotPickMinTimestamp(
+            $searchRange['now'],
+            $searchRange['range_start'],
+            $excludeRangeFrom,
+            $excludeRangeTo
+        );
+
+        $rawByPair = [];
+        foreach (self::slotsCenterPairs($centerId, $userCenterId) as [$queryCenterId, $queryUserCenterId]) {
+            $body = self::fetchSlotsBody(
+                $accessToken,
+                $queryCenterId,
+                $queryUserCenterId,
+                $searchRange['range_start'],
+                $searchRange['range_end']
+            );
+
+            $raw = [];
+            if ($body !== null) {
+                self::collectSlotTimestamps($body, $raw);
+            }
+            $raw = array_values(array_unique($raw));
+            sort($raw, SORT_NUMERIC);
+
+            $rawByPair[] = [
+                'center_id' => $queryCenterId,
+                'user_center_id' => $queryUserCenterId,
+                'raw_count' => count($raw),
+                'raw_first' => array_slice($raw, 0, $maxRawSlots),
+            ];
+        }
+
+        $candidates = self::collectSlotMoveCandidates(
+            $accessToken,
+            $centerId,
+            $userCenterId,
+            $excludeRangeFrom,
+            $excludeRangeTo,
+            $excludeExactTimestamp,
+            $maxRawSlots
+        );
+
+        return [
+            'search_range' => $searchRange,
+            'pick_min_ts' => $pickMinTs,
+            'exclude_range_from' => $excludeRangeFrom,
+            'exclude_range_to' => $excludeRangeTo,
+            'exclude_exact_ts' => $excludeExactTimestamp,
+            'slots_by_pair' => $rawByPair,
+            'candidates' => $candidates,
+        ];
+    }
+
+    /**
      * @return array<int, int>
      */
     private static function collectSlotMoveCandidates(

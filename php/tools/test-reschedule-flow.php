@@ -30,6 +30,7 @@ $userId = GoogleTokensRepository::normalizeUserId((string) ($_GET['user_id'] ?? 
 $bookId = isset($_GET['book_id']) ? trim((string) $_GET['book_id']) : '';
 $confirm = isset($_GET['confirm']) && (string) $_GET['confirm'] === '1';
 $syncOnly = isset($_GET['sync_only']) && (string) $_GET['sync_only'] === '1';
+$debug = isset($_GET['debug']) && (string) $_GET['debug'] === '1';
 
 if ($userId === '' || $bookId === '') {
     http_response_code(400);
@@ -97,6 +98,20 @@ $result = [
         && $range['from'] > 0
         && $range['to'] > $range['from'],
 ];
+
+if ($debug) {
+    $result['raw_appointment'] = is_array($appointment) ? $appointment : null;
+    if ($medicalCenterId !== '' && $userCenterId !== null && $userCenterId !== '') {
+        $result['slot_diagnostics'] = Paziresh24AppointmentApi::debugSlotDiagnostics(
+            $hamdastAccessToken,
+            $medicalCenterId,
+            $userCenterId,
+            null,
+            null,
+            $range['from'] > 0 ? $range['from'] : null
+        );
+    }
+}
 
 if ($syncOnly) {
     try {
