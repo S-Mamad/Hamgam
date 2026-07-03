@@ -7,6 +7,7 @@ declare(strict_types=1);
  *
  * GET ...?user_id=ID&key=KEY&book_id=UUID                     — dry run (slots only)
  * GET ...?user_id=ID&key=KEY&book_id=UUID&confirm=1           — execute move + calendar sync
+ * GET ...?user_id=ID&key=KEY&book_id=UUID&sync_only=1         — calendar sync only (no API move)
  */
 
 require_once __DIR__ . '/../includes/bootstrap.php';
@@ -28,6 +29,7 @@ if ($expectedKey === '' || !hash_equals($expectedKey, $providedKey)) {
 $userId = GoogleTokensRepository::normalizeUserId((string) ($_GET['user_id'] ?? ''));
 $bookId = isset($_GET['book_id']) ? trim((string) $_GET['book_id']) : '';
 $confirm = isset($_GET['confirm']) && (string) $_GET['confirm'] === '1';
+$syncOnly = isset($_GET['sync_only']) && (string) $_GET['sync_only'] === '1';
 
 if ($userId === '' || $bookId === '') {
     http_response_code(400);
@@ -96,7 +98,15 @@ $result = [
         && $range['to'] > $range['from'],
 ];
 
-if ($confirm && $result['ready_to_move']) {
+if ($syncOnly) {
+    try {
+        $result['calendar_sync'] = AppointmentWebhookService::syncCalendarFromApiMove($userId, $bookId);
+        $result['ok'] = (bool) ($result['calendar_sync']['ok'] ?? false);
+    } catch (Throwable $e) {
+        $result['calendar_sync_error'] = $e->getMessage();
+        $result['ok'] = false;
+    }
+} elseif ($confirm && $result['ready_to_move']) {
     $move = Paziresh24AppointmentApi::rescheduleToFirstAvailableSlot(
         $hamdastAccessToken,
         $bookId,
