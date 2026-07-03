@@ -311,13 +311,13 @@ assertTest(
 );
 
 assertTest(
-    'resolveMoveRangeFromAppointment prefers workhour_turn_num for book_from',
+    'resolveMoveRangeFromAppointment uses API from/to for move range',
     Paziresh24AppointmentApi::resolveMoveRangeFromAppointment([
         'from' => 1782073800,
         'to' => 1782075600,
         'workhour_turn_num' => 1782077400,
         'duration' => 30,
-    ])['from'] === 1782077400
+    ]) === ['from' => 1782073800, 'to' => 1782075600]
 );
 
 assertTest(
@@ -378,13 +378,30 @@ assertTest(
 );
 
 assertTest(
-    'extractWorkhourTurnNumCandidates skips slots before vacation end',
+    'extractWorkhourTurnNumCandidates skips slots inside vacation window',
     Paziresh24AppointmentApi::extractWorkhourTurnNumCandidates([
         'data' => [
             ['workhour_turn_num' => 1_780_000_000],
             ['workhour_turn_num' => 1_790_000_000],
         ],
-    ], 1_785_000_000, 1_770_000_000, 1_785_000_000) === [1_790_000_000]
+    ], 0, 1_770_000_000, 1_785_000_000) === [1_790_000_000]
+);
+
+assertTest(
+    'rankSlotCandidatesNearAppointment prefers last slot before appointment',
+    Paziresh24AppointmentApi::rankSlotCandidatesNearAppointment(
+        [1_780_000_000, 1_780_003_600, 1_790_000_000, 1_790_003_600],
+        1_785_000_000
+    ) === [1_780_003_600, 1_780_000_000, 1_790_000_000, 1_790_003_600]
+);
+
+assertTest(
+    'resolveMoveRangeFromAppointment prefers API from/to over workhour_turn_num',
+    Paziresh24AppointmentApi::resolveMoveRangeFromAppointment([
+        'from' => 1_790_000_000,
+        'to' => 1_790_000_900,
+        'workhour_turn_num' => 1_780_000_000,
+    ], 0, 0) === ['from' => 1_790_000_000, 'to' => 1_790_000_900]
 );
 
 assertTest(
@@ -419,6 +436,10 @@ assertTest(
 );
 
 $appointmentApiSource = (string) file_get_contents(__DIR__ . '/../includes/Paziresh24AppointmentApi.php');
+assertTest(
+    'resolveSlotPickMinTimestamp does not skip slots before vacation end',
+    !str_contains($appointmentApiSource, 'return $excludeRangeTo;')
+);
 assertTest(
     'moveAppointmentResult default URL is openapi booking move',
     str_contains($appointmentApiSource, "'https://openapi.paziresh24.com/v1/booking/move'")

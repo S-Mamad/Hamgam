@@ -316,7 +316,8 @@ final class Paziresh24AppointmentApi
             $excludeRangeFrom,
             $excludeRangeTo,
             $excludeExactTimestamp,
-            1
+            1,
+            $excludeExactTimestamp
         );
 
         return $candidates[0] ?? null;
@@ -347,9 +348,7 @@ final class Paziresh24AppointmentApi
 
         $pickMinTs = self::resolveSlotPickMinTimestamp(
             $searchRange['now'],
-            $searchRange['range_start'],
-            $excludeRangeFrom,
-            $excludeRangeTo
+            $searchRange['range_start']
         );
 
         $rawByPair = [];
@@ -384,7 +383,8 @@ final class Paziresh24AppointmentApi
             $excludeRangeFrom,
             $excludeRangeTo,
             $excludeExactTimestamp,
-            $maxRawSlots
+            $maxRawSlots,
+            $excludeExactTimestamp
         );
 
         return [
@@ -408,7 +408,8 @@ final class Paziresh24AppointmentApi
         ?int $excludeRangeFrom,
         ?int $excludeRangeTo,
         ?int $excludeExactTimestamp,
-        int $maxCandidates
+        int $maxCandidates,
+        ?int $preferNearTimestamp = null
     ): array {
         $centerId = trim($centerId);
         $userCenterId = trim($userCenterId);
@@ -423,10 +424,10 @@ final class Paziresh24AppointmentApi
 
         $pickMinTs = self::resolveSlotPickMinTimestamp(
             $searchRange['now'],
-            $searchRange['range_start'],
-            $excludeRangeFrom,
-            $excludeRangeTo
+            $searchRange['range_start']
         );
+
+        $collectLimit = max($maxCandidates, 200);
 
         $merged = [];
         foreach (self::slotsCenterPairs($centerId, $userCenterId) as [$queryCenterId, $queryUserCenterId]) {
@@ -445,7 +446,7 @@ final class Paziresh24AppointmentApi
                     $excludeRangeFrom,
                     $excludeRangeTo,
                     $excludeExactTimestamp,
-                    $maxCandidates
+                    $collectLimit
                 ) as $candidate
             ) {
                 $merged[$candidate] = true;
@@ -457,29 +458,50 @@ final class Paziresh24AppointmentApi
         }
 
         $sorted = array_keys($merged);
-        sort($sorted, SORT_NUMERIC);
+        if ($preferNearTimestamp !== null && $preferNearTimestamp > 0) {
+            $sorted = self::rankSlotCandidatesNearAppointment($sorted, $preferNearTimestamp);
+        } else {
+            sort($sorted, SORT_NUMERIC);
+        }
 
         return array_slice($sorted, 0, $maxCandidates);
     }
 
-    private static function resolveSlotPickMinTimestamp(
-        int $nowTs,
-        int $rangeStartTs,
-        ?int $excludeRangeFrom,
-        ?int $excludeRangeTo
-    ): int {
-        $pickMinTs = max($nowTs, $rangeStartTs);
-
-        if (
-            $excludeRangeFrom !== null
-            && $excludeRangeTo !== null
-            && $excludeRangeTo > $excludeRangeFrom
-            && $excludeRangeTo > $pickMinTs
-        ) {
-            return $excludeRangeTo;
+    /**
+     * Prefer the last free slot before the appointment, then the earliest slot after it.
+     *
+     * @param array<int, int> $candidates
+     * @return array<int, int>
+     */
+    public static function rankSlotCandidatesNearAppointment(array $candidates, int $bookFrom): array
+    {
+        if ($candidates === []) {
+            return [];
         }
 
-        return $pickMinTs;
+        $before = [];
+        $after = [];
+
+        foreach ($candidates as $candidate) {
+            if ($candidate < $bookFrom) {
+                $before[] = $candidate;
+                continue;
+            }
+
+            $after[] = $candidate;
+        }
+
+        rsort($before, SORT_NUMERIC);
+        sort($after, SORT_NUMERIC);
+
+        return array_merge($before, $after);
+    }
+
+    private static function resolveSlotPickMinTimestamp(
+        int $nowTs,
+        int $rangeStartTs
+    ): int {
+        return max($nowTs, $rangeStartTs);
     }
 
     /**
@@ -691,6 +713,14 @@ final class Paziresh24AppointmentApi
         int $fallbackTo = 0
     ): array {
         $payloadRange = BookingAppointmentResolver::extractRangeFromPayload($appointment);
+        if (
+            $payloadRange !== null
+            && $payloadRange['from'] > 0
+            && $payloadRange['to'] > $payloadRange['from']
+        ) {
+            return self::normalizeMoveRange($payloadRange, $appointment);
+        }
+
         $moveFrom = self::extractMoveFromTimestamp($appointment);
 
         if ($moveFrom !== null) {
@@ -1048,7 +1078,8 @@ final class Paziresh24AppointmentApi
             $vacationFrom,
             $vacationTo,
             $excludeExact,
-            8
+            8,
+            $bookFrom > 0 ? $bookFrom : null
         );
 
         if ($candidates === []) {
@@ -1115,7 +1146,15 @@ final class Paziresh24AppointmentApi
             }
 
             if ($moveResult['success']) {
-                break;
+                if (!self::verifyAppointmentMovedToSlot($accessToken, $bookId, $targetFrom)) {
+                    error_log(
+                        '[hamgam-appointment] move verify failed book_id=' . $bookId
+                        . ' target_from=' . $targetFrom
+                    );
+                    $moveResult['success'] = false;
+                } else {
+                    break;
+                }
             }
 
             if ($moveResult['permission_denied'] ?? false) {
@@ -1169,6 +1208,26 @@ final class Paziresh24AppointmentApi
             'permission_denied' => false,
             'body' => $moveResult['body'] ?? null,
         ];
+    }
+
+    public static function verifyAppointmentMovedToSlot(
+        string $accessToken,
+        string $bookId,
+        ?int $expectedFrom
+    ): bool {
+        if ($expectedFrom === null || $expectedFrom <= 0) {
+            return false;
+        }
+
+        self::invalidateAppointmentCache($bookId);
+        $appointment = self::fetchAppointmentForMove($bookId, $accessToken);
+        if (!is_array($appointment)) {
+            return false;
+        }
+
+        $range = self::resolveMoveRangeFromAppointment($appointment, 0, 0);
+
+        return $range['from'] > 0 && abs($range['from'] - $expectedFrom) < 60;
     }
 
     /**

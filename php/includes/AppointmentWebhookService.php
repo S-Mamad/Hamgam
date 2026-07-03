@@ -284,7 +284,8 @@ final class AppointmentWebhookService
             $context['google_access_token'],
             $bookId,
             $doctorUserId,
-            $storedEventId
+            $storedEventId,
+            $appointmentRange['from']
         );
         $existingEvents = self::ensureStoredEventIncluded($existingEvents, $storedEventId);
         $targetEvent = self::pickEventForUpdate($existingEvents, $storedEventId);
@@ -438,7 +439,8 @@ final class AppointmentWebhookService
         string $googleAccessToken,
         string $bookId,
         ?string $doctorUserId = null,
-        ?string $storedEventId = null
+        ?string $storedEventId = null,
+        ?int $appointmentFrom = null
     ): array {
         $bookId = trim($bookId);
         if ($bookId === '') {
@@ -481,6 +483,43 @@ final class AppointmentWebhookService
 
         if ($matches !== []) {
             return $matches;
+        }
+
+        if ($appointmentFrom !== null && $appointmentFrom > 0) {
+            try {
+                $tz = new DateTimeZone('Asia/Tehran');
+                $dayStart = (new DateTimeImmutable('@' . $appointmentFrom))->setTimezone($tz)->setTime(0, 0, 0);
+                $dayEnd = $dayStart->modify('+1 day');
+                $dayMin = $dayStart->format('Y-m-d\TH:i:s\P');
+                $dayMax = $dayEnd->format('Y-m-d\TH:i:s\P');
+            } catch (Throwable) {
+                $dayMin = null;
+                $dayMax = null;
+            }
+
+            if ($dayMin !== null && $dayMax !== null) {
+                $normalizedBookId = strtolower($bookId);
+                foreach (GoogleCalendarWatch::listEventsInRange($googleAccessToken, $dayMin, $dayMax) as $event) {
+                    if (!is_array($event)) {
+                        continue;
+                    }
+
+                    $eventBookId = GoogleEventParser::extractBookId($event);
+                    if ($eventBookId !== null && strtolower($eventBookId) === $normalizedBookId) {
+                        $add($event);
+                        continue;
+                    }
+
+                    $description = $event['description'] ?? '';
+                    if (is_string($description) && stripos($description, $bookId) !== false) {
+                        $add($event);
+                    }
+                }
+            }
+
+            if ($matches !== []) {
+                return $matches;
+            }
         }
 
         try {
