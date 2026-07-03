@@ -46,7 +46,7 @@ final class AppointmentWebhookService
             $bookId,
             $context['hamdast_access_token']
         );
-        $booking = self::ensureBookIdInBooking($booking, $bookId);
+        $booking = self::normalizeApiAppointmentBooking($booking, $bookId);
 
         $event = CalendarEventBuilder::build($appointmentRange, $context['settings'], $booking);
         if ($event === null) {
@@ -91,7 +91,12 @@ final class AppointmentWebhookService
         }
 
         $storedEventId = GoogleCalendarBookingRepository::getGoogleEventId($doctorUserId, $bookId);
-        $existingEvents = self::findCalendarEvents($context['google_access_token'], $bookId);
+        $existingEvents = self::findCalendarEvents(
+            $context['google_access_token'],
+            $bookId,
+            $doctorUserId,
+            $storedEventId
+        );
         $existingEvents = self::ensureStoredEventIncluded($existingEvents, $storedEventId);
         $deletedCount = self::deleteCalendarEvents(
             $context['google_access_token'],
@@ -137,6 +142,7 @@ final class AppointmentWebhookService
         }
 
         $booking = self::ensureBookIdInBooking($booking, $bookId);
+        $booking = self::normalizeApiAppointmentBooking($booking, $bookId);
         $booking = BookingAppointmentResolver::enrichBookingDetails(
             $booking,
             $bookId,
@@ -150,7 +156,12 @@ final class AppointmentWebhookService
         }
 
         $storedEventId = GoogleCalendarBookingRepository::getGoogleEventId($doctorUserId, $bookId);
-        $existingEvents = self::findCalendarEvents($context['google_access_token'], $bookId);
+        $existingEvents = self::findCalendarEvents(
+            $context['google_access_token'],
+            $bookId,
+            $doctorUserId,
+            $storedEventId
+        );
         $existingEvents = self::ensureStoredEventIncluded($existingEvents, $storedEventId);
         $targetEvent = self::pickEventForUpdate($existingEvents, $storedEventId);
 
@@ -206,6 +217,120 @@ final class AppointmentWebhookService
             'calendar event updated doctor=' . $doctorUserId
             . ' book_id=' . $bookId
             . ' google_event_id=' . $eventId
+            . ' duplicate_deleted=' . $duplicateDeleted
+        );
+
+        return [
+            'ok' => true,
+            'updated' => true,
+            'google_event_id' => $eventId,
+            'duplicate_deleted' => $duplicateDeleted,
+        ];
+    }
+
+    /**
+     * Fast calendar sync after API-side appointment move (vacation reschedule path).
+     * Uses stored google_event_id first, then book_id lookup — never creates duplicates.
+     *
+     * @return array{ok: true, updated?: bool, created?: bool, skipped?: string, google_event_id?: string}
+     */
+    public static function syncCalendarFromApiMove(string $doctorUserId, string $bookId): array
+    {
+        $doctorUserId = GoogleTokensRepository::normalizeUserId($doctorUserId);
+        $bookId = trim($bookId);
+        if ($bookId === '') {
+            return ['ok' => true, 'skipped' => 'missing_book_id'];
+        }
+
+        $context = self::resolveDoctorContext($doctorUserId, $bookId);
+        if (isset($context['skip'])) {
+            return ['ok' => true, 'skipped' => $context['skip']];
+        }
+
+        Paziresh24AppointmentApi::invalidateAppointmentCache($bookId);
+        $appointment = GoogleCalendar::getAppointment($bookId, $context['hamdast_access_token']);
+        if (!is_array($appointment)) {
+            RequestContext::log(
+                'paziresh24-hamgam',
+                'syncCalendarFromApiMove: appointment fetch failed doctor=' . $doctorUserId . ' book_id=' . $bookId
+            );
+
+            return ['ok' => true, 'skipped' => 'appointment_fetch_failed'];
+        }
+
+        $appointmentRange = BookingAppointmentResolver::resolveForUpdate(
+            $appointment,
+            $bookId,
+            $context['hamdast_access_token']
+        );
+        if ($appointmentRange === null) {
+            return ['ok' => true, 'skipped' => 'invalid_range'];
+        }
+
+        $booking = self::normalizeApiAppointmentBooking($appointment, $bookId);
+        $booking = BookingAppointmentResolver::enrichBookingDetails(
+            $booking,
+            $bookId,
+            $context['hamdast_access_token']
+        );
+
+        $event = CalendarEventBuilder::build($appointmentRange, $context['settings'], $booking);
+        if ($event === null) {
+            return ['ok' => true, 'skipped' => 'invalid_event'];
+        }
+
+        $storedEventId = GoogleCalendarBookingRepository::getGoogleEventId($doctorUserId, $bookId);
+        $existingEvents = self::findCalendarEvents(
+            $context['google_access_token'],
+            $bookId,
+            $doctorUserId,
+            $storedEventId
+        );
+        $existingEvents = self::ensureStoredEventIncluded($existingEvents, $storedEventId);
+        $targetEvent = self::pickEventForUpdate($existingEvents, $storedEventId);
+
+        if ($targetEvent === null) {
+            $createdBody = GoogleCalendar::createEventReturningBody($context['google_access_token'], $event);
+            if ($createdBody === null) {
+                throw new AppointmentWebhookException('Calendar event creation failed', 502);
+            }
+
+            $googleEventId = is_string($createdBody['id'] ?? null) ? $createdBody['id'] : '';
+            GoogleCalendarBookingRepository::recordProcessedBooking($doctorUserId, $bookId, $googleEventId);
+
+            return array_filter([
+                'ok' => true,
+                'created' => true,
+                'google_event_id' => $googleEventId !== '' ? $googleEventId : null,
+            ], static fn ($value) => $value !== null);
+        }
+
+        $eventId = GoogleEventParser::extractEventId($targetEvent);
+        if ($eventId === null || $eventId === '') {
+            throw new AppointmentWebhookException('Calendar event update failed', 502);
+        }
+
+        $updatedBody = GoogleCalendar::updateEventReturningBody($context['google_access_token'], $eventId, $event);
+        if ($updatedBody === null) {
+            throw new AppointmentWebhookException('Calendar event update failed', 502);
+        }
+
+        $duplicateDeleted = self::deleteCalendarEvents(
+            $context['google_access_token'],
+            $existingEvents,
+            $eventId,
+            $doctorUserId,
+            $bookId
+        );
+
+        GoogleCalendarBookingRepository::recordProcessedBooking($doctorUserId, $bookId, $eventId);
+
+        RequestContext::log(
+            'paziresh24-hamgam',
+            'syncCalendarFromApiMove updated doctor=' . $doctorUserId
+            . ' book_id=' . $bookId
+            . ' google_event_id=' . $eventId
+            . ' from=' . $appointmentRange['from']
             . ' duplicate_deleted=' . $duplicateDeleted
         );
 
@@ -309,9 +434,51 @@ final class AppointmentWebhookService
     /**
      * @return array<int, array<string, mixed>>
      */
-    private static function findCalendarEvents(string $googleAccessToken, string $bookId): array
-    {
-        $matches = GoogleCalendar::findEventsByBookId($googleAccessToken, $bookId);
+    private static function findCalendarEvents(
+        string $googleAccessToken,
+        string $bookId,
+        ?string $doctorUserId = null,
+        ?string $storedEventId = null
+    ): array {
+        $bookId = trim($bookId);
+        if ($bookId === '') {
+            return [];
+        }
+
+        $matches = [];
+        $seen = [];
+
+        $add = static function (?array $event) use (&$matches, &$seen, $bookId): void {
+            if ($event === null) {
+                return;
+            }
+
+            $eventId = GoogleEventParser::extractEventId($event);
+            if ($eventId === null || $eventId === '' || isset($seen[$eventId])) {
+                return;
+            }
+
+            $eventBookId = GoogleEventParser::extractBookId($event);
+            if ($eventBookId !== null && strcasecmp($eventBookId, $bookId) !== 0) {
+                return;
+            }
+
+            $seen[$eventId] = true;
+            $matches[] = $event;
+        };
+
+        foreach (GoogleCalendar::findEventsByBookId($googleAccessToken, $bookId) as $event) {
+            $add(is_array($event) ? $event : null);
+        }
+
+        if ($storedEventId === null && $doctorUserId !== null && $doctorUserId !== '') {
+            $storedEventId = GoogleCalendarBookingRepository::getGoogleEventId($doctorUserId, $bookId);
+        }
+
+        if (is_string($storedEventId) && $storedEventId !== '' && !isset($seen[$storedEventId])) {
+            $add(GoogleCalendarWatch::getEvent($googleAccessToken, $storedEventId));
+        }
+
         if ($matches !== []) {
             return $matches;
         }
@@ -319,24 +486,27 @@ final class AppointmentWebhookService
         try {
             $tz = new DateTimeZone('Asia/Tehran');
             $now = new DateTimeImmutable('now', $tz);
-            $timeMin = $now->modify('-90 days')->format('Y-m-d\TH:i:s\P');
-            $timeMax = $now->modify('+365 days')->format('Y-m-d\TH:i:s\P');
+            $timeMin = $now->modify('-7 days')->format('Y-m-d\TH:i:s\P');
+            $timeMax = $now->modify('+120 days')->format('Y-m-d\TH:i:s\P');
         } catch (Throwable) {
             return [];
         }
 
-        $events = GoogleCalendarWatch::listEventsInRange($googleAccessToken, $timeMin, $timeMax);
         $normalizedBookId = strtolower($bookId);
-        $matches = [];
-
-        foreach ($events as $event) {
+        foreach (GoogleCalendarWatch::listEventsInRange($googleAccessToken, $timeMin, $timeMax) as $event) {
             if (!is_array($event)) {
                 continue;
             }
 
             $eventBookId = GoogleEventParser::extractBookId($event);
             if ($eventBookId !== null && strtolower($eventBookId) === $normalizedBookId) {
-                $matches[] = $event;
+                $add($event);
+                continue;
+            }
+
+            $description = $event['description'] ?? '';
+            if (is_string($description) && stripos($description, $bookId) !== false) {
+                $add($event);
             }
         }
 
@@ -427,6 +597,42 @@ final class AppointmentWebhookService
         }
 
         $booking['book_id'] = $bookId;
+
+        return $booking;
+    }
+
+    /**
+     * Map open-platform appointment field names to calendar builder fields.
+     *
+     * @param array<string, mixed> $booking
+     * @return array<string, mixed>
+     */
+    private static function normalizeApiAppointmentBooking(array $booking, string $bookId): array
+    {
+        $booking = self::ensureBookIdInBooking($booking, $bookId);
+
+        $aliases = [
+            'patient_name' => ['name'],
+            'patient_family' => ['family'],
+            'patient_national_code' => ['national_code'],
+            'patient_cell' => ['cell'],
+            'medical_center_id' => ['center_id'],
+        ];
+
+        foreach ($aliases as $target => $sources) {
+            $current = $booking[$target] ?? null;
+            if (is_scalar($current) && trim((string) $current) !== '') {
+                continue;
+            }
+
+            foreach ($sources as $source) {
+                $value = $booking[$source] ?? null;
+                if (is_scalar($value) && trim((string) $value) !== '') {
+                    $booking[$target] = trim((string) $value);
+                    break;
+                }
+            }
+        }
 
         return $booking;
     }

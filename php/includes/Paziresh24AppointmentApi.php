@@ -246,6 +246,22 @@ final class Paziresh24AppointmentApi
         $permissionDenied = self::isPermissionDeniedResponse($response['status'], $body);
 
         if ($response['status'] >= 200 && $response['status'] < 300) {
+            if (!self::isMoveApiSuccessBody($body)) {
+                error_log(
+                    '[hamgam-appointment] moveAppointment rejected by API center_id=' . $centerId
+                    . ' book_from=' . $bookFrom
+                    . ' target_from=' . $targetFrom
+                    . ' body=' . $response['raw']
+                );
+
+                return [
+                    'success' => false,
+                    'body' => $body,
+                    'http_status' => $response['status'],
+                    'permission_denied' => false,
+                ];
+            }
+
             return [
                 'success' => true,
                 'body' => $body ?? [],
@@ -1077,6 +1093,43 @@ final class Paziresh24AppointmentApi
             'permission_denied' => false,
             'body' => $moveResult['body'] ?? null,
         ];
+    }
+
+    /**
+     * @param ?array<string, mixed> $body
+     */
+    public static function isMoveApiSuccessBody(?array $body): bool
+    {
+        if ($body === null || $body === []) {
+            return false;
+        }
+
+        $status = $body['status'] ?? null;
+        if (is_string($status) && strtoupper($status) === 'SUCCESS') {
+            return true;
+        }
+
+        $result = $body['result'] ?? null;
+        if (!is_array($result)) {
+            return false;
+        }
+
+        $shifted = $result['shifted_books'] ?? null;
+        if (!is_array($shifted) || $shifted === []) {
+            return false;
+        }
+
+        foreach ($shifted as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            if (isset($entry['new_book']) && is_array($entry['new_book'])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -429,6 +429,24 @@ assertTest(
 );
 
 assertTest(
+    'isMoveApiSuccessBody rejects NO_RECORD',
+    !Paziresh24AppointmentApi::isMoveApiSuccessBody(['status' => 'NO_RECORD', 'message' => 'No record found'])
+);
+
+assertTest(
+    'isMoveApiSuccessBody accepts SUCCESS with shifted_books',
+    Paziresh24AppointmentApi::isMoveApiSuccessBody([
+        'status' => 'SUCCESS',
+        'result' => ['shifted_books' => [['new_book' => ['id' => 'test-book']]]],
+    ])
+);
+
+assertTest(
+    'AppointmentWebhookService has syncCalendarFromApiMove',
+    method_exists(AppointmentWebhookService::class, 'syncCalendarFromApiMove')
+);
+
+assertTest(
     'VacationSyncService has processUpdatedAppointmentEvent',
     $syncRef->hasMethod('processUpdatedAppointmentEvent')
 );

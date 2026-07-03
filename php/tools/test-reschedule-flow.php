@@ -109,10 +109,7 @@ if ($confirm && $result['ready_to_move']) {
 
     if ($move['success']) {
         try {
-            $fresh = GoogleCalendar::getAppointment($bookId, $hamdastAccessToken);
-            if (is_array($fresh)) {
-                $result['calendar_sync'] = AppointmentWebhookService::handleUpdate($fresh, $userId, $bookId);
-            }
+            $result['calendar_sync'] = AppointmentWebhookService::syncCalendarFromApiMove($userId, $bookId);
         } catch (Throwable $e) {
             $result['calendar_sync_error'] = $e->getMessage();
         }

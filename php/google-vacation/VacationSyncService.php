@@ -6327,7 +6327,7 @@ final class VacationSyncService
 
         try {
 
-            $updateResult = AppointmentWebhookService::handleUpdate($appointment, $userId, $bookId);
+            $updateResult = AppointmentWebhookService::syncCalendarFromApiMove($userId, $bookId);
 
             error_log(
 
