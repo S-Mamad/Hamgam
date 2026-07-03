@@ -6221,6 +6221,30 @@ final class VacationSyncService
 
 
 
+        $apiOverlapsVacation = $bookFrom > 0
+
+            && $bookTo > $bookFrom
+
+            && self::rangesOverlap($bookFrom, $bookTo, $vacationFrom, $vacationTo);
+
+
+
+        if (!$apiOverlapsVacation) {
+
+            self::syncAppointmentCalendarAfterReschedule($userId, $bookId, $hamdastAccessToken);
+
+            error_log(
+
+                '[google-vacation] stale calendar appointment synced (api no longer overlaps) book_id=' . $bookId
+
+            );
+
+            return true;
+
+        }
+
+
+
         $appointment = Paziresh24AppointmentApi::fetchAppointmentForMove($bookId, $hamdastAccessToken);
 
         $hintUserCenterId = is_array($appointment)
@@ -6749,7 +6773,13 @@ final class VacationSyncService
 
 
 
-        if ($hasApiRange) {
+        if (
+
+            $hasApiRange
+
+            && self::rangesOverlap($moveRange['from'], $moveRange['to'], $vacationFrom, $vacationTo)
+
+        ) {
 
             return [
 
@@ -6763,7 +6793,17 @@ final class VacationSyncService
 
 
 
-        if ($calendarFrom !== null && $calendarTo !== null && $calendarTo > $calendarFrom) {
+        if (
+
+            $calendarFrom !== null
+
+            && $calendarTo !== null
+
+            && $calendarTo > $calendarFrom
+
+            && self::rangesOverlap($calendarFrom, $calendarTo, $vacationFrom, $vacationTo)
+
+        ) {
 
             return [
 

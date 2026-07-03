@@ -446,6 +446,19 @@ assertTest(
     method_exists(AppointmentWebhookService::class, 'syncCalendarFromApiMove')
 );
 
+$vacationSyncSource = (string) file_get_contents(__DIR__ . '/../google-vacation/VacationSyncService.php');
+assertTest(
+    'resolveOverlappingAppointmentRange uses API range only when API overlaps vacation',
+    str_contains(
+        $vacationSyncSource,
+        '&& self::rangesOverlap($moveRange[\'from\'], $moveRange[\'to\'], $vacationFrom, $vacationTo)'
+    )
+);
+assertTest(
+    'rescheduleSingleOverlappingAppointment syncs stale calendar when API no longer overlaps',
+    str_contains($vacationSyncSource, 'stale calendar appointment synced (api no longer overlaps)')
+);
+
 assertTest(
     'VacationSyncService has processUpdatedAppointmentEvent',
     $syncRef->hasMethod('processUpdatedAppointmentEvent')
