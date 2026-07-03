@@ -819,7 +819,7 @@ final class Paziresh24AppointmentApi
     private static function moveCenterPathCandidates(string $medicalCenterId, ?string $userCenterId): array
     {
         $candidates = [];
-        foreach ([$userCenterId, $medicalCenterId] as $candidate) {
+        foreach ([$medicalCenterId, $userCenterId] as $candidate) {
             $candidate = is_string($candidate) ? trim($candidate) : '';
             if ($candidate === '' || in_array($candidate, $candidates, true)) {
                 continue;

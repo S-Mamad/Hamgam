@@ -90,7 +90,13 @@ final class VacationSyncService
 
 
 
-        $listResult = GoogleCalendarWatch::listChangedEvents($googleAccessToken, $syncToken);
+        // When no sync token exists yet, bound the fallback listing to recent/future
+        // events so a large calendar history can't stall the webhook and prevent the
+        // token (and the new vacation event) from being processed. Ignored once a
+        // sync token is present.
+        $fallbackTimeMin = gmdate('Y-m-d\TH:i:s\Z', time() - (2 * 86400));
+
+        $listResult = GoogleCalendarWatch::listChangedEvents($googleAccessToken, $syncToken, $fallbackTimeMin);
 
         $events = $listResult['events'];
 
@@ -6201,6 +6207,20 @@ final class VacationSyncService
 
     ): bool {
 
+        Paziresh24AppointmentApi::invalidateAppointmentCache($bookId);
+
+        $freshRange = Paziresh24AppointmentApi::resolveMoveRange($hamdastAccessToken, $bookId, $bookFrom, $bookTo);
+
+        if ($freshRange['from'] > 0 && $freshRange['to'] > $freshRange['from']) {
+
+            $bookFrom = $freshRange['from'];
+
+            $bookTo = $freshRange['to'];
+
+        }
+
+
+
         $appointment = Paziresh24AppointmentApi::fetchAppointmentForMove($bookId, $hamdastAccessToken);
 
         $hintUserCenterId = is_array($appointment)
@@ -6411,6 +6431,8 @@ final class VacationSyncService
 
         $events = GoogleCalendarWatch::listEventsInRange($googleAccessToken, $timeMin, $timeMax);
 
+        $eventsByBookId = [];
+
 
 
         foreach ($events as $event) {
@@ -6418,6 +6440,30 @@ final class VacationSyncService
             if (!is_array($event)) {
 
                 continue;
+
+            }
+
+
+
+            $bookIdHint = GoogleEventParser::extractBookId($event);
+
+            if ($bookIdHint === null || $bookIdHint === '') {
+
+                $eventId = GoogleEventParser::extractEventId($event);
+
+                if ($eventId !== null) {
+
+                    $bookIdHint = GoogleCalendarBookingRepository::getBookIdByGoogleEventId($userId, $eventId);
+
+                }
+
+            }
+
+
+
+            if (is_string($bookIdHint) && $bookIdHint !== '') {
+
+                $eventsByBookId[$bookIdHint] = $event;
 
             }
 
@@ -6433,7 +6479,9 @@ final class VacationSyncService
 
                 $medicalCenterId,
 
-                $hamdastAccessToken
+                $hamdastAccessToken,
+
+                is_string($bookIdHint) && $bookIdHint !== '' ? $bookIdHint : null
 
             ));
 
@@ -6461,7 +6509,9 @@ final class VacationSyncService
 
                 $medicalCenterId,
 
-                $hamdastAccessToken
+                $hamdastAccessToken,
+
+                $eventsByBookId[$bookId] ?? null
 
             ));
 
@@ -6517,7 +6567,9 @@ final class VacationSyncService
 
         string $medicalCenterId,
 
-        string $hamdastAccessToken
+        string $hamdastAccessToken,
+
+        ?array $googleEvent = null
 
     ): ?array {
 
@@ -6541,7 +6593,7 @@ final class VacationSyncService
 
             $to,
 
-            null
+            $googleEvent
 
         );
 

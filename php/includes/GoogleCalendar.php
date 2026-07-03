@@ -70,7 +70,12 @@ final class GoogleCalendar
     private static function normalizeAppointmentPayload(array $payload): array
     {
         if (isset($payload['data']) && is_array($payload['data'])) {
-            return $payload['data'];
+            $payload = $payload['data'];
+        }
+
+        $bookId = $payload['book_id'] ?? $payload['id'] ?? null;
+        if (is_scalar($bookId) && trim((string) $bookId) !== '') {
+            $payload['book_id'] = trim((string) $bookId);
         }
 
         return $payload;

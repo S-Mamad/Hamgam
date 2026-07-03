@@ -46,6 +46,7 @@ final class AppointmentWebhookService
             $bookId,
             $context['hamdast_access_token']
         );
+        $booking = self::ensureBookIdInBooking($booking, $bookId);
 
         $event = CalendarEventBuilder::build($appointmentRange, $context['settings'], $booking);
         if ($event === null) {
@@ -135,6 +136,7 @@ final class AppointmentWebhookService
             throw new AppointmentWebhookException('Appointment fetch failed', 502);
         }
 
+        $booking = self::ensureBookIdInBooking($booking, $bookId);
         $booking = BookingAppointmentResolver::enrichBookingDetails(
             $booking,
             $bookId,
@@ -404,5 +406,28 @@ final class AppointmentWebhookService
             'hamdast_access_token' => $hamdastAccessToken,
             'settings' => GoogleTokensRepository::getSettings($tokenRow),
         ];
+    }
+
+    /**
+     * Open-platform appointment payloads expose `id`; calendar sync needs `book_id`.
+     *
+     * @param array<string, mixed> $booking
+     * @return array<string, mixed>
+     */
+    private static function ensureBookIdInBooking(array $booking, string $bookId): array
+    {
+        $bookId = trim($bookId);
+        if ($bookId === '') {
+            return $booking;
+        }
+
+        $existing = $booking['book_id'] ?? null;
+        if (is_scalar($existing) && trim((string) $existing) !== '') {
+            return $booking;
+        }
+
+        $booking['book_id'] = $bookId;
+
+        return $booking;
     }
 }

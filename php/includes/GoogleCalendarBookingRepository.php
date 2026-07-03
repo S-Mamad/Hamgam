@@ -53,6 +53,34 @@ final class GoogleCalendarBookingRepository
         return is_string($eventId) && trim($eventId) !== '' ? trim($eventId) : null;
     }
 
+    public static function getBookIdByGoogleEventId(string $userId, string $googleEventId): ?string
+    {
+        $userId = GoogleTokensRepository::normalizeUserId($userId);
+        $googleEventId = trim($googleEventId);
+        if ($googleEventId === '') {
+            return null;
+        }
+
+        $stmt = Database::connection()->prepare(
+            'SELECT book_id FROM google_calendar_bookings
+             WHERE paziresh24_user_id = :user_id AND google_event_id = :google_event_id
+             LIMIT 1'
+        );
+        $stmt->execute([
+            'user_id' => $userId,
+            'google_event_id' => $googleEventId,
+        ]);
+
+        $row = $stmt->fetch();
+        if (!is_array($row)) {
+            return null;
+        }
+
+        $bookId = $row['book_id'] ?? null;
+
+        return is_string($bookId) && trim($bookId) !== '' ? trim($bookId) : null;
+    }
+
     /**
      * @return array<int, string>
      */

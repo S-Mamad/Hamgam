@@ -70,6 +70,9 @@ final class CalendarEventBuilder
         }
 
         $bookId = self::stringValue($booking, 'book_id');
+        if ($bookId === '') {
+            $bookId = self::stringValue($booking, 'id');
+        }
         if ($bookId !== '') {
             $descriptionParts[] = $bookId;
         }

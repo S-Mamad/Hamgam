@@ -62,14 +62,19 @@ final class GoogleCalendarWatch
     }
 
     /**
+     * @param ?string $timeMin RFC3339 lower bound applied only on the initial listing
+     *                         (no syncToken). Keeps the first scan bounded so large
+     *                         calendars don't time out before a syncToken is captured.
      * @return array{events: array<int, array<string, mixed>>, nextSyncToken: ?string}
      */
-    public static function listChangedEvents(string $accessToken, ?string $syncToken): array
+    public static function listChangedEvents(string $accessToken, ?string $syncToken, ?string $timeMin = null): array
     {
         $baseUrl = Config::get(
             'GOOGLE_CALENDAR_EVENTS_LIST_URL',
             'https://www.googleapis.com/calendar/v3/calendars/primary/events'
         );
+
+        $hasSyncToken = $syncToken !== null && $syncToken !== '';
 
         $events = [];
         $pageToken = null;
@@ -82,8 +87,11 @@ final class GoogleCalendarWatch
                 'showDeleted' => 'true',
             ];
 
-            if ($syncToken !== null && $syncToken !== '') {
+            if ($hasSyncToken) {
                 $query['syncToken'] = $syncToken;
+            } elseif ($timeMin !== null && $timeMin !== '') {
+                // timeMin cannot be combined with syncToken; only used for the initial scan.
+                $query['timeMin'] = $timeMin;
             }
 
             if ($pageToken !== null) {
@@ -100,7 +108,7 @@ final class GoogleCalendarWatch
 
             if ($response['status'] === 410) {
                 error_log('[google-vacation] syncToken expired (410), full resync needed');
-                return self::listChangedEvents($accessToken, null);
+                return self::listChangedEvents($accessToken, null, $timeMin);
             }
 
             if ($response['status'] < 200 || $response['status'] >= 300) {

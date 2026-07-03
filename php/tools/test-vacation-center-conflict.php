@@ -69,6 +69,19 @@ assertTest(
     $syncRef->hasMethod('buildOverlappingAppointmentTargetFromApi')
 );
 
+$fromApiMethod = $syncRef->getMethod('buildOverlappingAppointmentTargetFromApi');
+$fromApiParams = array_map(static fn (ReflectionParameter $p) => $p->getName(), $fromApiMethod->getParameters());
+assertTest(
+    'buildOverlappingAppointmentTargetFromApi accepts optional googleEvent',
+    in_array('googleEvent', $fromApiParams, true),
+    $fromApiParams
+);
+
+assertTest(
+    'GoogleCalendarBookingRepository has getBookIdByGoogleEventId',
+    method_exists(GoogleCalendarBookingRepository::class, 'getBookIdByGoogleEventId')
+);
+
 assertTest(
     'VacationSyncService has updateVacationWithConflictResolution',
     $syncRef->hasMethod('updateVacationWithConflictResolution')
@@ -129,6 +142,24 @@ $bookingPayload = [
 assertTest(
     'extractCenterId reads medical_center_id from booking payload',
     BookingAppointmentResolver::extractCenterId($bookingPayload) === $centerA
+);
+
+$bookingWithIdOnly = [
+    'id' => $bookId,
+    'medical_center_id' => $centerA,
+    'patient_name' => 'Ali',
+    'patient_family' => 'Test',
+];
+$builtFromId = CalendarEventBuilder::build(
+    ['from' => 1781658000, 'to' => 1781661600],
+    ['color_id' => '9', 'Patient_name' => 1],
+    $bookingWithIdOnly
+);
+assertTest(
+    'CalendarEventBuilder stores hamgam_book_id when API returns id instead of book_id',
+    is_array($builtFromId)
+        && ($builtFromId['extendedProperties']['private']['hamgam_book_id'] ?? null) === $bookId,
+    is_array($builtFromId) ? ($builtFromId['extendedProperties']['private']['hamgam_book_id'] ?? null) : null
 );
 
 $builtEvent = CalendarEventBuilder::build(
@@ -391,6 +422,10 @@ $appointmentApiSource = (string) file_get_contents(__DIR__ . '/../includes/Pazir
 assertTest(
     'moveAppointmentResult default URL is openapi booking move',
     str_contains($appointmentApiSource, "'https://openapi.paziresh24.com/v1/booking/move'")
+);
+assertTest(
+    'moveCenterPathCandidates prefers medical_center_id before user_center_id',
+    str_contains($appointmentApiSource, 'foreach ([$medicalCenterId, $userCenterId] as $candidate)')
 );
 
 assertTest(
