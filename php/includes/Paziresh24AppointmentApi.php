@@ -1280,9 +1280,33 @@ final class Paziresh24AppointmentApi
             return false;
         }
 
+        // After move, Paziresh24 often updates numeric timestamps before date/hour fields.
+        foreach (['from', 'book_timestamp', 'turn_num', 'start_timestamp'] as $key) {
+            $ts = self::normalizeUnixTimestamp($appointment[$key] ?? null);
+            if ($ts !== null && abs($ts - $expectedFrom) < 60) {
+                return true;
+            }
+        }
+
         $range = self::resolveMoveRangeFromAppointment($appointment, 0, 0);
 
         return $range['from'] > 0 && abs($range['from'] - $expectedFrom) < 60;
+    }
+
+    /**
+     * @return array{from: int, to: int}
+     */
+    public static function buildRangeFromMoveTarget(int $targetFrom, int $bookFrom, int $bookTo): array
+    {
+        $duration = $bookTo - $bookFrom;
+        if ($duration <= 0) {
+            $duration = 15 * 60;
+        }
+
+        return [
+            'from' => $targetFrom,
+            'to' => $targetFrom + $duration,
+        ];
     }
 
     /**

@@ -236,10 +236,14 @@ final class AppointmentWebhookService
      * Fast calendar sync after API-side appointment move (vacation reschedule path).
      * Uses stored google_event_id first, then book_id lookup — never creates duplicates.
      *
+     * @param ?array{from: int, to: int} $forcedRange Known post-move slot from the move API
      * @return array{ok: true, updated?: bool, created?: bool, skipped?: string, google_event_id?: string}
      */
-    public static function syncCalendarFromApiMove(string $doctorUserId, string $bookId): array
-    {
+    public static function syncCalendarFromApiMove(
+        string $doctorUserId,
+        string $bookId,
+        ?array $forcedRange = null
+    ): array {
         $doctorUserId = GoogleTokensRepository::normalizeUserId($doctorUserId);
         $bookId = trim($bookId);
         if ($bookId === '') {
@@ -262,10 +266,11 @@ final class AppointmentWebhookService
             return ['ok' => true, 'skipped' => 'appointment_fetch_failed'];
         }
 
-        $appointmentRange = BookingAppointmentResolver::resolveForUpdate(
+        $appointmentRange = self::resolveCalendarMoveRange(
             $appointment,
             $bookId,
-            $context['hamdast_access_token']
+            $context['hamdast_access_token'],
+            $forcedRange
         );
         if ($appointmentRange === null) {
             return ['ok' => true, 'skipped' => 'invalid_range'];
@@ -345,6 +350,38 @@ final class AppointmentWebhookService
             'google_event_id' => $eventId,
             'duplicate_deleted' => $duplicateDeleted,
         ];
+    }
+
+    /**
+     * Prefer a known move target over stale date/hour fields from the appointment API.
+     *
+     * @param array<string, mixed> $appointment
+     * @param ?array{from: int, to: int} $forcedRange
+     * @return array{from: int, to: int}|null
+     */
+    private static function resolveCalendarMoveRange(
+        array $appointment,
+        string $bookId,
+        string $hamdastAccessToken,
+        ?array $forcedRange = null
+    ): ?array {
+        if (
+            is_array($forcedRange)
+            && isset($forcedRange['from'], $forcedRange['to'])
+            && (int) $forcedRange['from'] > 0
+            && (int) $forcedRange['to'] > (int) $forcedRange['from']
+        ) {
+            return [
+                'from' => (int) $forcedRange['from'],
+                'to' => (int) $forcedRange['to'],
+            ];
+        }
+
+        return BookingAppointmentResolver::resolveForUpdate(
+            $appointment,
+            $bookId,
+            $hamdastAccessToken
+        );
     }
 
     /**

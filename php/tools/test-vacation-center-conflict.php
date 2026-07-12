@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/bootstrap.php';
 require_once __DIR__ . '/../includes/vacation-bootstrap.php';
+require_once __DIR__ . '/../includes/AppointmentWebhookService.php';
 
 if (ob_get_level()) {
     ob_end_clean();
@@ -490,8 +491,78 @@ assertTest(
 );
 
 assertTest(
+    'resolveForUpdate prefers stale wall-clock after move without forced range',
+    BookingAppointmentResolver::resolveForUpdate([
+        'from' => 1781932500,
+        'to' => 1781933400,
+        'from_date' => '2026-06-20',
+        'from_hour' => '08:30',
+        'duration' => 15,
+    ], $bookId, '')['from'] === 1781931600
+);
+
+assertTest(
+    'forced move range bypasses stale wall-clock for calendar sync',
+    (static function () use ($bookId): bool {
+        $ref = new ReflectionClass(AppointmentWebhookService::class);
+        $method = $ref->getMethod('resolveCalendarMoveRange');
+        $method->setAccessible(true);
+        $range = $method->invoke(
+            null,
+            [
+                'from' => 1781932500,
+                'from_date' => '2026-06-20',
+                'from_hour' => '08:30',
+            ],
+            $bookId,
+            '',
+            ['from' => 1781932500, 'to' => 1781933400]
+        );
+
+        return is_array($range)
+            && ($range['from'] ?? null) === 1781932500
+            && ($range['to'] ?? null) === 1781933400;
+    })()
+);
+
+assertTest(
+    'extractMoveFromTimestamp reads moved numeric from before stale wall-clock',
+    Paziresh24AppointmentApi::extractMoveFromTimestamp([
+        'from' => 1781932500,
+        'from_date' => '2026-06-20',
+        'from_hour' => '08:30',
+    ]) === 1781932500
+);
+
+assertTest(
+    'buildRangeFromMoveTarget preserves appointment duration',
+    Paziresh24AppointmentApi::buildRangeFromMoveTarget(1781932500, 1781931600, 1781932500)
+        === ['from' => 1781932500, 'to' => 1781933400]
+);
+
+assertTest(
     'AppointmentWebhookService has syncCalendarFromApiMove',
     method_exists(AppointmentWebhookService::class, 'syncCalendarFromApiMove')
+);
+
+assertTest(
+    'replaceIndividualVacation passes conflictsAlreadyCleared to createVacation',
+    (static function (): bool {
+        $source = file_get_contents(__DIR__ . '/../google-vacation/VacationSyncService.php');
+        if (!is_string($source)) {
+            return false;
+        }
+
+        $start = strpos($source, 'private static function replaceIndividualVacationByDeleteAndCreate');
+        if ($start === false) {
+            return false;
+        }
+
+        $chunk = substr($source, $start, 3000);
+
+        return str_contains($chunk, 'createVacationWithConflictResolution')
+            && preg_match('/createVacationWithConflictResolution\s*\([\s\S]*?,\s*true\s*\)/', $chunk) === 1;
+    })()
 );
 
 $vacationSyncSource = (string) file_get_contents(__DIR__ . '/../google-vacation/VacationSyncService.php');
