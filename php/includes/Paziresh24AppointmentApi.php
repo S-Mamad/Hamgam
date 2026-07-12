@@ -744,14 +744,14 @@ final class Paziresh24AppointmentApi
      */
     public static function extractMoveFromTimestamp(array $appointment): ?int
     {
-        foreach (['workhour_turn_num', 'turn_num'] as $key) {
+        foreach (['from', 'book_timestamp', 'start_timestamp'] as $key) {
             $ts = self::normalizeUnixTimestamp($appointment[$key] ?? null);
             if ($ts !== null) {
                 return $ts;
             }
         }
 
-        foreach (['from', 'book_timestamp', 'start_timestamp'] as $key) {
+        foreach (['workhour_turn_num', 'turn_num'] as $key) {
             $ts = self::normalizeUnixTimestamp($appointment[$key] ?? null);
             if ($ts !== null) {
                 return $ts;

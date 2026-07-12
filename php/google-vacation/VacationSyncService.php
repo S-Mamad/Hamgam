@@ -878,15 +878,17 @@ final class VacationSyncService
 
         if (GoogleEventParser::isHamgamAppointmentEvent($googleEvent)) {
 
-            // DISABLED: جابه‌جایی دستی نوبت در Google Calendar نباید زمان نوبت را در پذیرش۲۴ تغییر دهد.
-            // $moved = self::processUpdatedAppointmentEvent(
-            //     $userId,
-            //     $tokenRow,
-            //     $googleEvent,
-            //     $parsed,
-            //     $hamdastAccessToken
-            // );
-            // return $moved ? 'updated' : 'skipped';
+            self::revertHamgamAppointmentCalendarToApi(
+
+                $userId,
+
+                $googleEvent,
+
+                $parsed,
+
+                $hamdastAccessToken
+
+            );
 
             return 'skipped';
 
@@ -5339,10 +5341,7 @@ final class VacationSyncService
 
     {
 
-        // DISABLED: فقط برای جابه‌جایی دستی نوبت در تقویم استفاده می‌شد.
-        return false;
-
-        // return abs($apiTimestamp - $calendarTimestamp) < 60;
+        return abs($apiTimestamp - $calendarTimestamp) < 60;
 
     }
 
@@ -6320,6 +6319,92 @@ final class VacationSyncService
 
 
         return true;
+
+    }
+
+
+
+    private static function revertHamgamAppointmentCalendarToApi(
+
+        string $userId,
+
+        array $googleEvent,
+
+        array $parsed,
+
+        string $hamdastAccessToken
+
+    ): void {
+
+        $bookId = GoogleEventParser::extractBookId($googleEvent);
+
+        if ($bookId === null || $bookId === '' || $hamdastAccessToken === '') {
+
+            return;
+
+        }
+
+
+
+        $appointment = GoogleCalendar::getAppointment($bookId, $hamdastAccessToken);
+
+        if (!is_array($appointment)) {
+
+            return;
+
+        }
+
+
+
+        $apiRange = BookingAppointmentResolver::extractRangeFromPayload($appointment);
+
+        if ($apiRange === null) {
+
+            return;
+
+        }
+
+
+
+        $calendarDiff = abs($apiRange['from'] - $parsed['start_ts']);
+
+        if ($calendarDiff < 60) {
+
+            return;
+
+        }
+
+
+
+        error_log(
+
+            '[google-vacation] reverting calendar appointment to API time book_id='
+
+            . $bookId
+
+            . ' calendar_from=' . $parsed['start_ts']
+
+            . ' api_from=' . $apiRange['from']
+
+        );
+
+
+
+        try {
+
+            AppointmentWebhookService::syncCalendarFromApiMove($userId, $bookId);
+
+        } catch (Throwable $e) {
+
+            error_log(
+
+                '[google-vacation] calendar revert failed book_id=' . $bookId
+
+                . ' error=' . $e->getMessage()
+
+            );
+
+        }
 
     }
 

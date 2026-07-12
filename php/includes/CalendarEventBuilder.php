@@ -22,8 +22,9 @@ final class CalendarEventBuilder
         $tz = new DateTimeZone('Asia/Tehran');
         $startDt = (new DateTimeImmutable('@' . (int) $from))->setTimezone($tz);
         $endDt = (new DateTimeImmutable('@' . (int) $to))->setTimezone($tz);
-        $start = $startDt->format('c');
-        $end = $endDt->format('c');
+        // Google Calendar expects wall-clock time + timeZone (no offset in dateTime).
+        $start = $startDt->format('Y-m-d\TH:i:s');
+        $end = $endDt->format('Y-m-d\TH:i:s');
 
         $patientName = self::stringValue($booking, 'patient_name');
         $patientFamily = self::stringValue($booking, 'patient_family');

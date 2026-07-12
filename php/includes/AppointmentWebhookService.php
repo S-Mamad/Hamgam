@@ -22,6 +22,11 @@ final class AppointmentWebhookService
     public static function handleCreate(array $booking, string $doctorUserId, string $bookId): array
     {
         if (GoogleCalendarBookingRepository::hasProcessedBooking($doctorUserId, $bookId)) {
+            $recreateResult = self::tryRecreateMissingCalendarEvent($booking, $doctorUserId, $bookId);
+            if ($recreateResult !== null) {
+                return $recreateResult;
+            }
+
             RequestContext::log('paziresh24-hamgam', 'skipped duplicate book_id=' . $bookId . ' doctor=' . $doctorUserId);
             return ['ok' => true, 'skipped' => 'duplicate_book_id'];
         }
@@ -86,7 +91,6 @@ final class AppointmentWebhookService
     {
         $context = self::resolveGoogleOnlyContext($doctorUserId, $bookId);
         if (isset($context['skip'])) {
-            GoogleCalendarBookingRepository::removeProcessedBooking($doctorUserId, $bookId);
             return ['ok' => true, 'skipped' => $context['skip']];
         }
 
@@ -674,5 +678,49 @@ final class AppointmentWebhookService
         }
 
         return $booking;
+    }
+
+    /**
+     * DB may still track a book_id after the Google event was deleted manually.
+     * Recreate the calendar event instead of permanently skipping create webhooks.
+     *
+     * @param array<string, mixed> $booking
+     * @return array<string, mixed>|null
+     */
+    private static function tryRecreateMissingCalendarEvent(
+        array $booking,
+        string $doctorUserId,
+        string $bookId
+    ): ?array {
+        try {
+            $context = self::resolveDoctorContext($doctorUserId, $bookId);
+        } catch (AppointmentWebhookException) {
+            return null;
+        }
+
+        if (isset($context['skip'])) {
+            return null;
+        }
+
+        $storedEventId = GoogleCalendarBookingRepository::getGoogleEventId($doctorUserId, $bookId);
+        $existingEvents = self::findCalendarEvents(
+            $context['google_access_token'],
+            $bookId,
+            $doctorUserId,
+            $storedEventId
+        );
+
+        if ($existingEvents !== []) {
+            return null;
+        }
+
+        RequestContext::log(
+            'paziresh24-hamgam',
+            'duplicate book_id without live calendar event — recreating doctor='
+            . $doctorUserId
+            . ' book_id=' . $bookId
+        );
+
+        return self::handleUpdate($booking, $doctorUserId, $bookId);
     }
 }

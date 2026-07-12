@@ -3040,8 +3040,14 @@ function applyDefaultVacationCenterSelection(centers) {
 
     const allIds = getAllCenterIds(centers);
     const selection = getVacationCenterSelection();
+    const autoVacationOn = document.querySelector('[data-field="autoVacation"]')?.checked;
 
     if (selection.mode === "all") {
+        setVacationCenterSelection({ mode: "selected", centerIds: allIds });
+        return;
+    }
+
+    if (autoVacationOn && selection.centerIds.length === 0) {
         setVacationCenterSelection({ mode: "selected", centerIds: allIds });
         return;
     }

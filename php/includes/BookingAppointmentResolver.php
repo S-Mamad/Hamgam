@@ -10,21 +10,7 @@ final class BookingAppointmentResolver
      */
     public static function resolve(array $booking, string $bookId, string $hamdastAccessToken): ?array
     {
-        $appointment = GoogleCalendar::getAppointment($bookId, $hamdastAccessToken);
-        $range = GoogleCalendar::extractAppointmentRange($appointment);
-        if ($range !== null) {
-            return $range;
-        }
-
-        error_log('[paziresh24-hamgam] appointment API failed for book_id ' . $bookId . ', trying booking fallback');
-
-        $fromBooking = self::extractFromBooking($booking);
-        if ($fromBooking !== null) {
-            error_log('[paziresh24-hamgam] using booking fallback for book_id ' . $bookId);
-            return $fromBooking;
-        }
-
-        return null;
+        return self::resolveFromPayloadThenApi($booking, $bookId, $hamdastAccessToken, 'create');
     }
 
     /**
@@ -35,6 +21,21 @@ final class BookingAppointmentResolver
      */
     public static function resolveForUpdate(array $booking, string $bookId, string $hamdastAccessToken): ?array
     {
+        return self::resolveFromPayloadThenApi($booking, $bookId, $hamdastAccessToken, 'update');
+    }
+
+    /**
+     * Webhook payload is authoritative when it includes a valid range; API is the fallback.
+     *
+     * @param array<string, mixed> $booking
+     * @return array{from: int, to: int}|null
+     */
+    private static function resolveFromPayloadThenApi(
+        array $booking,
+        string $bookId,
+        string $hamdastAccessToken,
+        string $context
+    ): ?array {
         $fromBooking = self::extractFromBooking($booking);
         if ($fromBooking !== null) {
             return $fromBooking;
@@ -43,10 +44,14 @@ final class BookingAppointmentResolver
         $appointment = GoogleCalendar::getAppointment($bookId, $hamdastAccessToken);
         $range = GoogleCalendar::extractAppointmentRange($appointment);
         if ($range !== null) {
+            if ($context === 'create') {
+                error_log('[paziresh24-hamgam] using appointment API for book_id ' . $bookId);
+            }
+
             return $range;
         }
 
-        error_log('[paziresh24-hamgam] update resolve failed for book_id ' . $bookId);
+        error_log('[paziresh24-hamgam] ' . $context . ' resolve failed for book_id ' . $bookId);
 
         return null;
     }
@@ -318,6 +323,38 @@ final class BookingAppointmentResolver
      */
     private static function extractFromBooking(array $booking): ?array
     {
+        $numericRange = self::extractNumericRange($booking);
+        $dateHourRange = self::parseFromDateHour($booking);
+        if ($dateHourRange === null) {
+            $dateHourRange = self::parseBookDateTime($booking);
+        }
+
+        if ($numericRange !== null && $dateHourRange !== null) {
+            $startDiff = $numericRange['from'] - $dateHourRange['from'];
+            if ($startDiff > 0 && $startDiff % 900 === 0 && $startDiff <= 3600) {
+                error_log(
+                    '[paziresh24-hamgam] slot overshoot numeric_from='
+                    . $numericRange['from']
+                    . ' date_hour_from=' . $dateHourRange['from']
+                    . ' diff=' . $startDiff
+                    . 's — preferring date/hour'
+                );
+
+                return self::mergePreferredStartWithBestEnd($dateHourRange, $numericRange, $booking);
+            }
+
+            return $numericRange;
+        }
+
+        return $numericRange ?? $dateHourRange;
+    }
+
+    /**
+     * @param array<string, mixed> $booking
+     * @return array{from: int, to: int}|null
+     */
+    private static function extractNumericRange(array $booking): ?array
+    {
         $from = $booking['from'] ?? $booking['book_timestamp'] ?? $booking['start_timestamp'] ?? null;
         $to = $booking['to'] ?? $booking['end_timestamp'] ?? null;
 
@@ -325,12 +362,37 @@ final class BookingAppointmentResolver
             return ['from' => (int) $from, 'to' => (int) $to];
         }
 
-        $fromDateHour = self::parseFromDateHour($booking);
-        if ($fromDateHour !== null) {
-            return $fromDateHour;
+        return null;
+    }
+
+    /**
+     * @param array{from: int, to: int} $preferredStart
+     * @param array{from: int, to: int} $numericRange
+     * @param array<string, mixed> $booking
+     * @return array{from: int, to: int}
+     */
+    private static function mergePreferredStartWithBestEnd(
+        array $preferredStart,
+        array $numericRange,
+        array $booking
+    ): array {
+        $duration = $booking['duration'] ?? $booking['book_duration'] ?? null;
+        if (is_numeric($duration) && (int) $duration > 0) {
+            return [
+                'from' => $preferredStart['from'],
+                'to' => $preferredStart['from'] + ((int) $duration * 60),
+            ];
         }
 
-        return self::parseBookDateTime($booking);
+        $numericDuration = $numericRange['to'] - $numericRange['from'];
+        if ($numericDuration > 0) {
+            return [
+                'from' => $preferredStart['from'],
+                'to' => $preferredStart['from'] + $numericDuration,
+            ];
+        }
+
+        return $preferredStart;
     }
 
     /**

@@ -269,6 +269,14 @@ assertTest(
 );
 
 assertTest(
+    'extractMoveFromTimestamp prefers from over workhour_turn_num',
+    Paziresh24AppointmentApi::extractMoveFromTimestamp([
+        'from' => 1781931600,
+        'workhour_turn_num' => 1781932500,
+    ]) === 1781931600
+);
+
+assertTest(
     'extractFirstWorkhourTurnNum prefers workhour_turn_num over from',
     Paziresh24AppointmentApi::extractFirstWorkhourTurnNum([
         'data' => [

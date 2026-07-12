@@ -11,6 +11,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/bootstrap.php';
 require_once __DIR__ . '/../includes/Paziresh24WebhookPayload.php';
 require_once __DIR__ . '/../includes/AppointmentWebhookService.php';
+require_once __DIR__ . '/../includes/GoogleEventParser.php';
+require_once __DIR__ . '/../includes/vacation-bootstrap.php';
+
+hamgam_load_vacation_modules();
+require_once __DIR__ . '/../google-vacation/VacationSyncService.php';
 
 if (ob_get_level()) {
     ob_end_clean();
@@ -89,6 +94,67 @@ assertTest(
         && ($updateRange['from'] ?? null) === 1781931600
         && ($updateRange['to'] ?? null) === 1781932500,
     $updateRange
+);
+
+$createBooking = [
+    'from' => 1781931600,
+    'to' => 1781932500,
+    'from_date' => '2026-06-20',
+    'from_hour' => '08:30',
+];
+$createRange = BookingAppointmentResolver::resolve(
+    $createBooking,
+    'd3fe846f-6b15-11f1-8fe5-b6c09fdc72a4',
+    'unused-token-for-test'
+);
+assertTest(
+    'resolve prefers webhook timestamps on create',
+    is_array($createRange)
+        && ($createRange['from'] ?? null) === 1781931600
+        && ($createRange['to'] ?? null) === 1781932500,
+    $createRange
+);
+
+$slotOvershootBooking = [
+    'from' => 1781932500,
+    'to' => 1781933400,
+    'from_date' => '2026-06-20',
+    'from_hour' => '08:30',
+    'duration' => 15,
+];
+$slotOvershootRange = BookingAppointmentResolver::resolveForUpdate(
+    $slotOvershootBooking,
+    'd3fe846f-6b15-11f1-8fe5-b6c09fdc72a4',
+    'unused-token-for-test'
+);
+assertTest(
+    '15-minute slot overshoot prefers from_date/from_hour',
+    is_array($slotOvershootRange)
+        && ($slotOvershootRange['from'] ?? null) === 1781931600
+        && ($slotOvershootRange['to'] ?? null) === 1781932500,
+    $slotOvershootRange
+);
+
+$builtEvent = CalendarEventBuilder::build(
+    ['from' => 1781931600, 'to' => 1781932500],
+    ['color_id' => '9'],
+    ['book_id' => $bookId]
+);
+$builtStart = is_array($builtEvent) ? (string) ($builtEvent['start']['dateTime'] ?? '') : '';
+assertTest(
+    'CalendarEventBuilder sends wall-clock dateTime without offset',
+    is_array($builtEvent)
+        && $builtStart === '2026-06-20T08:30:00'
+        && !str_contains($builtStart, '+'),
+    $builtStart
+);
+$parsedBuilt = GoogleEventParser::parseEvent(is_array($builtEvent) ? $builtEvent + ['id' => 'roundtrip-test'] : []);
+assertTest(
+    'CalendarEventBuilder round-trips through GoogleEventParser',
+    is_array($parsedBuilt)
+        && ($parsedBuilt['start_ts'] ?? null) === 1781931600
+        && ($parsedBuilt['end_ts'] ?? null) === 1781932500,
+    $parsedBuilt
 );
 
 $cancelPayload = [
@@ -302,6 +368,68 @@ assertTest(
         && ($fromDateHourRange['to'] ?? null) === 1781932500
         && ($fromDateHourRange['from'] ?? null) === 1781931600,
     $fromDateHourRange
+);
+
+$mismatchBooking = [
+    'from' => 1781932500,
+    'to' => 1781933400,
+    'from_date' => '2026-06-20',
+    'from_hour' => '08:30',
+    'duration' => 15,
+];
+$mismatchRange = BookingAppointmentResolver::resolveForUpdate(
+    $mismatchBooking,
+    'd3fe846f-6b15-11f1-8fe5-b6c09fdc72a4',
+    'unused-token-for-test'
+);
+assertTest(
+    'timestamp mismatch prefers from_date/from_hour when numeric from is one slot ahead',
+    is_array($mismatchRange)
+        && ($mismatchRange['from'] ?? null) === 1781931600
+        && ($mismatchRange['to'] ?? null) === 1781932500,
+    $mismatchRange
+);
+
+assertTest(
+    'VacationSyncService has revertHamgamAppointmentCalendarToApi',
+    (new ReflectionClass(VacationSyncService::class))->hasMethod('revertHamgamAppointmentCalendarToApi')
+);
+
+assertTest(
+    'mergeBookingRecord inherits parent from/to timestamps',
+    (function (): bool {
+        $payload = [
+            'data' => [
+                'doctor_user_id' => 23489442,
+                'from' => 1781931600,
+                'to' => 1781932500,
+                'after_update_record' => [
+                    'id' => 'd3fe846f-6b15-11f1-8fe5-b6c09fdc72a4',
+                    'from_date' => '2026-06-20',
+                    'from_hour' => '08:30',
+                ],
+            ],
+        ];
+        $booking = Paziresh24WebhookPayload::extractBooking($payload);
+
+        return is_array($booking)
+            && ($booking['from'] ?? null) == 1781931600
+            && ($booking['to'] ?? null) == 1781932500;
+    })()
+);
+
+assertTest(
+    'extractAppointmentRange falls back to workhour_turn_num',
+    (function (): bool {
+        $range = GoogleCalendar::extractAppointmentRange([
+            'workhour_turn_num' => 1781931600,
+            'duration' => 15,
+        ]);
+
+        return is_array($range)
+            && ($range['from'] ?? null) === 1781931600
+            && ($range['to'] ?? null) === 1781932500;
+    })()
 );
 
 echo "=== Appointment webhook lifecycle tests ===\n";

@@ -130,6 +130,14 @@ final class Paziresh24WebhookPayload
                 'patient_cell',
                 'ref_id',
                 'time',
+                'from',
+                'to',
+                'from_date',
+                'from_hour',
+                'book_date',
+                'book_time',
+                'duration',
+                'book_duration',
             ] as $key
         ) {
             $value = $data[$key] ?? null;

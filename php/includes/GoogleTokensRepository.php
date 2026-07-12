@@ -1148,6 +1148,21 @@ final class GoogleTokensRepository
             }, $availableCenters);
         }
 
+        if (
+            $selection['center_ids'] === []
+            && GoogleVacationRepository::isAutoVacationEnabled($tokenRow)
+        ) {
+            error_log('[GoogleTokensRepository] empty vacation center selection — falling back to all centers');
+
+            return array_map(static function (array $center): array {
+                return [
+                    'medical_center_id' => $center['medical_center_id'],
+                    'user_center_id' => $center['user_center_id'] ?? null,
+                    'name' => $center['name'],
+                ];
+            }, $availableCenters);
+        }
+
         $selectedIds = array_flip($selection['center_ids']);
         $filtered = [];
 
