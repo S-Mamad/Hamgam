@@ -64,7 +64,10 @@ try {
         $response['oauth_url'] = Paziresh24Api::buildGoogleOAuthUrl($accessToken, 'settings', null, $userId);
     }
 
-    $needsBackgroundSync = $connected && GoogleTokensRepository::needsWatchRegistration($tokenRow);
+    $needsBackgroundSync = $connected && (
+        GoogleTokensRepository::needsWatchRegistration($tokenRow)
+        || GoogleTokensRepository::needsSyncTokenRepair($tokenRow)
+    );
 
     if (!$needsBackgroundSync) {
         Response::json($response);

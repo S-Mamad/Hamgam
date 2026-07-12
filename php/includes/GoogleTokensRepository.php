@@ -332,6 +332,29 @@ final class GoogleTokensRepository
         return (int) $expiration <= ($nowMs + 3600000);
     }
 
+    public static function hasSyncToken(?array $row): bool
+    {
+        if ($row === null) {
+            return false;
+        }
+
+        $token = $row['google_sync_token'] ?? '';
+
+        return is_string($token) && trim($token) !== '';
+    }
+
+    /**
+     * Watch is healthy but incremental sync token was never captured (common on large calendars).
+     */
+    public static function needsSyncTokenRepair(?array $row): bool
+    {
+        if ($row === null || !self::hasRefreshToken($row) || self::hasSyncToken($row)) {
+            return false;
+        }
+
+        return !self::needsWatchRegistration($row);
+    }
+
     public static function hasRefreshToken(?array $row): bool
     {
         if ($row === null) {

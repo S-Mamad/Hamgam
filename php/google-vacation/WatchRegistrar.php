@@ -57,13 +57,9 @@ final class WatchRegistrar
             null
         );
 
-        // Bound the initial listing to recent/future events. Vacation sync only cares
-        // about the forward horizon, and scanning the entire calendar history can be
-        // slow enough to leave the sync token unestablished on large accounts.
         $initialTimeMin = gmdate('Y-m-d\TH:i:s\Z', time() - (2 * 86400));
 
-        $syncResult = GoogleCalendarWatch::listChangedEvents($googleAccessToken, null, $initialTimeMin);
-        $syncToken = $syncResult['nextSyncToken'];
+        $syncToken = GoogleCalendarWatch::captureInitialSyncToken($googleAccessToken);
 
         if (is_string($syncToken) && $syncToken !== '') {
             GoogleVacationRepository::saveSyncToken($userId, $syncToken);

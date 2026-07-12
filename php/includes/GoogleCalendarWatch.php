@@ -142,6 +142,23 @@ final class GoogleCalendarWatch
     }
 
     /**
+     * Establish an incremental sync token without touching watch registration.
+     * Lists only a bounded recent window; returned events are discarded.
+     */
+    public static function captureInitialSyncToken(string $accessToken, int $lookbackDays = 2): ?string
+    {
+        if ($lookbackDays < 1) {
+            $lookbackDays = 1;
+        }
+
+        $timeMin = gmdate('Y-m-d\TH:i:s\Z', time() - ($lookbackDays * 86400));
+        $result = self::listChangedEvents($accessToken, null, $timeMin);
+        $syncToken = $result['nextSyncToken'];
+
+        return is_string($syncToken) && $syncToken !== '' ? $syncToken : null;
+    }
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     public static function listEventsInRange(string $accessToken, string $timeMin, string $timeMax): array

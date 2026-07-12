@@ -34,44 +34,50 @@ final class HamgamConnectionService
             }
 
             $tokenRow = GoogleTokensRepository::findByUserId($userId);
-            if ($tokenRow === null || !GoogleTokensRepository::needsWatchRegistration($tokenRow)) {
+            if ($tokenRow === null) {
                 return ['ok' => empty($warnings), 'warnings' => $warnings];
             }
 
-            $refreshToken = (string) ($tokenRow['google_refresh_token'] ?? '');
-            if ($refreshToken === '') {
-                $warnings[] = HamgamSyncMessages::warning('google_token_refresh_failed');
+            if (GoogleTokensRepository::needsWatchRegistration($tokenRow)) {
+                $refreshToken = (string) ($tokenRow['google_refresh_token'] ?? '');
+                if ($refreshToken === '') {
+                    $warnings[] = HamgamSyncMessages::warning('google_token_refresh_failed');
 
-                return ['ok' => false, 'warnings' => $warnings];
-            }
-
-            $googleTokenData = GoogleCalendar::refreshAccessToken($refreshToken);
-            $googleAccessToken = is_array($googleTokenData) ? ($googleTokenData['access_token'] ?? '') : '';
-            if (!is_string($googleAccessToken) || $googleAccessToken === '') {
-                error_log('[hamgam-connection] google token refresh failed for user ' . $userId);
-                $warnings[] = HamgamSyncMessages::warning('google_token_refresh_failed');
-
-                return ['ok' => false, 'warnings' => $warnings];
-            }
-
-            $resolvedEmail = GoogleCalendar::resolveAccountEmail($googleAccessToken);
-            if ($resolvedEmail !== null) {
-                $existingEmail = is_string($tokenRow['google_account_email'] ?? null)
-                    ? trim($tokenRow['google_account_email'])
-                    : '';
-                if ($existingEmail === '' || strcasecmp($existingEmail, $resolvedEmail) !== 0) {
-                    GoogleTokensRepository::saveGoogleAccountEmail($userId, $resolvedEmail);
-                    error_log('[hamgam-connection] google_account_email saved for user ' . $userId);
+                    return ['ok' => false, 'warnings' => $warnings];
                 }
-            }
 
-            require_once __DIR__ . '/../google-vacation/WatchRegistrar.php';
+                $googleTokenData = GoogleCalendar::refreshAccessToken($refreshToken);
+                $googleAccessToken = is_array($googleTokenData) ? ($googleTokenData['access_token'] ?? '') : '';
+                if (!is_string($googleAccessToken) || $googleAccessToken === '') {
+                    error_log('[hamgam-connection] google token refresh failed for user ' . $userId);
+                    $warnings[] = HamgamSyncMessages::warning('google_token_refresh_failed');
 
-            if (WatchRegistrar::registerForUser($userId, $hamdastAccessToken, $googleAccessToken)) {
-                error_log('[hamgam-connection] watch registered/repaired for user ' . $userId);
-            } else {
-                error_log('[hamgam-connection] watch registration failed for user ' . $userId);
-                $warnings[] = HamgamSyncMessages::warning('watch_registration_failed');
+                    return ['ok' => false, 'warnings' => $warnings];
+                }
+
+                $resolvedEmail = GoogleCalendar::resolveAccountEmail($googleAccessToken);
+                if ($resolvedEmail !== null) {
+                    $existingEmail = is_string($tokenRow['google_account_email'] ?? null)
+                        ? trim($tokenRow['google_account_email'])
+                        : '';
+                    if ($existingEmail === '' || strcasecmp($existingEmail, $resolvedEmail) !== 0) {
+                        GoogleTokensRepository::saveGoogleAccountEmail($userId, $resolvedEmail);
+                        error_log('[hamgam-connection] google_account_email saved for user ' . $userId);
+                    }
+                }
+
+                require_once __DIR__ . '/../google-vacation/WatchRegistrar.php';
+
+                if (WatchRegistrar::registerForUser($userId, $hamdastAccessToken, $googleAccessToken)) {
+                    error_log('[hamgam-connection] watch registered/repaired for user ' . $userId);
+                } else {
+                    error_log('[hamgam-connection] watch registration failed for user ' . $userId);
+                    $warnings[] = HamgamSyncMessages::warning('watch_registration_failed');
+                }
+            } elseif (GoogleTokensRepository::needsSyncTokenRepair($tokenRow)) {
+                if (!self::repairSyncTokenForUser($userId, $tokenRow)) {
+                    error_log('[hamgam-connection] google_sync_token repair failed for user ' . $userId);
+                }
             }
         } catch (Throwable $e) {
             error_log('[hamgam-connection] syncAfterAuth failed for user ' . $userId . ': ' . $e->getMessage());
@@ -219,5 +225,49 @@ final class HamgamConnectionService
         ]);
 
         return $backfillResult;
+    }
+
+    /**
+     * Capture and persist google_sync_token only. Does not stop/register watch or sync vacations.
+     */
+    public static function repairSyncTokenForUser(string $userId, ?array $tokenRow = null): bool
+    {
+        $userId = GoogleTokensRepository::normalizeUserId($userId);
+        $tokenRow ??= GoogleTokensRepository::findByUserId($userId);
+
+        if ($tokenRow !== null && GoogleTokensRepository::hasSyncToken($tokenRow)) {
+            return true;
+        }
+
+        if ($tokenRow === null || !GoogleTokensRepository::needsSyncTokenRepair($tokenRow)) {
+            return false;
+        }
+
+        require_once __DIR__ . '/GoogleCalendarWatch.php';
+
+        $refreshToken = trim((string) ($tokenRow['google_refresh_token'] ?? ''));
+        if ($refreshToken === '') {
+            return false;
+        }
+
+        $googleTokenData = GoogleCalendar::refreshAccessToken($refreshToken);
+        $googleAccessToken = is_array($googleTokenData) ? ($googleTokenData['access_token'] ?? '') : '';
+        if (!is_string($googleAccessToken) || $googleAccessToken === '') {
+            error_log('[hamgam-connection] sync token repair: google refresh failed for user ' . $userId);
+
+            return false;
+        }
+
+        $syncToken = GoogleCalendarWatch::captureInitialSyncToken($googleAccessToken);
+        if ($syncToken === null) {
+            error_log('[hamgam-connection] sync token repair: capture failed for user ' . $userId);
+
+            return false;
+        }
+
+        GoogleVacationRepository::saveSyncToken($userId, $syncToken);
+        error_log('[hamgam-connection] google_sync_token repaired for user ' . $userId);
+
+        return true;
     }
 }

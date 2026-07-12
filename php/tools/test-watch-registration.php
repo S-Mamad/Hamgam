@@ -39,4 +39,35 @@ assertWatch(
     'skips registration when channel, resource, and expiration are valid'
 );
 
+$healthyWatchRow = [
+    'google_refresh_token' => 'rt',
+    'google_channel_id' => 'channel-1',
+    'google_resource_id' => 'resource-1',
+    'google_watch_expiration' => $validExpiration,
+    'google_sync_token' => null,
+];
+
+assertWatch(
+    GoogleTokensRepository::needsSyncTokenRepair($healthyWatchRow),
+    'needs sync token repair when watch is healthy but sync token is empty'
+);
+
+assertWatch(
+    !GoogleTokensRepository::needsSyncTokenRepair(array_merge($healthyWatchRow, [
+        'google_sync_token' => 'sync-token-abc',
+    ])),
+    'skips sync token repair when token already exists'
+);
+
+assertWatch(
+    !GoogleTokensRepository::needsSyncTokenRepair([
+        'google_refresh_token' => 'rt',
+        'google_channel_id' => '',
+        'google_resource_id' => 'resource-1',
+        'google_watch_expiration' => $validExpiration,
+        'google_sync_token' => null,
+    ]),
+    'sync token repair deferred when watch registration is required first'
+);
+
 exit($failed > 0 ? 1 : 0);

@@ -135,6 +135,8 @@ assertTest(
     $slotOvershootRange
 );
 
+$bookId = 'bc9437f4-0000-4000-8000-000000000001';
+
 $builtEvent = CalendarEventBuilder::build(
     ['from' => 1781931600, 'to' => 1781932500],
     ['color_id' => '9'],
@@ -472,6 +474,46 @@ assertTest(
     is_array($correctedRange)
         && date('H:i', $correctedRange['from']) === '10:00',
     $correctedRange
+);
+
+$inflatedSpanBooking = [
+    'from_date' => '2026-06-20',
+    'from_hour' => '08:30',
+    'book_timestamp' => 1781931600,
+    'from' => 1781932500,
+    'to' => 1781934300,
+];
+$inflatedSpanRange = BookingAppointmentResolver::resolveForUpdate(
+    $inflatedSpanBooking,
+    'd3fe846f-6b15-11f1-8fe5-b6c09fdc72a4',
+    'unused-token-for-test'
+);
+assertTest(
+    'inflated numeric span does not extend 15-minute wall-clock appointment',
+    is_array($inflatedSpanRange)
+        && ($inflatedSpanRange['from'] ?? null) === 1781931600
+        && ($inflatedSpanRange['to'] ?? null) === 1781932500,
+    $inflatedSpanRange
+);
+
+$bookTimePriorityBooking = [
+    'book_date' => '2026-06-20',
+    'book_time' => '10:00',
+    'from_date' => '2026-06-20',
+    'from_hour' => '09:45',
+    'duration' => 15,
+];
+$bookTimePriorityRange = BookingAppointmentResolver::resolveForUpdate(
+    $bookTimePriorityBooking,
+    'd3fe846f-6b15-11f1-8fe5-b6c09fdc72a4',
+    'unused-token-for-test'
+);
+assertTest(
+    'book_date/book_time preferred over from_date/from_hour for start',
+    is_array($bookTimePriorityRange)
+        && date('H:i', $bookTimePriorityRange['from']) === '10:00'
+        && ($bookTimePriorityRange['to'] - $bookTimePriorityRange['from']) === 900,
+    $bookTimePriorityRange
 );
 
 echo "=== Appointment webhook lifecycle tests ===\n";

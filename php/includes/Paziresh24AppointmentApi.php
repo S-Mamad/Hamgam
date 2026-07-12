@@ -459,12 +459,67 @@ final class Paziresh24AppointmentApi
 
         $sorted = array_keys($merged);
         if ($preferNearTimestamp !== null && $preferNearTimestamp > 0) {
-            $sorted = self::rankSlotCandidatesNearAppointment($sorted, $preferNearTimestamp);
+            if (
+                $excludeRangeFrom !== null
+                && $excludeRangeTo !== null
+                && $excludeRangeTo > $excludeRangeFrom
+                && $preferNearTimestamp >= $excludeRangeFrom
+                && $preferNearTimestamp < $excludeRangeTo
+            ) {
+                $sorted = self::rankSlotCandidatesForVacationConflict(
+                    $sorted,
+                    $preferNearTimestamp,
+                    $excludeRangeFrom,
+                    $excludeRangeTo
+                );
+            } else {
+                $sorted = self::rankSlotCandidatesNearAppointment($sorted, $preferNearTimestamp);
+            }
         } else {
             sort($sorted, SORT_NUMERIC);
         }
 
         return array_slice($sorted, 0, $maxCandidates);
+    }
+
+    /**
+     * When an appointment sits inside a vacation block, move it after the vacation first.
+     *
+     * @param array<int, int> $candidates
+     * @return array<int, int>
+     */
+    public static function rankSlotCandidatesForVacationConflict(
+        array $candidates,
+        int $bookFrom,
+        int $vacationFrom,
+        int $vacationTo
+    ): array {
+        if ($candidates === []) {
+            return [];
+        }
+
+        $afterVacation = [];
+        $beforeVacation = [];
+
+        foreach ($candidates as $candidate) {
+            if ($candidate >= $vacationTo) {
+                $afterVacation[] = $candidate;
+                continue;
+            }
+
+            if ($candidate < $vacationFrom) {
+                $beforeVacation[] = $candidate;
+            }
+        }
+
+        sort($afterVacation, SORT_NUMERIC);
+        rsort($beforeVacation, SORT_NUMERIC);
+
+        if ($bookFrom >= $vacationFrom && $bookFrom < $vacationTo) {
+            return array_merge($afterVacation, $beforeVacation);
+        }
+
+        return self::rankSlotCandidatesNearAppointment($candidates, $bookFrom);
     }
 
     /**
@@ -744,7 +799,7 @@ final class Paziresh24AppointmentApi
      */
     public static function extractMoveFromTimestamp(array $appointment): ?int
     {
-        foreach (['from', 'book_timestamp', 'start_timestamp'] as $key) {
+        foreach (['book_timestamp', 'turn_num', 'from', 'start_timestamp'] as $key) {
             $ts = self::normalizeUnixTimestamp($appointment[$key] ?? null);
             if ($ts !== null) {
                 return $ts;
@@ -800,7 +855,7 @@ final class Paziresh24AppointmentApi
                 $to = $expectedTo;
             }
         } elseif ($to <= $from) {
-            $to = $from + (30 * 60);
+            $to = $from + (15 * 60);
         }
 
         return ['from' => $from, 'to' => $to];

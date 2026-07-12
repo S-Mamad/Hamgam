@@ -269,7 +269,16 @@ assertTest(
 );
 
 assertTest(
-    'extractMoveFromTimestamp prefers from over workhour_turn_num',
+    'extractMoveFromTimestamp prefers book_timestamp over numeric from',
+    Paziresh24AppointmentApi::extractMoveFromTimestamp([
+        'book_timestamp' => 1781931600,
+        'from' => 1781932500,
+        'workhour_turn_num' => 1781932500,
+    ]) === 1781931600
+);
+
+assertTest(
+    'extractMoveFromTimestamp falls back to from when book_timestamp missing',
     Paziresh24AppointmentApi::extractMoveFromTimestamp([
         'from' => 1781931600,
         'workhour_turn_num' => 1781932500,
@@ -401,6 +410,16 @@ assertTest(
         [1_780_000_000, 1_780_003_600, 1_790_000_000, 1_790_003_600],
         1_785_000_000
     ) === [1_780_003_600, 1_780_000_000, 1_790_000_000, 1_790_003_600]
+);
+
+assertTest(
+    'rankSlotCandidatesForVacationConflict prefers slots after vacation end',
+    Paziresh24AppointmentApi::rankSlotCandidatesForVacationConflict(
+        [1_780_000_000, 1_780_003_600, 1_790_000_000, 1_790_003_600],
+        1_785_000_000,
+        1_784_000_000,
+        1_788_000_000
+    ) === [1_790_000_000, 1_790_003_600, 1_780_003_600, 1_780_000_000]
 );
 
 assertTest(

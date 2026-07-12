@@ -373,12 +373,12 @@ final class BookingAppointmentResolver
      */
     private static function extractWallClockRange(array $booking): ?array
     {
-        $range = self::parseFromDateHour($booking);
+        $range = self::parseBookDateTime($booking);
         if ($range !== null) {
             return $range;
         }
 
-        $range = self::parseBookDateTime($booking);
+        $range = self::parseFromDateHour($booking);
         if ($range !== null) {
             return $range;
         }
@@ -397,8 +397,34 @@ final class BookingAppointmentResolver
         array $booking,
         ?array $numericRange
     ): array {
-        $durationMinutes = self::resolveDurationMinutes($booking, $numericRange);
         $from = $wallClockRange['from'];
+        $correctedNumeric = $numericRange !== null
+            ? self::correctNumericRange($booking, $numericRange)
+            : null;
+        $alignedNumeric = $correctedNumeric !== null
+            ? self::alignNumericRangeToWallClockStart($from, $correctedNumeric)
+            : null;
+
+        $payloadTo = self::normalizeUnixTimestamp($booking['to'] ?? $booking['end_timestamp'] ?? null);
+        if ($payloadTo !== null && $payloadTo > $from) {
+            $payloadMinutes = (int) round(($payloadTo - $from) / 60);
+            if ($payloadMinutes > 0 && $payloadMinutes <= 240) {
+                if ($alignedNumeric !== null && abs($alignedNumeric['to'] - $payloadTo) <= 120) {
+                    return ['from' => $from, 'to' => $payloadTo];
+                }
+
+                $expectedMinutes = self::resolveDurationMinutes($booking, $alignedNumeric, $from);
+                if (
+                    $expectedMinutes <= 240
+                    && $payloadMinutes <= $expectedMinutes + 2
+                    && $payloadMinutes >= $expectedMinutes - 2
+                ) {
+                    return ['from' => $from, 'to' => $payloadTo];
+                }
+            }
+        }
+
+        $durationMinutes = self::resolveDurationMinutes($booking, $alignedNumeric, $from);
 
         return [
             'from' => $from,
@@ -410,8 +436,11 @@ final class BookingAppointmentResolver
      * @param array<string, mixed> $booking
      * @param ?array{from: int, to: int} $numericRange
      */
-    private static function resolveDurationMinutes(array $booking, ?array $numericRange): int
-    {
+    private static function resolveDurationMinutes(
+        array $booking,
+        ?array $numericRange,
+        ?int $wallClockFrom = null
+    ): int {
         $duration = $booking['duration'] ?? $booking['book_duration'] ?? null;
         if (is_numeric($duration) && (int) $duration > 0) {
             return (int) $duration;
@@ -424,16 +453,60 @@ final class BookingAppointmentResolver
             }
         }
 
-        $from = $booking['from'] ?? $booking['book_timestamp'] ?? null;
+        $from = $booking['book_timestamp'] ?? $booking['from'] ?? $booking['start_timestamp'] ?? null;
         $to = $booking['to'] ?? $booking['end_timestamp'] ?? null;
         if (is_numeric($from) && is_numeric($to) && (int) $to > (int) $from) {
-            $inferred = (int) round(((int) $to - (int) $from) / 60);
+            $corrected = self::correctNumericRange($booking, [
+                'from' => (int) $from,
+                'to' => (int) $to,
+            ]);
+            if ($wallClockFrom !== null) {
+                $corrected = self::alignNumericRangeToWallClockStart($wallClockFrom, $corrected);
+            }
+
+            $inferred = (int) round(($corrected['to'] - $corrected['from']) / 60);
             if ($inferred > 0 && $inferred <= 240) {
                 return $inferred;
             }
         }
 
-        return 30;
+        return 15;
+    }
+
+    /**
+     * Shift numeric range to match authoritative wall-clock start while preserving span.
+     *
+     * @param array{from: int, to: int} $numericRange
+     * @return array{from: int, to: int}
+     */
+    private static function alignNumericRangeToWallClockStart(int $wallClockFrom, array $numericRange): array
+    {
+        $diff = $numericRange['from'] - $wallClockFrom;
+        if ($diff === 0) {
+            return $numericRange;
+        }
+
+        if ($diff > 0 && $diff % 900 === 0 && $diff <= 3600) {
+            $duration = $numericRange['to'] - $numericRange['from'];
+            $shrunkDuration = $duration - $diff;
+            if ($shrunkDuration >= 900 && $shrunkDuration <= 14_400 && $shrunkDuration % 900 === 0) {
+                $duration = $shrunkDuration;
+            }
+
+            return [
+                'from' => $wallClockFrom,
+                'to' => $wallClockFrom + $duration,
+            ];
+        }
+
+        if ($diff < 0 && (-$diff) % 900 === 0 && (-$diff) <= 3600) {
+            return [
+                'from' => $wallClockFrom,
+                'to' => $numericRange['to'] + (-$diff),
+            ];
+        }
+
+        return $numericRange;
     }
 
     /**
@@ -457,6 +530,10 @@ final class BookingAppointmentResolver
                 );
 
                 $duration = $numericRange['to'] - $numericRange['from'];
+                $shrunkDuration = $duration - $diff;
+                if ($shrunkDuration >= 900 && $shrunkDuration <= 14_400 && $shrunkDuration % 900 === 0) {
+                    $duration = $shrunkDuration;
+                }
 
                 return [
                     'from' => $bookTimestamp,
@@ -483,6 +560,10 @@ final class BookingAppointmentResolver
                     );
 
                     $duration = $numericRange['to'] - $numericRange['from'];
+                    $shrunkDuration = $duration - $diff;
+                    if ($shrunkDuration >= 900 && $shrunkDuration <= 14_400 && $shrunkDuration % 900 === 0) {
+                        $duration = $shrunkDuration;
+                    }
 
                     return [
                         'from' => $candidate,
@@ -519,9 +600,10 @@ final class BookingAppointmentResolver
      */
     private static function extractNumericRange(array $booking): ?array
     {
-        $from = $booking['book_timestamp']
-            ?? $booking['from']
+        $from = $booking['from']
             ?? $booking['start_timestamp']
+            ?? $booking['workhour_turn_num']
+            ?? $booking['book_timestamp']
             ?? null;
         $to = $booking['to'] ?? $booking['end_timestamp'] ?? null;
 
@@ -549,7 +631,7 @@ final class BookingAppointmentResolver
             return null;
         }
 
-        $duration = self::resolveDurationMinutes($booking, null);
+        $duration = self::resolveDurationMinutes($booking, self::extractNumericRange($booking));
 
         try {
             $tz = new DateTimeZone('Asia/Tehran');
@@ -578,7 +660,7 @@ final class BookingAppointmentResolver
             return null;
         }
 
-        $duration = self::resolveDurationMinutes($booking, null);
+        $duration = self::resolveDurationMinutes($booking, self::extractNumericRange($booking));
 
         try {
             $tz = new DateTimeZone('Asia/Tehran');
@@ -607,7 +689,7 @@ final class BookingAppointmentResolver
             return null;
         }
 
-        $duration = self::resolveDurationMinutes($booking, null);
+        $duration = self::resolveDurationMinutes($booking, self::extractNumericRange($booking));
 
         try {
             $tz = new DateTimeZone('Asia/Tehran');
