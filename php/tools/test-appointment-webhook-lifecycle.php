@@ -359,6 +359,7 @@ assertTest(
 $fromDateHourBooking = [
     'from_date' => '2026-06-20',
     'from_hour' => '08:30',
+    'from' => '1781931600',
     'to' => '1781932500',
 ];
 $fromDateHourRange = invokePrivate(BookingAppointmentResolver::class, 'parseFromDateHour', $fromDateHourBooking);
@@ -419,10 +420,13 @@ assertTest(
 );
 
 assertTest(
-    'extractAppointmentRange falls back to workhour_turn_num',
+    'extractAppointmentRange falls back to book_timestamp before workhour_turn_num',
     (function (): bool {
         $range = GoogleCalendar::extractAppointmentRange([
-            'workhour_turn_num' => 1781931600,
+            'book_timestamp' => 1781931600,
+            'workhour_turn_num' => 1781932500,
+            'from' => 1781932500,
+            'to' => 1781933400,
             'duration' => 15,
         ]);
 
@@ -430,6 +434,44 @@ assertTest(
             && ($range['from'] ?? null) === 1781931600
             && ($range['to'] ?? null) === 1781932500;
     })()
+);
+
+$deployWebhookBooking = [
+    'book_id' => 'test-deploy-book-id',
+    'doctor_user_id' => 1792050,
+    'book_date' => '2026-06-10',
+    'book_time' => '16:00',
+    'duration' => 15,
+];
+$deployRange = BookingAppointmentResolver::resolve(
+    $deployWebhookBooking,
+    'test-deploy-book-id',
+    'unused-token-for-test'
+);
+assertTest(
+    'production webhook with book_date/book_time resolves correct slot',
+    is_array($deployRange)
+        && $deployRange['to'] - $deployRange['from'] === 900,
+    $deployRange
+);
+
+$wrongNumericWithBookTime = [
+    'book_date' => '2026-06-20',
+    'book_time' => '10:00',
+    'from' => 1781940600,
+    'to' => 1781941500,
+    'duration' => 15,
+];
+$correctedRange = BookingAppointmentResolver::resolve(
+    $wrongNumericWithBookTime,
+    'test-book-id',
+    'unused-token-for-test'
+);
+assertTest(
+    'book_date/book_time beats wrong numeric from (+15 min)',
+    is_array($correctedRange)
+        && date('H:i', $correctedRange['from']) === '10:00',
+    $correctedRange
 );
 
 echo "=== Appointment webhook lifecycle tests ===\n";

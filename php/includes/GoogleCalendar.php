@@ -91,55 +91,7 @@ final class GoogleCalendar
             return null;
         }
 
-        $from = $data['from'] ?? null;
-        $to = $data['to'] ?? null;
-
-        if (!is_numeric($from) || !is_numeric($to) || (int) $to <= (int) $from) {
-            $slotRange = self::extractSlotTimestampRange($data);
-            if ($slotRange !== null) {
-                return $slotRange;
-            }
-
-            return null;
-        }
-
-        return ['from' => (int) $from, 'to' => (int) $to];
-    }
-
-    /**
-     * @param array<string, mixed> $data
-     * @return array{from: int, to: int}|null
-     */
-    private static function extractSlotTimestampRange(array $data): ?array
-    {
-        foreach (['workhour_turn_num', 'turn_num', 'from', 'book_timestamp', 'start_timestamp'] as $key) {
-            $value = $data[$key] ?? null;
-            if (!is_numeric($value)) {
-                continue;
-            }
-
-            $from = (int) $value;
-            if ($from < 946_684_800) {
-                continue;
-            }
-
-            $to = $data['to'] ?? $data['end_timestamp'] ?? null;
-            if (is_numeric($to) && (int) $to > $from) {
-                return ['from' => $from, 'to' => (int) $to];
-            }
-
-            $duration = $data['duration'] ?? $data['book_duration'] ?? 30;
-            if (!is_numeric($duration) || (int) $duration <= 0) {
-                $duration = 30;
-            }
-
-            return [
-                'from' => $from,
-                'to' => $from + ((int) $duration * 60),
-            ];
-        }
-
-        return null;
+        return BookingAppointmentResolver::extractRangeFromPayload($data);
     }
 
     /**

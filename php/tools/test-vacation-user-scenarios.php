@@ -56,8 +56,14 @@ userScenarioAssert(
     is_string($syncSource) && str_contains($syncSource, 'hydrateGoogleEventForVacationSync')
 );
 userScenarioAssert(
-    'recurring instance move reconcile exists',
-    is_string($syncSource) && str_contains($syncSource, 'tryReconcileMovedRecurringInstance')
+    'sync creates vacations for centers not yet tracked on the same event',
+    is_string($syncSource)
+        && str_contains($syncSource, 'trackedCenterIds[$vacationCenter[\'medical_center_id\']]')
+);
+userScenarioAssert(
+    'missing appointment write scope does not block vacation pre-check entirely',
+    is_string($syncSource)
+        && str_contains($syncSource, 'attempting vacation create directly')
 );
 
 $timedSingle = [

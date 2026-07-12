@@ -704,6 +704,46 @@ final class VacationSyncService
 
             }
 
+
+
+            if (GoogleVacationRepository::isAutoVacationEnabled($tokenRow)) {
+
+                $filtered = array_map(static function (array $center): array {
+
+                    return [
+
+                        'medical_center_id' => $center['medical_center_id'],
+
+                        'user_center_id' => $center['user_center_id'] ?? null,
+
+                        'name' => $center['name'],
+
+                    ];
+
+                }, $availableCenters);
+
+
+
+                if ($filtered !== []) {
+
+                    GoogleVacationRepository::saveCenterId($userId, $filtered[0]['medical_center_id']);
+
+                    error_log(
+
+                        '[google-vacation] vacation centers fallback to all available count=' . count($filtered)
+
+                        . ' user=' . $userId
+
+                    );
+
+
+
+                    return $filtered;
+
+                }
+
+            }
+
         }
 
 
@@ -1079,7 +1119,45 @@ final class VacationSyncService
 
 
 
-        if (GoogleVacationRepository::hasProcessedEvent($userId, $parsed['event_id'])) {
+        $trackedRows = GoogleVacationRepository::findProcessedEventsForGoogleEvent($userId, $parsed['event_id']);
+
+        $fallbackCenterId = isset($tokenRow['center_id']) && is_string($tokenRow['center_id'])
+
+            ? trim($tokenRow['center_id'])
+
+            : '';
+
+        $trackedCenterIds = [];
+
+        foreach ($trackedRows as $trackedRow) {
+
+            if (!is_array($trackedRow)) {
+
+                continue;
+
+            }
+
+            $trackedCenterId = GoogleVacationRepository::resolveTrackedMedicalCenterId(
+
+                $trackedRow,
+
+                $fallbackCenterId !== '' ? $fallbackCenterId : null
+
+            );
+
+            if ($trackedCenterId !== '') {
+
+                $trackedCenterIds[$trackedCenterId] = true;
+
+            }
+
+        }
+
+
+
+        $updated = false;
+
+        if ($trackedRows !== []) {
 
             $updated = self::processUpdatedEvent(
 
@@ -1101,19 +1179,21 @@ final class VacationSyncService
 
             );
 
-
-
-            return $updated ? 'updated' : 'skipped';
-
         }
 
 
 
         if (!$autoVacation) {
 
-            error_log('[google-vacation] auto_vacation off, no Paziresh24 action for ' . $parsed['event_id']);
+            if ($trackedRows === []) {
 
-            return 'skipped';
+                error_log('[google-vacation] auto_vacation off, no Paziresh24 action for ' . $parsed['event_id']);
+
+            }
+
+
+
+            return $updated ? 'updated' : 'skipped';
 
         }
 
@@ -1123,7 +1203,7 @@ final class VacationSyncService
 
             error_log('[google-vacation] missing hamdast token for user ' . $userId);
 
-            return 'failed';
+            return $trackedRows === [] ? 'failed' : ($updated ? 'updated' : 'skipped');
 
         }
 
@@ -1133,7 +1213,7 @@ final class VacationSyncService
 
             error_log('[google-vacation] missing medical centers for user ' . $userId);
 
-            return 'failed';
+            return $trackedRows === [] ? 'failed' : ($updated ? 'updated' : 'skipped');
 
         }
 
@@ -1146,6 +1226,14 @@ final class VacationSyncService
 
 
         foreach ($vacationCenters as $vacationCenter) {
+
+            if (isset($trackedCenterIds[$vacationCenter['medical_center_id']])) {
+
+                continue;
+
+            }
+
+
 
             $response = self::createVacationWithConflictResolution(
 
@@ -1232,6 +1320,22 @@ final class VacationSyncService
         if ($createdCount > 0) {
 
             return 'created';
+
+        }
+
+
+
+        if ($updated) {
+
+            return 'updated';
+
+        }
+
+
+
+        if ($trackedRows !== []) {
+
+            return 'skipped';
 
         }
 
@@ -5874,7 +5978,7 @@ final class VacationSyncService
 
             error_log(
 
-                '[google-vacation] reschedule before vacation blocked: missing provider.appointment.write center='
+                '[google-vacation] reschedule before vacation skipped: missing provider.appointment.write — attempting vacation create directly center='
 
                 . $vacationCenter['medical_center_id']
 
@@ -5882,7 +5986,9 @@ final class VacationSyncService
 
 
 
-            return false;
+            Paziresh24AppointmentApi::resetAppointmentCache();
+
+            return true;
 
         }
 

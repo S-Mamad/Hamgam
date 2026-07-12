@@ -75,6 +75,16 @@ $rowEmptySelected = [
 $filteredEmpty = GoogleTokensRepository::filterVacationCentersForSync($rowEmptySelected, $available);
 assertTrue($filteredEmpty === [], 'empty selected list creates no new vacations');
 
+$rowStaleSelected = [
+    'auto_vacation' => 1,
+    'vacation_sync_centers' => json_encode(
+        ['mode' => 'selected', 'center_ids' => ['00000000-0000-0000-0000-000000000000']],
+        JSON_UNESCAPED_UNICODE
+    ),
+];
+$filteredStale = GoogleTokensRepository::filterVacationCentersForSync($rowStaleSelected, $available);
+assertTrue(count($filteredStale) === 2, 'stale selected center ids fall back to all centers when auto vacation on');
+
 echo PHP_EOL . '=== Settings parse / save validation ===' . PHP_EOL;
 
 $validBody = [
