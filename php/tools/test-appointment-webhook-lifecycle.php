@@ -537,6 +537,31 @@ assertTest(
     $staleWallClockRange
 );
 
+$staleWallClockAheadBooking = [
+    'from' => 1781931600,
+    'to' => 1781932500,
+    'from_date' => '2026-06-20',
+    'from_hour' => '08:30',
+    'duration' => 15,
+];
+$staleWallClockAheadRange = BookingAppointmentResolver::resolveForUpdate(
+    $staleWallClockAheadBooking,
+    'd3fe846f-6b15-11f1-8fe5-b6c09fdc72a4',
+    'unused-token-for-test'
+);
+assertTest(
+    'stale wall-clock ahead of numeric from prefers numeric (08:00 not 08:30)',
+    is_array($staleWallClockAheadRange)
+        && ($staleWallClockAheadRange['from'] ?? null) === 1781931600
+        && ($staleWallClockAheadRange['to'] ?? null) === 1781932500,
+    $staleWallClockAheadRange
+);
+
+assertTest(
+    'Paziresh24AppointmentApi exposes getPendingCalendarSyncRange',
+    method_exists(Paziresh24AppointmentApi::class, 'getPendingCalendarSyncRange')
+);
+
 $explicitFromToBooking = [
     'from' => 1781931600,
     'to' => 1781932500,

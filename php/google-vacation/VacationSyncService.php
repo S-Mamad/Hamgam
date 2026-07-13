@@ -5594,6 +5594,20 @@ final class VacationSyncService
 
 
 
+        self::syncAppointmentCalendarAfterReschedule(
+
+            $userId,
+
+            $bookId,
+
+            $hamdastAccessToken,
+
+            $calendarRange
+
+        );
+
+
+
         return true;
 
     }
@@ -6796,20 +6810,6 @@ final class VacationSyncService
 
     ): void {
 
-        Paziresh24AppointmentApi::invalidateAppointmentCache($bookId);
-
-        $appointment = GoogleCalendar::getAppointment($bookId, $hamdastAccessToken);
-
-        if (!is_array($appointment)) {
-
-            error_log('[google-vacation] calendar sync after reschedule skipped: appointment fetch book_id=' . $bookId);
-
-            return;
-
-        }
-
-
-
         if (
 
             is_array($forcedRange)
@@ -6833,6 +6833,10 @@ final class VacationSyncService
             );
 
         }
+
+
+
+        Paziresh24AppointmentApi::invalidateAppointmentCache($bookId);
 
 
 

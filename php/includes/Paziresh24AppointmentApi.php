@@ -108,6 +108,36 @@ final class Paziresh24AppointmentApi
         ];
     }
 
+    /**
+     * @return ?array{from: int, to: int}
+     */
+    public static function getPendingCalendarSyncRange(string $bookId): ?array
+    {
+        $bookId = trim($bookId);
+        if ($bookId === '') {
+            return null;
+        }
+
+        $entry = self::$pendingCalendarSyncByBookId[$bookId] ?? null;
+        if (!is_array($entry)) {
+            return null;
+        }
+
+        if (microtime(true) > (float) ($entry['expires'] ?? 0)) {
+            unset(self::$pendingCalendarSyncByBookId[$bookId]);
+
+            return null;
+        }
+
+        $from = (int) ($entry['from'] ?? 0);
+        $to = (int) ($entry['to'] ?? 0);
+        if ($from <= 0 || $to <= $from) {
+            return null;
+        }
+
+        return ['from' => $from, 'to' => $to];
+    }
+
     public static function calendarMatchesPendingSync(
         string $bookId,
         int $calendarFrom,

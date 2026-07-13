@@ -325,10 +325,10 @@ final class BookingAppointmentResolver
             : null;
         $authoritativeFrom = self::extractAuthoritativeStartTimestamp($booking);
 
-        // Some webhooks update unix timestamps (`from`, `start_timestamp`) faster than wall-clock fields
+        // Some payloads update unix timestamps (`from`, `start_timestamp`) faster than wall-clock fields
         // (`from_date`+`from_hour`, `book_date`+`book_time`). When they disagree and we do not have a
         // stronger signal (book_timestamp/turn_num), prefer numeric timestamps — except the known
-        // "+15m/+30m slot overshoot" pattern where wall-clock is correct.
+        // "+15m slot overshoot" pattern where numeric `from` is ahead of wall-clock.
         if (
             $wallClockRange !== null
             && $correctedNumeric !== null
@@ -336,7 +336,15 @@ final class BookingAppointmentResolver
             && abs($correctedNumeric['from'] - $wallClockRange['from']) >= 60
         ) {
             $diff = $correctedNumeric['from'] - $wallClockRange['from'];
-            if (!($diff !== 0 && $diff % 900 === 0 && abs($diff) <= 3600)) {
+            $isNumericOvershoot = $diff > 0 && $diff % 900 === 0 && $diff <= 3600;
+            if (!$isNumericOvershoot) {
+                error_log(
+                    '[paziresh24-hamgam] numeric timestamp preferred over wall-clock from='
+                    . $correctedNumeric['from']
+                    . ' wall_clock_from=' . $wallClockRange['from']
+                    . ' diff=' . $diff . 's'
+                );
+
                 return self::applyExplicitDuration($correctedNumeric, $booking);
             }
         }

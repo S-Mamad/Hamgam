@@ -135,101 +135,65 @@ final class AppointmentWebhookService
             return ['ok' => true, 'skipped' => $context['skip']];
         }
 
-        $appointmentRange = BookingAppointmentResolver::resolveForUpdate(
-            $booking,
-            $bookId,
-            $context['hamdast_access_token']
-        );
-        if ($appointmentRange === null) {
-            RequestContext::log('paziresh24-hamgam', 'Update resolve failed doctor=' . $doctorUserId . ' book_id=' . $bookId);
-            throw new AppointmentWebhookException('Appointment fetch failed', 502);
+        $pendingRange = Paziresh24AppointmentApi::getPendingCalendarSyncRange($bookId);
+        if ($pendingRange !== null) {
+            RequestContext::log(
+                'paziresh24-hamgam',
+                'update webhook using pending calendar sync doctor=' . $doctorUserId
+                . ' book_id=' . $bookId
+                . ' from=' . $pendingRange['from']
+            );
+
+            return self::syncCalendarFromApiMove($doctorUserId, $bookId, $pendingRange);
         }
 
         $booking = self::ensureBookIdInBooking($booking, $bookId);
         $booking = self::normalizeApiAppointmentBooking($booking, $bookId);
-        $booking = BookingAppointmentResolver::enrichBookingDetails(
-            $booking,
-            $bookId,
-            $context['hamdast_access_token']
-        );
+        $webhookRange = BookingAppointmentResolver::extractRangeFromPayload($booking);
 
-        $event = CalendarEventBuilder::build($appointmentRange, $context['settings'], $booking);
-        if ($event === null) {
-            RequestContext::log('paziresh24-hamgam', 'Invalid update time range doctor=' . $doctorUserId . ' book_id=' . $bookId);
-            throw new AppointmentWebhookException('Invalid appointment time range', 422);
-        }
+        Paziresh24AppointmentApi::invalidateAppointmentCache($bookId);
+        $liveAppointment = GoogleCalendar::getAppointment($bookId, $context['hamdast_access_token']);
+        $apiRange = is_array($liveAppointment)
+            ? BookingAppointmentResolver::extractRangeFromPayload($liveAppointment)
+            : null;
 
-        $storedEventId = GoogleCalendarBookingRepository::getGoogleEventId($doctorUserId, $bookId);
-        $existingEvents = self::findCalendarEvents(
-            $context['google_access_token'],
-            $bookId,
-            $doctorUserId,
-            $storedEventId
-        );
-        $existingEvents = self::ensureStoredEventIncluded($existingEvents, $storedEventId);
-        $targetEvent = self::pickEventForUpdate($existingEvents, $storedEventId);
-
-        if ($targetEvent === null) {
-            RequestContext::log(
-                'paziresh24-hamgam',
-                'update webhook: event not found, creating doctor=' . $doctorUserId . ' book_id=' . $bookId
-            );
-
-            $createdBody = GoogleCalendar::createEventReturningBody($context['google_access_token'], $event);
-            if ($createdBody === null) {
-                throw new AppointmentWebhookException('Calendar event creation failed', 502);
+        $forcedRange = null;
+        if ($apiRange !== null) {
+            if (
+                $webhookRange !== null
+                && abs($apiRange['from'] - $webhookRange['from']) >= 60
+            ) {
+                RequestContext::log(
+                    'paziresh24-hamgam',
+                    'update webhook/API mismatch — using live API doctor=' . $doctorUserId
+                    . ' book_id=' . $bookId
+                    . ' webhook_from=' . $webhookRange['from']
+                    . ' api_from=' . $apiRange['from']
+                );
             }
 
-            $googleEventId = is_string($createdBody['id'] ?? null) ? $createdBody['id'] : '';
-            GoogleCalendarBookingRepository::recordProcessedBooking($doctorUserId, $bookId, $googleEventId);
-
-            return array_filter([
-                'ok' => true,
-                'created' => true,
-                'google_event_id' => $googleEventId !== '' ? $googleEventId : null,
-            ], static fn ($value) => $value !== null);
+            $forcedRange = $apiRange;
+        } elseif ($webhookRange !== null) {
+            $forcedRange = $webhookRange;
         }
 
-        $eventId = GoogleEventParser::extractEventId($targetEvent);
-        if ($eventId === null || $eventId === '') {
-            throw new AppointmentWebhookException('Calendar event update failed', 502);
+        if ($forcedRange === null) {
+            RequestContext::log('paziresh24-hamgam', 'Update resolve failed doctor=' . $doctorUserId . ' book_id=' . $bookId);
+            throw new AppointmentWebhookException('Appointment fetch failed', 502);
         }
 
-        $updatedBody = GoogleCalendar::updateEventReturningBody($context['google_access_token'], $eventId, $event);
-        if ($updatedBody === null) {
+        if (self::calendarEventMatchesRange($context['google_access_token'], $doctorUserId, $bookId, $forcedRange)) {
             RequestContext::log(
                 'paziresh24-hamgam',
-                'calendar event update failed doctor=' . $doctorUserId
+                'update webhook skipped: calendar already synced doctor=' . $doctorUserId
                 . ' book_id=' . $bookId
-                . ' google_event_id=' . $eventId
+                . ' from=' . $forcedRange['from']
             );
-            throw new AppointmentWebhookException('Calendar event update failed', 502);
+
+            return ['ok' => true, 'skipped' => 'calendar_already_synced'];
         }
 
-        $duplicateDeleted = self::deleteCalendarEvents(
-            $context['google_access_token'],
-            $existingEvents,
-            $eventId,
-            $doctorUserId,
-            $bookId
-        );
-
-        GoogleCalendarBookingRepository::recordProcessedBooking($doctorUserId, $bookId, $eventId);
-
-        RequestContext::log(
-            'paziresh24-hamgam',
-            'calendar event updated doctor=' . $doctorUserId
-            . ' book_id=' . $bookId
-            . ' google_event_id=' . $eventId
-            . ' duplicate_deleted=' . $duplicateDeleted
-        );
-
-        return [
-            'ok' => true,
-            'updated' => true,
-            'google_event_id' => $eventId,
-            'duplicate_deleted' => $duplicateDeleted,
-        ];
+        return self::syncCalendarFromApiMove($doctorUserId, $bookId, $forcedRange);
     }
 
     /**
@@ -362,6 +326,52 @@ final class AppointmentWebhookService
             'google_event_id' => $eventId,
             'duplicate_deleted' => $duplicateDeleted,
         ];
+    }
+
+    /**
+     * @param array{from: int, to: int} $range
+     */
+    private static function calendarEventMatchesRange(
+        string $googleAccessToken,
+        string $doctorUserId,
+        string $bookId,
+        array $range
+    ): bool {
+        $storedEventId = GoogleCalendarBookingRepository::getGoogleEventId($doctorUserId, $bookId);
+        $existingEvents = self::findCalendarEvents(
+            $googleAccessToken,
+            $bookId,
+            $doctorUserId,
+            $storedEventId,
+            $range['from']
+        );
+        $existingEvents = self::ensureStoredEventIncluded($existingEvents, $storedEventId);
+        $targetEvent = self::pickEventForUpdate($existingEvents, $storedEventId);
+        if ($targetEvent === null) {
+            return false;
+        }
+
+        if (!isset($targetEvent['start'], $targetEvent['end'])) {
+            $eventId = GoogleEventParser::extractEventId($targetEvent);
+            if ($eventId === null || $eventId === '') {
+                return false;
+            }
+
+            $fetched = GoogleCalendarWatch::getEvent($googleAccessToken, $eventId);
+            if (!is_array($fetched)) {
+                return false;
+            }
+
+            $targetEvent = $fetched;
+        }
+
+        $parsed = GoogleEventParser::parseEvent($targetEvent);
+        if ($parsed === null) {
+            return false;
+        }
+
+        return abs($parsed['start_ts'] - $range['from']) < 60
+            && abs($parsed['end_ts'] - $range['to']) < 120;
     }
 
     /**
