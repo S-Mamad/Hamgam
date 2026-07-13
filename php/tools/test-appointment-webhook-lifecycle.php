@@ -516,6 +516,62 @@ assertTest(
     $bookTimePriorityRange
 );
 
+$staleWallClockBooking = [
+    'from' => 1781932500,
+    'to' => 1781933400,
+    'from_date' => '2026-06-20',
+    'from_hour' => '08:00',
+    'book_timestamp' => 1781931600,
+    'duration' => 15,
+];
+$staleWallClockRange = BookingAppointmentResolver::resolveForUpdate(
+    $staleWallClockBooking,
+    'd3fe846f-6b15-11f1-8fe5-b6c09fdc72a4',
+    'unused-token-for-test'
+);
+assertTest(
+    'book_timestamp beats stale from_date/from_hour after reschedule',
+    is_array($staleWallClockRange)
+        && ($staleWallClockRange['from'] ?? null) === 1781931600
+        && ($staleWallClockRange['to'] ?? null) === 1781932500,
+    $staleWallClockRange
+);
+
+$explicitFromToBooking = [
+    'from' => 1781931600,
+    'to' => 1781932500,
+    'duration' => 30,
+];
+$explicitFromToRange = BookingAppointmentResolver::resolve(
+    $explicitFromToBooking,
+    'test-book-id',
+    'unused-token-for-test'
+);
+assertTest(
+    'numeric from/to span preferred over conflicting duration field',
+    is_array($explicitFromToRange)
+        && ($explicitFromToRange['from'] ?? null) === 1781931600
+        && ($explicitFromToRange['to'] ?? null) === 1781932500,
+    $explicitFromToRange
+);
+
+$builtWithFromToLabels = CalendarEventBuilder::build(
+    ['from' => 1781931600, 'to' => 1781932500],
+    [
+        'color_id' => '9',
+        'Patient_date_time' => true,
+    ],
+    ['book_id' => $bookId]
+);
+$fromToDescription = is_array($builtWithFromToLabels) ? (string) ($builtWithFromToLabels['description'] ?? '') : '';
+assertTest(
+    'CalendarEventBuilder shows from/to labels in description',
+    is_array($builtWithFromToLabels)
+        && str_contains($fromToDescription, 'از : 08:30')
+        && str_contains($fromToDescription, 'تا : 08:45'),
+    $fromToDescription
+);
+
 echo "=== Appointment webhook lifecycle tests ===\n";
 foreach ($tests as $test) {
     $mark = $test['ok'] ? 'PASS' : 'FAIL';

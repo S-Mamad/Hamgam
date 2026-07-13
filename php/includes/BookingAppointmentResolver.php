@@ -320,14 +320,36 @@ final class BookingAppointmentResolver
     {
         $wallClockRange = self::extractWallClockRange($booking);
         $numericRange = self::extractNumericRange($booking);
+        $correctedNumeric = $numericRange !== null
+            ? self::correctNumericRange($booking, $numericRange)
+            : null;
+        $authoritativeFrom = self::extractAuthoritativeStartTimestamp($booking);
+
+        if (
+            $wallClockRange !== null
+            && $authoritativeFrom !== null
+            && abs($wallClockRange['from'] - $authoritativeFrom) >= 60
+        ) {
+            error_log(
+                '[paziresh24-hamgam] authoritative start preferred over stale wall-clock wall_clock_from='
+                . $wallClockRange['from']
+                . ' authoritative_from=' . $authoritativeFrom
+            );
+
+            return self::buildRangeFromAuthoritativeStart(
+                $authoritativeFrom,
+                $booking,
+                $correctedNumeric
+            );
+        }
 
         if ($wallClockRange !== null) {
-            if ($numericRange !== null) {
-                $startDiff = $numericRange['from'] - $wallClockRange['from'];
+            if ($correctedNumeric !== null) {
+                $startDiff = $correctedNumeric['from'] - $wallClockRange['from'];
                 if ($startDiff !== 0) {
                     error_log(
                         '[paziresh24-hamgam] wall-clock time preferred over numeric from='
-                        . $numericRange['from']
+                        . $correctedNumeric['from']
                         . ' wall_clock_from=' . $wallClockRange['from']
                         . ' diff=' . $startDiff . 's'
                     );
@@ -337,14 +359,69 @@ final class BookingAppointmentResolver
             return self::finalizeWallClockRange($wallClockRange, $booking, $numericRange);
         }
 
-        if ($numericRange !== null) {
-            return self::applyExplicitDuration(
-                self::correctNumericRange($booking, $numericRange),
-                $booking
-            );
+        if ($correctedNumeric !== null) {
+            return self::applyExplicitDuration($correctedNumeric, $booking);
         }
 
         return null;
+    }
+
+    /**
+     * book_timestamp / turn_num are more reliable than from_date+from_hour after a reschedule.
+     *
+     * @param array<string, mixed> $booking
+     */
+    private static function extractAuthoritativeStartTimestamp(array $booking): ?int
+    {
+        foreach (['book_timestamp', 'turn_num'] as $key) {
+            $ts = self::normalizeUnixTimestamp($booking[$key] ?? null);
+            if ($ts !== null) {
+                return $ts;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $booking
+     * @param ?array{from: int, to: int} $numericRange
+     * @return array{from: int, to: int}
+     */
+    private static function buildRangeFromAuthoritativeStart(
+        int $from,
+        array $booking,
+        ?array $numericRange
+    ): array {
+        $alignedNumeric = $numericRange !== null
+            ? self::alignNumericRangeToWallClockStart($from, $numericRange)
+            : null;
+
+        $payloadTo = self::normalizeUnixTimestamp($booking['to'] ?? $booking['end_timestamp'] ?? null);
+        if ($payloadTo !== null && $payloadTo > $from) {
+            $payloadMinutes = (int) round(($payloadTo - $from) / 60);
+            if ($payloadMinutes > 0 && $payloadMinutes <= 240) {
+                if ($alignedNumeric !== null && abs($alignedNumeric['to'] - $payloadTo) <= 120) {
+                    return ['from' => $from, 'to' => $payloadTo];
+                }
+
+                $expectedMinutes = self::resolveDurationMinutes($booking, $alignedNumeric, $from);
+                if (
+                    $expectedMinutes <= 240
+                    && $payloadMinutes <= $expectedMinutes + 2
+                    && $payloadMinutes >= $expectedMinutes - 2
+                ) {
+                    return ['from' => $from, 'to' => $payloadTo];
+                }
+            }
+        }
+
+        $durationMinutes = self::resolveDurationMinutes($booking, $alignedNumeric, $from);
+
+        return [
+            'from' => $from,
+            'to' => $from + ($durationMinutes * 60),
+        ];
     }
 
     /**
@@ -354,6 +431,11 @@ final class BookingAppointmentResolver
      */
     private static function applyExplicitDuration(array $range, array $booking): array
     {
+        $spanMinutes = (int) round(($range['to'] - $range['from']) / 60);
+        if ($spanMinutes > 0 && $spanMinutes <= 240) {
+            return $range;
+        }
+
         $duration = $booking['duration'] ?? $booking['book_duration'] ?? null;
         if (!is_numeric($duration) || (int) $duration <= 0) {
             return $range;
@@ -602,8 +684,8 @@ final class BookingAppointmentResolver
     {
         $from = $booking['from']
             ?? $booking['start_timestamp']
-            ?? $booking['workhour_turn_num']
             ?? $booking['book_timestamp']
+            ?? $booking['workhour_turn_num']
             ?? null;
         $to = $booking['to'] ?? $booking['end_timestamp'] ?? null;
 

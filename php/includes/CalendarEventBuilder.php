@@ -58,7 +58,8 @@ final class CalendarEventBuilder
         }
 
         if ($showDateTime) {
-            $descriptionParts[] = 'ساعت نوبت : ' . $startDt->format('H:i')
+            $descriptionParts[] = 'از : ' . $startDt->format('H:i')
+                . "\n" . 'تا : ' . $endDt->format('H:i')
                 . "\n" . 'تاریخ : ' . self::formatPersianDateTime($startDt);
         }
 
