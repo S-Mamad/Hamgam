@@ -57,8 +57,6 @@ final class WatchRegistrar
             null
         );
 
-        $initialTimeMin = gmdate('Y-m-d\TH:i:s\Z', time() - (2 * 86400));
-
         $syncToken = GoogleCalendarWatch::captureInitialSyncToken($googleAccessToken);
 
         if (is_string($syncToken) && $syncToken !== '') {

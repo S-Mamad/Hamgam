@@ -5446,7 +5446,33 @@ final class VacationSyncService
 
 
 
-        self::syncAppointmentCalendarAfterReschedule($userId, $bookId, $hamdastAccessToken);
+        $calendarRange = Paziresh24AppointmentApi::buildRangeFromMoveTarget(
+
+            $targetFrom,
+
+            $moveRange['from'],
+
+            $moveRange['to']
+
+        );
+
+        if ($parsed['end_ts'] > $targetFrom) {
+
+            $calendarRange['to'] = $parsed['end_ts'];
+
+        }
+
+        Paziresh24AppointmentApi::notePendingCalendarSync(
+
+            $bookId,
+
+            $calendarRange['from'],
+
+            $calendarRange['to']
+
+        );
+
+
 
         return true;
 

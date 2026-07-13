@@ -12,6 +12,7 @@ final class HamgamSyncMessages
         'no_token_row' => 'اتصال Google یافت نشد. دوباره حساب Google را متصل کنید.',
         'google_token_refresh_failed' => 'همگام‌سازی Google Calendar ناموفق بود. اتصال Google را بررسی کنید.',
         'watch_registration_failed' => 'ثبت همگام‌سازی زنده تقویم Google ناموفق بود. تنظیمات را دوباره ذخیره کنید.',
+        'sync_token_repair_failed' => 'توکن همگام‌سازی تقویم Google هنوز ثبت نشده. یک‌بار دیگر از پنل پذیرش۲۴ وارد شوید.',
         'calendar_channel_missing' => 'شناسه کانال همگام‌سازی تقویم Google ثبت نشده است. یک‌بار تنظیمات را ذخیره کنید.',
         'calendar_resource_missing' => 'شناسه منبع همگام‌سازی تقویم Google ثبت نشده است. یک‌بار تنظیمات را ذخیره کنید.',
         'sync_failed' => 'خطا در همگام‌سازی Google Calendar. چند لحظه بعد دوباره تلاش کنید.',

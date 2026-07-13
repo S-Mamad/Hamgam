@@ -77,6 +77,7 @@ final class HamgamConnectionService
             } elseif (GoogleTokensRepository::needsSyncTokenRepair($tokenRow)) {
                 if (!self::repairSyncTokenForUser($userId, $tokenRow)) {
                     error_log('[hamgam-connection] google_sync_token repair failed for user ' . $userId);
+                    $warnings[] = HamgamSyncMessages::warning('sync_token_repair_failed');
                 }
             }
         } catch (Throwable $e) {

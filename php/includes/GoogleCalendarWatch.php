@@ -143,7 +143,7 @@ final class GoogleCalendarWatch
 
     /**
      * Establish an incremental sync token without touching watch registration.
-     * Lists only a bounded recent window; returned events are discarded.
+     * Pages through a bounded recent window without loading event payloads.
      */
     public static function captureInitialSyncToken(string $accessToken, int $lookbackDays = 2): ?string
     {
@@ -151,11 +151,80 @@ final class GoogleCalendarWatch
             $lookbackDays = 1;
         }
 
-        $timeMin = gmdate('Y-m-d\TH:i:s\Z', time() - ($lookbackDays * 86400));
-        $result = self::listChangedEvents($accessToken, null, $timeMin);
-        $syncToken = $result['nextSyncToken'];
+        $windows = array_values(array_unique([1, $lookbackDays, 7]));
+        sort($windows);
 
-        return is_string($syncToken) && $syncToken !== '' ? $syncToken : null;
+        foreach ($windows as $days) {
+            $syncToken = self::fetchSyncTokenForWindow($accessToken, $days);
+            if ($syncToken !== null) {
+                return $syncToken;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Paginate events.list with a minimal partial response until nextSyncToken is returned.
+     */
+    private static function fetchSyncTokenForWindow(string $accessToken, int $lookbackDays): ?string
+    {
+        if ($lookbackDays < 1) {
+            $lookbackDays = 1;
+        }
+
+        $baseUrl = Config::get(
+            'GOOGLE_CALENDAR_EVENTS_LIST_URL',
+            'https://www.googleapis.com/calendar/v3/calendars/primary/events'
+        );
+
+        $timeMin = gmdate('Y-m-d\TH:i:s\Z', time() - ($lookbackDays * 86400));
+        $pageToken = null;
+        $nextSyncToken = null;
+
+        do {
+            $query = [
+                'maxResults' => 250,
+                'singleEvents' => 'true',
+                'showDeleted' => 'true',
+                'timeMin' => $timeMin,
+                // Skip event payloads — only pagination tokens are needed to establish sync.
+                'fields' => 'nextPageToken,nextSyncToken',
+            ];
+
+            if ($pageToken !== null) {
+                $query['pageToken'] = $pageToken;
+            }
+
+            $url = $baseUrl . '?' . http_build_query($query);
+
+            $response = HttpClient::request(
+                'GET',
+                $url,
+                ['Authorization' => 'Bearer ' . $accessToken]
+            );
+
+            if ($response['status'] < 200 || $response['status'] >= 300) {
+                error_log(
+                    '[google-vacation] fetchSyncTokenForWindow failed: HTTP '
+                    . $response['status']
+                    . ' lookbackDays=' . $lookbackDays
+                );
+
+                return null;
+            }
+
+            $body = $response['body'] ?? [];
+            $pageToken = isset($body['nextPageToken']) && is_string($body['nextPageToken'])
+                ? $body['nextPageToken']
+                : null;
+
+            if (isset($body['nextSyncToken']) && is_string($body['nextSyncToken']) && $body['nextSyncToken'] !== '') {
+                $nextSyncToken = $body['nextSyncToken'];
+            }
+        } while ($pageToken !== null);
+
+        return is_string($nextSyncToken) && $nextSyncToken !== '' ? $nextSyncToken : null;
     }
 
     /**
