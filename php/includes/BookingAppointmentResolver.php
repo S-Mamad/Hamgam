@@ -325,6 +325,22 @@ final class BookingAppointmentResolver
             : null;
         $authoritativeFrom = self::extractAuthoritativeStartTimestamp($booking);
 
+        // Some webhooks update unix timestamps (`from`, `start_timestamp`) faster than wall-clock fields
+        // (`from_date`+`from_hour`, `book_date`+`book_time`). When they disagree and we do not have a
+        // stronger signal (book_timestamp/turn_num), prefer numeric timestamps — except the known
+        // "+15m/+30m slot overshoot" pattern where wall-clock is correct.
+        if (
+            $wallClockRange !== null
+            && $correctedNumeric !== null
+            && $authoritativeFrom === null
+            && abs($correctedNumeric['from'] - $wallClockRange['from']) >= 60
+        ) {
+            $diff = $correctedNumeric['from'] - $wallClockRange['from'];
+            if (!($diff !== 0 && $diff % 900 === 0 && abs($diff) <= 3600)) {
+                return self::applyExplicitDuration($correctedNumeric, $booking);
+            }
+        }
+
         if (
             $wallClockRange !== null
             && $authoritativeFrom !== null
