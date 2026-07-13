@@ -676,6 +676,47 @@ assertTest(
     ], 0, 1_740_000_000, 1_760_000_000) === null
 );
 
+assertTest(
+    'appointmentTimestampMatchesSlot accepts wall-clock slot after move',
+    Paziresh24AppointmentApi::appointmentTimestampMatchesSlot([
+        'from' => 1_781_932_500,
+        'from_date' => '2026-06-20',
+        'from_hour' => '08:30',
+        'duration' => 15,
+    ], 1_781_931_600)
+);
+
+assertTest(
+    'appointmentTimestampMatchesSlot accepts workhour_turn_num slot',
+    Paziresh24AppointmentApi::appointmentTimestampMatchesSlot([
+        'workhour_turn_num' => 1_781_931_600,
+        'from' => 1_781_932_500,
+    ], 1_781_931_600)
+);
+
+Paziresh24AppointmentApi::notePendingCalendarSync('book-sync-test', 1_781_931_600, 1_781_932_500);
+assertTest(
+    'calendarMatchesPendingSync accepts recently synced calendar position',
+    Paziresh24AppointmentApi::calendarMatchesPendingSync('book-sync-test', 1_781_931_600, 1_781_932_500)
+);
+Paziresh24AppointmentApi::clearPendingCalendarSync('book-sync-test');
+
+assertTest(
+    'syncSingleEvent routes appointment updates through processUpdatedAppointmentEvent',
+    str_contains(
+        (string) file_get_contents(__DIR__ . '/../google-vacation/VacationSyncService.php'),
+        'processUpdatedAppointmentEvent('
+    )
+);
+
+assertTest(
+    'rescheduleToFirstAvailableSlot does not demote API success on verify mismatch',
+    str_contains(
+        (string) file_get_contents(__DIR__ . '/../includes/Paziresh24AppointmentApi.php'),
+        'move verify inconclusive but API success'
+    )
+);
+
 echo json_encode([
     'ok' => $failed === 0,
     'passed' => $passed,

@@ -308,6 +308,12 @@ final class AppointmentWebhookService
             $googleEventId = is_string($createdBody['id'] ?? null) ? $createdBody['id'] : '';
             GoogleCalendarBookingRepository::recordProcessedBooking($doctorUserId, $bookId, $googleEventId);
 
+            Paziresh24AppointmentApi::notePendingCalendarSync(
+                $bookId,
+                $appointmentRange['from'],
+                $appointmentRange['to']
+            );
+
             return array_filter([
                 'ok' => true,
                 'created' => true,
@@ -324,6 +330,12 @@ final class AppointmentWebhookService
         if ($updatedBody === null) {
             throw new AppointmentWebhookException('Calendar event update failed', 502);
         }
+
+        Paziresh24AppointmentApi::notePendingCalendarSync(
+            $bookId,
+            $appointmentRange['from'],
+            $appointmentRange['to']
+        );
 
         $duplicateDeleted = self::deleteCalendarEvents(
             $context['google_access_token'],

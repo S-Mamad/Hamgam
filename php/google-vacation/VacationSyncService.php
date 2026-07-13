@@ -918,9 +918,11 @@ final class VacationSyncService
 
         if (GoogleEventParser::isHamgamAppointmentEvent($googleEvent)) {
 
-            self::revertHamgamAppointmentCalendarToApi(
+            $moved = self::processUpdatedAppointmentEvent(
 
                 $userId,
+
+                $tokenRow,
 
                 $googleEvent,
 
@@ -929,6 +931,22 @@ final class VacationSyncService
                 $hamdastAccessToken
 
             );
+
+            if (!$moved) {
+
+                self::revertHamgamAppointmentCalendarToApi(
+
+                    $userId,
+
+                    $googleEvent,
+
+                    $parsed,
+
+                    $hamdastAccessToken
+
+                );
+
+            }
 
             return 'skipped';
 
@@ -5230,11 +5248,6 @@ final class VacationSyncService
 
     ): bool {
 
-        // DISABLED: جابه‌جایی دستی نوبت در Google Calendar نباید زمان نوبت را در پذیرش۲۴ تغییر دهد.
-        return false;
-
-        /*
-
         $eventId = $parsed['event_id'];
 
         $bookId = GoogleEventParser::extractBookId($googleEvent);
@@ -5293,7 +5306,7 @@ final class VacationSyncService
 
         if (self::appointmentTimestampsMatch($moveRange['from'], $targetFrom)) {
 
-            return false;
+            return true;
 
         }
 
@@ -5437,8 +5450,6 @@ final class VacationSyncService
 
         return true;
 
-        */
-
     }
 
 
@@ -5463,8 +5474,7 @@ final class VacationSyncService
 
     ): void {
 
-        // DISABLED: فقط برای بازگرداندن تقویم پس از شکست جابه‌جایی دستی نوبت استفاده می‌شد.
-        // self::syncAppointmentCalendarAfterReschedule($userId, $bookId, $hamdastAccessToken);
+        self::syncAppointmentCalendarAfterReschedule($userId, $bookId, $hamdastAccessToken);
 
     }
 
@@ -6490,9 +6500,51 @@ final class VacationSyncService
 
 
 
+        if (
+
+            Paziresh24AppointmentApi::calendarMatchesPendingSync(
+
+                $bookId,
+
+                $parsed['start_ts'],
+
+                $parsed['end_ts']
+
+            )
+
+        ) {
+
+            return;
+
+        }
+
+
+
         $appointment = GoogleCalendar::getAppointment($bookId, $hamdastAccessToken);
 
         if (!is_array($appointment)) {
+
+            return;
+
+        }
+
+
+
+        if (
+
+            Paziresh24AppointmentApi::appointmentTimestampMatchesSlot($appointment, $parsed['start_ts'])
+
+        ) {
+
+            return;
+
+        }
+
+
+
+        $moveFrom = Paziresh24AppointmentApi::extractMoveFromTimestamp($appointment);
+
+        if ($moveFrom !== null && abs($moveFrom - $parsed['start_ts']) < 60) {
 
             return;
 
@@ -6575,6 +6627,32 @@ final class VacationSyncService
             error_log('[google-vacation] calendar sync after reschedule skipped: appointment fetch book_id=' . $bookId);
 
             return;
+
+        }
+
+
+
+        if (
+
+            is_array($forcedRange)
+
+            && isset($forcedRange['from'], $forcedRange['to'])
+
+            && (int) $forcedRange['from'] > 0
+
+            && (int) $forcedRange['to'] > (int) $forcedRange['from']
+
+        ) {
+
+            Paziresh24AppointmentApi::notePendingCalendarSync(
+
+                $bookId,
+
+                (int) $forcedRange['from'],
+
+                (int) $forcedRange['to']
+
+            );
 
         }
 

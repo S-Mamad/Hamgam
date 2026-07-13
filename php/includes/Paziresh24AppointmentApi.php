@@ -10,10 +10,69 @@ final class Paziresh24AppointmentApi
     /** @var array<string, array<string, mixed>|null> */
     private static array $slotsBodyCache = [];
 
+    /** @var array<string, array{from: int, to: int, expires: float}> */
+    private static array $pendingCalendarSyncByBookId = [];
+
     public static function resetAppointmentCache(): void
     {
         self::$appointmentCacheByBookId = [];
         self::$slotsBodyCache = [];
+    }
+
+    /**
+     * Remember a calendar position we just wrote so webhook revert does not fight our sync.
+     */
+    public static function notePendingCalendarSync(
+        string $bookId,
+        int $from,
+        int $to,
+        int $ttlSeconds = 180
+    ): void {
+        $bookId = trim($bookId);
+        if ($bookId === '' || $from <= 0 || $to <= $from) {
+            return;
+        }
+
+        self::$pendingCalendarSyncByBookId[$bookId] = [
+            'from' => $from,
+            'to' => $to,
+            'expires' => microtime(true) + max(30, $ttlSeconds),
+        ];
+    }
+
+    public static function calendarMatchesPendingSync(
+        string $bookId,
+        int $calendarFrom,
+        int $calendarTo
+    ): bool {
+        $bookId = trim($bookId);
+        if ($bookId === '') {
+            return false;
+        }
+
+        $entry = self::$pendingCalendarSyncByBookId[$bookId] ?? null;
+        if (!is_array($entry)) {
+            return false;
+        }
+
+        if (microtime(true) > (float) ($entry['expires'] ?? 0)) {
+            unset(self::$pendingCalendarSyncByBookId[$bookId]);
+
+            return false;
+        }
+
+        return abs($calendarFrom - (int) ($entry['from'] ?? 0)) < 60
+            && abs($calendarTo - (int) ($entry['to'] ?? 0)) < 120;
+    }
+
+    public static function clearPendingCalendarSync(string $bookId): void
+    {
+        $bookId = trim($bookId);
+        if ($bookId === '') {
+            return;
+        }
+
+        unset(self::$pendingCalendarSyncByBookId[$bookId]);
     }
 
     /**
@@ -1203,13 +1262,12 @@ final class Paziresh24AppointmentApi
             if ($moveResult['success']) {
                 if (!self::verifyAppointmentMovedToSlot($accessToken, $bookId, $targetFrom)) {
                     error_log(
-                        '[hamgam-appointment] move verify failed book_id=' . $bookId
+                        '[hamgam-appointment] move verify inconclusive but API success book_id=' . $bookId
                         . ' target_from=' . $targetFrom
                     );
-                    $moveResult['success'] = false;
-                } else {
-                    break;
                 }
+
+                break;
             }
 
             if ($moveResult['permission_denied'] ?? false) {
@@ -1280,17 +1338,49 @@ final class Paziresh24AppointmentApi
             return false;
         }
 
-        // After move, Paziresh24 often updates numeric timestamps before date/hour fields.
-        foreach (['from', 'book_timestamp', 'turn_num', 'start_timestamp'] as $key) {
+        if (self::appointmentTimestampMatchesSlot($appointment, $expectedFrom)) {
+            return true;
+        }
+
+        $range = self::resolveMoveRangeFromAppointment($appointment, 0, 0);
+
+        return $range['from'] > 0 && abs($range['from'] - $expectedFrom) < 60;
+    }
+
+    /**
+     * Paziresh24 may expose the same slot as workhour_turn_num, wall-clock fields, or +15m numeric overshoot.
+     *
+     * @param array<string, mixed> $appointment
+     */
+    public static function appointmentTimestampMatchesSlot(array $appointment, int $expectedFrom): bool
+    {
+        if ($expectedFrom <= 0) {
+            return false;
+        }
+
+        foreach (['workhour_turn_num', 'turn_num', 'from', 'book_timestamp', 'start_timestamp'] as $key) {
             $ts = self::normalizeUnixTimestamp($appointment[$key] ?? null);
             if ($ts !== null && abs($ts - $expectedFrom) < 60) {
                 return true;
             }
         }
 
-        $range = self::resolveMoveRangeFromAppointment($appointment, 0, 0);
+        $wallClockRange = BookingAppointmentResolver::extractRangeFromPayload($appointment);
+        if ($wallClockRange !== null && abs($wallClockRange['from'] - $expectedFrom) < 60) {
+            return true;
+        }
 
-        return $range['from'] > 0 && abs($range['from'] - $expectedFrom) < 60;
+        $numericFrom = self::normalizeUnixTimestamp($appointment['from'] ?? null);
+        if (
+            $numericFrom !== null
+            && ($numericFrom - $expectedFrom) === 900
+            && $wallClockRange !== null
+            && abs($wallClockRange['from'] - $expectedFrom) < 60
+        ) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
