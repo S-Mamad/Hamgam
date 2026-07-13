@@ -574,8 +574,25 @@ assertTest(
     )
 );
 assertTest(
-    'rescheduleSingleOverlappingAppointment syncs stale calendar when API no longer overlaps',
-    str_contains($vacationSyncSource, 'stale calendar appointment synced (api no longer overlaps)')
+    'rescheduleSingleOverlappingAppointment skips harmful stale calendar write',
+    str_contains($vacationSyncSource, 'appointment no longer overlaps vacation — skipping calendar write')
+);
+
+assertTest(
+    'resolveMoveRangeFromAppointment prefers live numeric slot over stale wall-clock',
+    Paziresh24AppointmentApi::resolveMoveRangeFromAppointment([
+        'from' => 1_781_932_500,
+        'to' => 1_781_932_900,
+        'from_date' => '2026-06-20',
+        'from_hour' => '08:00',
+        'book_timestamp' => 1_781_931_600,
+        'duration' => 15,
+    ], 0, 0)['from'] === 1_781_931_600
+);
+
+assertTest(
+    'appointment conflict resolution guard blocks revert during vacation move',
+    method_exists(Paziresh24AppointmentApi::class, 'isAppointmentConflictResolutionGuarded')
 );
 
 assertTest(

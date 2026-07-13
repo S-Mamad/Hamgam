@@ -13,10 +13,78 @@ final class Paziresh24AppointmentApi
     /** @var array<string, array{from: int, to: int, expires: float}> */
     private static array $pendingCalendarSyncByBookId = [];
 
+    /** @var array<string, float> */
+    private static array $conflictResolutionGuardUntil = [];
+
     public static function resetAppointmentCache(): void
     {
         self::$appointmentCacheByBookId = [];
         self::$slotsBodyCache = [];
+    }
+
+    /**
+     * Block appointment webhook revert/move while vacation conflict resolution is updating this book.
+     */
+    public static function guardAppointmentConflictResolution(string $bookId, int $ttlSeconds = 180): void
+    {
+        $bookId = trim($bookId);
+        if ($bookId === '') {
+            return;
+        }
+
+        self::$conflictResolutionGuardUntil[$bookId] = microtime(true) + max(30, $ttlSeconds);
+    }
+
+    public static function isAppointmentConflictResolutionGuarded(string $bookId): bool
+    {
+        $bookId = trim($bookId);
+        if ($bookId === '') {
+            return false;
+        }
+
+        $expires = self::$conflictResolutionGuardUntil[$bookId] ?? null;
+        if (!is_float($expires)) {
+            return false;
+        }
+
+        if (microtime(true) > $expires) {
+            unset(self::$conflictResolutionGuardUntil[$bookId]);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    public static function clearAppointmentConflictResolutionGuard(string $bookId): void
+    {
+        $bookId = trim($bookId);
+        if ($bookId === '') {
+            return;
+        }
+
+        unset(self::$conflictResolutionGuardUntil[$bookId]);
+    }
+
+    public static function hasActivePendingCalendarSync(string $bookId): bool
+    {
+        $bookId = trim($bookId);
+        if ($bookId === '') {
+            return false;
+        }
+
+        $entry = self::$pendingCalendarSyncByBookId[$bookId] ?? null;
+        if (!is_array($entry)) {
+            return false;
+        }
+
+        if (microtime(true) > (float) ($entry['expires'] ?? 0)) {
+            unset(self::$pendingCalendarSyncByBookId[$bookId]);
+
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -827,6 +895,22 @@ final class Paziresh24AppointmentApi
         int $fallbackTo = 0
     ): array {
         $payloadRange = BookingAppointmentResolver::extractRangeFromPayload($appointment);
+        $numericFrom = self::extractMoveFromTimestamp($appointment);
+
+        if (
+            $numericFrom !== null
+            && $numericFrom > 0
+            && $payloadRange !== null
+            && $payloadRange['from'] > 0
+            && $payloadRange['to'] > $payloadRange['from']
+            && abs($payloadRange['from'] - $numericFrom) >= 60
+        ) {
+            return self::normalizeMoveRange(
+                self::buildRangeFromMoveTarget($numericFrom, $payloadRange['from'], $payloadRange['to']),
+                $appointment
+            );
+        }
+
         if (
             $payloadRange !== null
             && $payloadRange['from'] > 0
@@ -835,7 +919,7 @@ final class Paziresh24AppointmentApi
             return self::normalizeMoveRange($payloadRange, $appointment);
         }
 
-        $moveFrom = self::extractMoveFromTimestamp($appointment);
+        $moveFrom = $numericFrom;
 
         if ($moveFrom !== null) {
             $to = $fallbackTo;

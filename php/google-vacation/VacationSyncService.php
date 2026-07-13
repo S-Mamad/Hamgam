@@ -116,6 +116,36 @@ final class VacationSyncService
 
 
 
+        usort(
+
+            $events,
+
+            static function (mixed $left, mixed $right): int {
+
+                if (!is_array($left) || !is_array($right)) {
+
+                    return 0;
+
+                }
+
+                $leftAppointment = GoogleEventParser::isHamgamAppointmentEvent($left);
+
+                $rightAppointment = GoogleEventParser::isHamgamAppointmentEvent($right);
+
+                if ($leftAppointment === $rightAppointment) {
+
+                    return 0;
+
+                }
+
+                return $leftAppointment ? 1 : -1;
+
+            }
+
+        );
+
+
+
         foreach ($events as $event) {
 
             if (!is_array($event)) {
@@ -918,7 +948,83 @@ final class VacationSyncService
 
         if (GoogleEventParser::isHamgamAppointmentEvent($googleEvent)) {
 
-            $moved = self::processUpdatedAppointmentEvent(
+            $bookId = GoogleEventParser::extractBookId($googleEvent) ?? '';
+
+            if ($bookId !== '') {
+
+                if (
+
+                    Paziresh24AppointmentApi::isAppointmentConflictResolutionGuarded($bookId)
+
+                    || Paziresh24AppointmentApi::hasActivePendingCalendarSync($bookId)
+
+                ) {
+
+                    error_log(
+
+                        '[google-vacation] appointment webhook skipped during conflict resolution book_id='
+
+                        . $bookId
+
+                    );
+
+                    return 'skipped';
+
+                }
+
+                if (
+
+                    Paziresh24AppointmentApi::calendarMatchesPendingSync(
+
+                        $bookId,
+
+                        $parsed['start_ts'],
+
+                        $parsed['end_ts']
+
+                    )
+
+                ) {
+
+                    return 'skipped';
+
+                }
+
+                if ($hamdastAccessToken !== '') {
+
+                    Paziresh24AppointmentApi::invalidateAppointmentCache($bookId);
+
+                    $appointment = Paziresh24AppointmentApi::fetchAppointmentForMove(
+
+                        $bookId,
+
+                        $hamdastAccessToken
+
+                    );
+
+                    if (
+
+                        is_array($appointment)
+
+                        && Paziresh24AppointmentApi::appointmentTimestampMatchesSlot(
+
+                            $appointment,
+
+                            $parsed['start_ts']
+
+                        )
+
+                    ) {
+
+                        return 'skipped';
+
+                    }
+
+                }
+
+            }
+
+            self::processUpdatedAppointmentEvent(
 
                 $userId,
 
@@ -931,22 +1037,6 @@ final class VacationSyncService
                 $hamdastAccessToken
 
             );
-
-            if (!$moved) {
-
-                self::revertHamgamAppointmentCalendarToApi(
-
-                    $userId,
-
-                    $googleEvent,
-
-                    $parsed,
-
-                    $hamdastAccessToken
-
-                );
-
-            }
 
             return 'skipped';
 
@@ -6384,6 +6474,8 @@ final class VacationSyncService
 
     ): bool {
 
+        Paziresh24AppointmentApi::guardAppointmentConflictResolution($bookId);
+
         Paziresh24AppointmentApi::invalidateAppointmentCache($bookId);
 
         $calendarFrom = $bookFrom;
@@ -6438,23 +6530,15 @@ final class VacationSyncService
 
         if (!$apiOverlapsVacation && !$calendarOverlapsVacation) {
 
-            self::syncAppointmentCalendarAfterReschedule(
-
-                $userId,
-
-                $bookId,
-
-                $hamdastAccessToken,
-
-                ['from' => $bookFrom, 'to' => $bookTo]
-
-            );
-
             error_log(
 
-                '[google-vacation] stale calendar appointment synced (api no longer overlaps) book_id=' . $bookId
+                '[google-vacation] appointment no longer overlaps vacation — skipping calendar write book_id='
+
+                . $bookId
 
             );
+
+            Paziresh24AppointmentApi::clearAppointmentConflictResolutionGuard($bookId);
 
             return true;
 
@@ -6516,9 +6600,21 @@ final class VacationSyncService
 
             );
 
+            Paziresh24AppointmentApi::clearAppointmentConflictResolutionGuard($bookId);
+
             return false;
 
         }
+
+
+
+        $targetFrom = is_int($result['target_from'] ?? null) ? (int) $result['target_from'] : 0;
+
+        $forcedRange = $targetFrom > 0
+
+            ? Paziresh24AppointmentApi::buildRangeFromMoveTarget($targetFrom, $bookFrom, $bookTo)
+
+            : null;
 
 
 
@@ -6530,21 +6626,13 @@ final class VacationSyncService
 
             $hamdastAccessToken,
 
-            self::resolveCalendarSyncRangeAfterMove(
-
-                $bookId,
-
-                $hamdastAccessToken,
-
-                $bookFrom,
-
-                $bookTo,
-
-                is_int($result['target_from'] ?? null) ? (int) $result['target_from'] : null
-
-            )
+            $forcedRange
 
         );
+
+
+
+        Paziresh24AppointmentApi::clearAppointmentConflictResolutionGuard($bookId);
 
 
 
@@ -6579,6 +6667,14 @@ final class VacationSyncService
         $bookId = GoogleEventParser::extractBookId($googleEvent);
 
         if ($bookId === null || $bookId === '' || $hamdastAccessToken === '') {
+
+            return;
+
+        }
+
+
+
+        if (Paziresh24AppointmentApi::isAppointmentConflictResolutionGuarded($bookId)) {
 
             return;
 
@@ -6628,19 +6724,9 @@ final class VacationSyncService
 
 
 
-        $moveFrom = Paziresh24AppointmentApi::extractMoveFromTimestamp($appointment);
+        $moveRange = Paziresh24AppointmentApi::resolveMoveRangeFromAppointment($appointment, 0, 0);
 
-        if ($moveFrom !== null && abs($moveFrom - $parsed['start_ts']) < 60) {
-
-            return;
-
-        }
-
-
-
-        $apiRange = BookingAppointmentResolver::extractRangeFromPayload($appointment);
-
-        if ($apiRange === null) {
+        if ($moveRange['from'] <= 0 || $moveRange['to'] <= $moveRange['from']) {
 
             return;
 
@@ -6648,9 +6734,7 @@ final class VacationSyncService
 
 
 
-        $calendarDiff = abs($apiRange['from'] - $parsed['start_ts']);
-
-        if ($calendarDiff < 60) {
+        if (abs($moveRange['from'] - $parsed['start_ts']) < 60) {
 
             return;
 
@@ -6666,7 +6750,7 @@ final class VacationSyncService
 
             . ' calendar_from=' . $parsed['start_ts']
 
-            . ' api_from=' . $apiRange['from']
+            . ' api_from=' . $moveRange['from']
 
         );
 
@@ -6674,7 +6758,15 @@ final class VacationSyncService
 
         try {
 
-            AppointmentWebhookService::syncCalendarFromApiMove($userId, $bookId);
+            AppointmentWebhookService::syncCalendarFromApiMove(
+
+                $userId,
+
+                $bookId,
+
+                $moveRange
+
+            );
 
         } catch (Throwable $e) {
 
