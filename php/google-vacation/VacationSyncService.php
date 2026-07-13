@@ -3233,6 +3233,36 @@ final class VacationSyncService
 
         ) {
 
+            $partialUpdated = self::resolveGoogleUpdatedTs($partialParsed);
+
+            $fullUpdated = self::resolveGoogleUpdatedTs($fullParsed);
+
+            if (
+
+                $partialUpdated !== null
+
+                && ($fullUpdated === null || $partialUpdated >= $fullUpdated)
+
+            ) {
+
+                error_log(
+
+                    '[google-vacation] hydrated event kept webhook times id=' . $eventId
+
+                    . ' partial_from=' . $partialParsed['start_ts']
+
+                    . ' full_from=' . $fullParsed['start_ts']
+
+                    . ' partial_updated=' . $partialUpdated
+
+                    . ' full_updated=' . ($fullUpdated ?? '')
+
+                );
+
+                return $googleEvent;
+
+            }
+
             error_log(
 
                 '[google-vacation] hydrated event times id=' . $eventId
@@ -6356,6 +6386,10 @@ final class VacationSyncService
 
         Paziresh24AppointmentApi::invalidateAppointmentCache($bookId);
 
+        $calendarFrom = $bookFrom;
+
+        $calendarTo = $bookTo;
+
         $freshRange = Paziresh24AppointmentApi::resolveMoveRange($hamdastAccessToken, $bookId, $bookFrom, $bookTo);
 
         if ($freshRange['from'] > 0 && $freshRange['to'] > $freshRange['from']) {
@@ -6376,7 +6410,33 @@ final class VacationSyncService
 
 
 
-        if (!$apiOverlapsVacation) {
+        $calendarOverlapsVacation = $calendarFrom > 0
+
+            && $calendarTo > $calendarFrom
+
+            && self::rangesOverlap($calendarFrom, $calendarTo, $vacationFrom, $vacationTo);
+
+
+
+        if (!$apiOverlapsVacation && $calendarOverlapsVacation) {
+
+            error_log(
+
+                '[google-vacation] calendar overlap without API overlap — rescheduling from live slot book_id='
+
+                . $bookId
+
+                . ' api_from=' . $bookFrom
+
+                . ' calendar_from=' . $calendarFrom
+
+            );
+
+        }
+
+
+
+        if (!$apiOverlapsVacation && !$calendarOverlapsVacation) {
 
             self::syncAppointmentCalendarAfterReschedule(
 
@@ -6386,7 +6446,7 @@ final class VacationSyncService
 
                 $hamdastAccessToken,
 
-                self::resolveCalendarSyncRangeAfterMove($bookId, $hamdastAccessToken, $bookFrom, $bookTo)
+                ['from' => $bookFrom, 'to' => $bookTo]
 
             );
 

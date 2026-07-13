@@ -579,6 +579,16 @@ assertTest(
 );
 
 assertTest(
+    'rescheduleSingleOverlappingAppointment reschedules when calendar overlaps but API does not',
+    str_contains($vacationSyncSource, 'calendar overlap without API overlap — rescheduling from live slot')
+);
+
+assertTest(
+    'hydrateGoogleEventForVacationSync keeps fresher webhook times over stale GET',
+    str_contains($vacationSyncSource, 'hydrated event kept webhook times')
+);
+
+assertTest(
     'VacationSyncService has processUpdatedAppointmentEvent',
     $syncRef->hasMethod('processUpdatedAppointmentEvent')
 );
