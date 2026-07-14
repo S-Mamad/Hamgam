@@ -33,6 +33,35 @@ final class Config
             $value = trim($parts[1], " \t\n\r\0\x0B\"'");
             self::$values[$key] = $value;
         }
+
+        $localPath = dirname($envPath) . DIRECTORY_SEPARATOR . '.env.local';
+        if (is_file($localPath)) {
+            self::mergeEnvFile($localPath);
+        }
+    }
+
+    private static function mergeEnvFile(string $envPath): void
+    {
+        $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if ($lines === false) {
+            return;
+        }
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || str_starts_with($line, '#')) {
+                continue;
+            }
+
+            $parts = explode('=', $line, 2);
+            if (count($parts) !== 2) {
+                continue;
+            }
+
+            $key = trim($parts[0]);
+            $value = trim($parts[1], " \t\n\r\0\x0B\"'");
+            self::$values[$key] = $value;
+        }
     }
 
     public static function get(string $key, ?string $default = null): ?string

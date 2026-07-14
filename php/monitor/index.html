@@ -4,175 +4,339 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>پنل مانیتورینگ Zamanak</title>
-    <link rel="stylesheet" href="monitor.css?v=2">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="monitor.css?v=6">
 </head>
 <body>
+
+<!-- ورود -->
 <div id="login-screen" class="login-screen hidden">
-    <div class="login-card">
-        <div class="login-logo">⏱ Zamanak Monitor</div>
-        <p class="login-desc">برای دسترسی به پنل مانیتورینگ، کلید API را وارد کنید.</p>
-        <input id="login-key" type="password" placeholder="MONITOR_API_KEY یا HAMDAST_API_KEY" autocomplete="off">
-        <button id="login-btn" type="button">ورود به داشبورد</button>
-        <p id="login-error" class="login-error hidden"></p>
+    <div class="login-wrap">
+        <div class="login-brand">
+            <div class="logo-mark">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <h1>پنل مانیتورینگ Zamanak</h1>
+            <p>مشاهده وضعیت همگام‌سازی Hamgam، خطاها و پزشکان</p>
+        </div>
+        <div class="login-card">
+            <label for="login-key">کلید دسترسی (MONITOR_API_KEY)</label>
+            <input id="login-key" type="password" placeholder="کلید را از فایل php/.env وارد کنید" autocomplete="off">
+            <button id="login-btn" type="button">ورود به پنل</button>
+            <p id="login-error" class="login-error hidden"></p>
+        </div>
     </div>
 </div>
 
 <div id="app" class="app hidden">
-    <aside class="sidebar">
-        <div class="brand">
-            <span class="brand-icon">⏱</span>
-            <div>
-                <strong>Zamanak Monitor</strong>
-                <small>مانیتورینگ کامل سیستم</small>
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-top">
+            <div class="brand">
+                <div class="logo-mark sm">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </div>
+                <div class="brand-text">
+                    <strong>Zamanak</strong>
+                    <span id="conn-status" class="conn-status"><span class="pulse-dot"></span><span id="conn-label">متصل</span></span>
+                </div>
             </div>
+
+            <nav class="nav">
+                <button class="nav-item active" data-tab="dashboard">
+                    <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/></svg>
+                    <span><strong>خلاصه وضعیت</strong><small>آیا همه‌چیز درست کار می‌کند؟</small></span>
+                </button>
+                <button class="nav-item" data-tab="events">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h10M4 18h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    <span><strong>گزارش رویدادها</strong><small>لاگ دقیق هر اتفاق</small></span>
+                </button>
+                <button class="nav-item" data-tab="users">
+                    <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    <span><strong>پزشکان</strong><small>اتصال گوگل و sync</small></span>
+                </button>
+                <button class="nav-item" data-tab="user-timeline">
+                    <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    <span><strong>تاریخچه پزشک</strong><small>همه کارهای سیستم روی یک نفر</small></span>
+                </button>
+                <button class="nav-item" data-tab="logs">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M8 6h12M8 12h12M8 18h8M4 6h.01M4 12h.01M4 18h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    <span><strong>خطاهای PHP</strong><small>فایل خطای سرور</small></span>
+                </button>
+                <button class="nav-item" data-tab="system">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.5"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="1.5"/></svg>
+                    <span><strong>سلامت سرور</strong><small>دیتابیس و تنظیمات</small></span>
+                </button>
+            </nav>
         </div>
 
-        <nav class="nav">
-            <button class="nav-item active" data-tab="dashboard">داشبورد</button>
-            <button class="nav-item" data-tab="events">رویدادها</button>
-            <button class="nav-item" data-tab="users">پزشکان</button>
-            <button class="nav-item" data-tab="logs">لاگ فایل</button>
-            <button class="nav-item" data-tab="system">سیستم</button>
-        </nav>
-
-        <div class="sidebar-footer">
-            <label class="toggle">
+        <div class="sidebar-bottom">
+            <div id="sidebar-alerts" class="sidebar-alerts"></div>
+            <label class="toggle-row">
                 <input id="auto-refresh" type="checkbox" checked>
-                <span>بروزرسانی خودکار (۵ ثانیه)</span>
+                <span class="toggle-ui"></span>
+                <span>بروزرسانی هر ۵ ثانیه</span>
             </label>
-            <button id="logout-btn" type="button" class="ghost-btn">خروج</button>
+            <button id="logout-btn" type="button" class="btn-ghost sm">خروج</button>
         </div>
     </aside>
 
     <main class="main">
         <header class="topbar">
-            <div>
-                <h1 id="page-title">داشبورد</h1>
-                <p id="last-updated" class="muted">—</p>
+            <div class="topbar-start">
+                <button id="sidebar-toggle" type="button" class="icon-btn mobile-only" aria-label="منو">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </button>
+                <div>
+                    <h1 id="page-title">خلاصه وضعیت</h1>
+                    <p id="page-desc" class="page-desc">نمای کلی سلامت سیستم Hamgam</p>
+                    <p id="last-updated" class="subtle">—</p>
+                </div>
             </div>
-            <div class="topbar-actions">
-                <select id="period-select">
-                    <option value="1">۱ ساعت</option>
-                    <option value="6">۶ ساعت</option>
-                    <option value="24" selected>۲۴ ساعت</option>
-                    <option value="72">۳ روز</option>
-                    <option value="168">۷ روز</option>
-                </select>
-                <button id="refresh-btn" type="button">بروزرسانی</button>
+            <div class="topbar-end">
+                <span class="period-label">بازه:</span>
+                <div class="period-pills" id="period-pills">
+                    <button type="button" data-hours="1">۱ ساعت</button>
+                    <button type="button" data-hours="6">۶ ساعت</button>
+                    <button type="button" data-hours="24" class="active">۲۴ ساعت</button>
+                    <button type="button" data-hours="72">۳ روز</button>
+                    <button type="button" data-hours="168">۷ روز</button>
+                </div>
+                <button id="refresh-btn" type="button" class="icon-btn" title="بروزرسانی">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 10-2.3 5.7M20 12v-5M20 12h-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
             </div>
         </header>
 
-        <section id="tab-dashboard" class="tab-panel active">
-            <div id="status-banner" class="status-banner status-ok">
-                <span id="status-text">در حال بارگذاری...</span>
+        <div id="toast-host" class="toast-host"></div>
+
+        <!-- ═══ داشبورد ═══ -->
+        <section id="tab-dashboard" class="panel active">
+
+            <!-- وضعیت کلی -->
+            <div id="hero-status" class="hero-status status-ok">
+                <div class="hero-icon" id="hero-icon">✓</div>
+                <div class="hero-body">
+                    <h2 id="hero-title">در حال بررسی...</h2>
+                    <p id="hero-desc" class="hero-desc">—</p>
+                </div>
+                <div id="hero-stats" class="hero-stats"></div>
             </div>
 
-            <div class="stats-grid" id="stats-grid"></div>
-
-            <div class="grid-2">
-                <div class="card">
-                    <div class="card-header">
-                        <h2>نمودار رویدادها</h2>
-                    </div>
-                    <div class="chart-wrap">
-                        <canvas id="chart-hourly" height="220"></canvas>
+            <!-- نیاز به توجه -->
+            <div id="attention-panel" class="attention-panel hidden">
+                <div class="attention-head">
+                    <span class="attention-icon">⚠</span>
+                    <div>
+                        <strong>نیاز به توجه</strong>
+                        <p class="section-desc">این موارد را بررسی کنید</p>
                     </div>
                 </div>
-                <div class="card">
-                    <div class="card-header">
-                        <h2>کانال‌ها</h2>
-                    </div>
-                    <div id="channel-list" class="channel-list"></div>
-                </div>
+                <div id="attention-list" class="attention-list"></div>
             </div>
 
-            <div class="card">
-                <div class="card-header">
-                    <h2>آخرین خطاها</h2>
+            <!-- ۴ شاخص اصلی -->
+            <div class="primary-metrics" id="primary-metrics"></div>
+
+            <div class="dash-grid">
+                <!-- نمودار -->
+                <div class="panel-card span-2">
+                    <div class="card-head">
+                        <div>
+                            <h2>روند فعالیت سیستم</h2>
+                            <p class="section-desc">تعداد رویدادها در هر ساعت — نقطه‌های قرمز یعنی خطا رخ داده</p>
+                        </div>
+                        <div class="chart-legend">
+                            <span><i class="dot dot-total"></i>همه رویدادها</span>
+                            <span><i class="dot dot-error"></i>خطا</span>
+                        </div>
+                    </div>
+                    <div class="chart-area" id="chart-area">
+                        <canvas id="chart-hourly" height="200"></canvas>
+                        <div id="chart-tooltip" class="chart-tooltip hidden"></div>
+                    </div>
                 </div>
-                <div id="recent-errors" class="event-list compact"></div>
+
+                <!-- فعالیت اخیر -->
+                <div class="panel-card">
+                    <div class="card-head">
+                        <div>
+                            <h2>آخرین اتفاقات</h2>
+                            <p class="section-desc">جدیدترین کارهایی که سیستم انجام داده</p>
+                        </div>
+                    </div>
+                    <div id="activity-feed" class="activity-feed"></div>
+                </div>
+
+                <!-- خطاها -->
+                <div class="panel-card">
+                    <div class="card-head">
+                        <div>
+                            <h2>خطاهای اخیر</h2>
+                            <p class="section-desc">مشکلاتی که باید بررسی شوند</p>
+                        </div>
+                        <button type="button" class="link-btn" data-goto="events" data-filter-level="error">همه خطاها ←</button>
+                    </div>
+                    <div id="recent-errors" class="error-list"></div>
+                </div>
+
+                <!-- سطح اهمیت -->
+                <div class="panel-card">
+                    <div class="card-head">
+                        <div>
+                            <h2>سطح اهمیت</h2>
+                            <p class="section-desc">info، warning، error و ...</p>
+                        </div>
+                    </div>
+                    <div id="level-bars" class="level-bars"></div>
+                </div>
+
+                <!-- تفکیک نوع -->
+                <div class="panel-card">
+                    <div class="card-head">
+                        <div>
+                            <h2>نوع رویدادها</h2>
+                            <p class="section-desc">وب‌هوک، API، cron و ...</p>
+                        </div>
+                    </div>
+                    <div id="category-bars" class="level-bars"></div>
+                </div>
+
+                <!-- کانال‌ها -->
+                <div class="panel-card">
+                    <div class="card-head">
+                        <div>
+                            <h2>منبع رویداد</h2>
+                            <p class="section-desc">کدام بخش سیستم بیشتر فعال بوده</p>
+                        </div>
+                    </div>
+                    <div id="channel-list" class="channel-bars"></div>
+                </div>
             </div>
         </section>
 
-        <section id="tab-events" class="tab-panel">
-            <div class="filters card">
-                <div class="filters-row">
-                    <input id="filter-search" type="search" placeholder="جستجو در پیام، action، entity...">
-                    <select id="filter-channel"><option value="">همه کانال‌ها</option></select>
-                    <select id="filter-level">
-                        <option value="">همه سطوح</option>
-                        <option value="debug">debug</option>
-                        <option value="info">info</option>
-                        <option value="warning">warning</option>
-                        <option value="error">error</option>
-                        <option value="critical">critical</option>
-                    </select>
-                    <select id="filter-category">
-                        <option value="">همه دسته‌ها</option>
-                        <option value="system">system</option>
-                        <option value="webhook">webhook</option>
-                        <option value="api">api</option>
-                        <option value="http">http</option>
-                        <option value="auth">auth</option>
-                        <option value="cron">cron</option>
-                        <option value="integration">integration</option>
-                        <option value="vacation">vacation</option>
-                        <option value="appointment">appointment</option>
-                    </select>
-                    <input id="filter-user" type="text" placeholder="user_id">
-                    <input id="filter-request" type="text" placeholder="request_id">
-                    <button id="filter-apply" type="button">اعمال فیلتر</button>
-                    <button id="filter-clear" type="button" class="ghost-btn">پاک کردن</button>
+        <!-- ═══ رویدادها ═══ -->
+        <section id="tab-events" class="panel">
+            <div class="info-banner">
+                <strong>گزارش رویدادها</strong> — هر خط، یک اتفاق در سیستم است: وب‌هوک پذیرش۲۴، sync تقویم گوگل، خطای API و ...
+            </div>
+
+            <div class="panel-card filters-card">
+                <p class="filter-title">فیلتر کردن</p>
+                <div class="filters-grid">
+                    <div class="field span-2">
+                        <label>جستجو</label>
+                        <input id="filter-search" type="search" placeholder="متن پیام، نام عملیات، شناسه...">
+                    </div>
+                    <div class="field">
+                        <label>منبع (کانال)</label>
+                        <select id="filter-channel"><option value="">همه</option></select>
+                    </div>
+                    <div class="field">
+                        <label>اهمیت</label>
+                        <select id="filter-level">
+                            <option value="">همه</option>
+                            <option value="error">🔴 خطا</option>
+                            <option value="warning">🟡 هشدار</option>
+                            <option value="info">🔵 اطلاعات</option>
+                            <option value="debug">⚪ دیباگ</option>
+                            <option value="critical">⛔ بحرانی</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>دسته</label>
+                        <select id="filter-category">
+                            <option value="">همه</option>
+                            <option value="webhook">وب‌هوک</option>
+                            <option value="api">API</option>
+                            <option value="http">HTTP</option>
+                            <option value="auth">احراز هویت</option>
+                            <option value="cron">زمان‌بندی</option>
+                            <option value="vacation">مرخصی</option>
+                            <option value="appointment">نوبت</option>
+                            <option value="integration">یکپارچه‌سازی</option>
+                            <option value="system">سیستم</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>شناسه پزشک</label>
+                        <input id="filter-user" type="text" placeholder="مثلاً 12345">
+                    </div>
+                    <div class="field">
+                        <label>شناسه درخواست</label>
+                        <input id="filter-request" type="text" placeholder="request_id">
+                    </div>
+                </div>
+                <div class="filters-actions">
+                    <button id="filter-apply" type="button" class="btn-primary sm">اعمال فیلتر</button>
+                    <button id="filter-clear" type="button" class="btn-ghost sm">پاک کردن</button>
+                    <button id="export-csv" type="button" class="btn-ghost sm">دانلود Excel/CSV</button>
                 </div>
             </div>
 
-            <div class="card">
-                <div class="card-header">
-                    <h2>لیست رویدادها</h2>
-                    <span id="events-count" class="badge">0</span>
+            <div class="panel-card">
+                <div class="card-head">
+                    <h2>نتایج: <span id="events-count" class="count-badge">0</span> رویداد</h2>
                 </div>
-                <div id="events-table-wrap" class="table-wrap">
+                <div class="table-scroll">
                     <table class="data-table">
                         <thead>
                         <tr>
-                            <th>زمان</th>
-                            <th>سطح</th>
-                            <th>کانال</th>
-                            <th>عمل</th>
-                            <th>پیام</th>
-                            <th>کاربر</th>
-                            <th>مدت</th>
+                            <th>چه موقع</th>
+                            <th>اهمیت</th>
+                            <th>منبع</th>
+                            <th>عملیات</th>
+                            <th>توضیح</th>
+                            <th>پزشک</th>
+                            <th>زمان اجرا</th>
                             <th></th>
                         </tr>
                         </thead>
                         <tbody id="events-body"></tbody>
                     </table>
                 </div>
-                <div class="pagination">
-                    <button id="events-prev" type="button" class="ghost-btn">قبلی</button>
-                    <span id="events-page-info">—</span>
-                    <button id="events-next" type="button" class="ghost-btn">بعدی</button>
+                <div class="pager">
+                    <button id="events-prev" type="button" class="btn-ghost sm">← قبلی</button>
+                    <span id="events-page-info" class="subtle">—</span>
+                    <button id="events-next" type="button" class="btn-ghost sm">بعدی →</button>
                 </div>
             </div>
         </section>
 
-        <section id="tab-users" class="tab-panel">
-            <div class="card">
-                <div class="card-header">
-                    <h2>وضعیت پزشکان</h2>
-                    <input id="users-search" type="search" placeholder="جستجو user_id یا email">
+        <!-- ═══ پزشکان ═══ -->
+        <section id="tab-users" class="panel">
+            <div class="info-banner">
+                <strong>لیست پزشکان</strong> — وضعیت اتصال به Google Calendar، sync مرخصی و watch تقویم
+            </div>
+
+            <div id="users-summary" class="users-summary"></div>
+
+            <div class="panel-card">
+                <div class="card-head">
+                    <h2>پزشکان</h2>
+                    <div class="head-tools">
+                        <div class="chip-group" id="users-chips">
+                            <button type="button" class="chip active" data-filter="all">همه</button>
+                            <button type="button" class="chip" data-filter="connected">✓ متصل</button>
+                            <button type="button" class="chip" data-filter="disconnected">✗ قطع</button>
+                            <button type="button" class="chip" data-filter="watch-expired">⚠ Watch منقضی</button>
+                        </div>
+                        <input id="users-search" type="search" placeholder="جستجو نام یا شناسه...">
+                    </div>
                 </div>
-                <div class="table-wrap">
+                <div class="table-scroll">
                     <table class="data-table">
                         <thead>
                         <tr>
-                            <th>user_id</th>
+                            <th>شناسه پذیرش۲۴</th>
                             <th>ایمیل گوگل</th>
-                            <th>اتصال</th>
+                            <th>اتصال گوگل</th>
                             <th>مرخصی خودکار</th>
-                            <th>Watch</th>
+                            <th>Watch تقویم</th>
                             <th>آخرین sync</th>
-                            <th>بروزرسانی</th>
+                            <th>آخرین بروزرسانی</th>
+                            <th></th>
                         </tr>
                         </thead>
                         <tbody id="users-body"></tbody>
@@ -181,36 +345,114 @@
             </div>
         </section>
 
-        <section id="tab-logs" class="tab-panel">
-            <div class="card">
-                <div class="card-header">
-                    <h2>php-errors.log</h2>
-                    <span id="log-size" class="badge">—</span>
+        <!-- ═══ تاریخچه پزشک ═══ -->
+        <section id="tab-user-timeline" class="panel">
+            <div class="info-banner">
+                <strong>تاریخچه کامل یک پزشک</strong> — هر کاری که سیستم برای این user_id انجام داده: ورود، اتصال گوگل، sync مرخصی، نوبت، خطا و ...
+            </div>
+
+            <div class="panel-card timeline-search-card">
+                <div class="timeline-search-row">
+                    <div class="field flex-1">
+                        <label>شناسه پزشک (user_id پذیرش۲۴)</label>
+                        <input id="timeline-user-id" type="text" placeholder="مثلاً 12345678">
+                    </div>
+                    <div class="field">
+                        <label>اهمیت</label>
+                        <select id="timeline-level">
+                            <option value="">همه</option>
+                            <option value="error">خطا</option>
+                            <option value="warning">هشدار</option>
+                            <option value="info">اطلاعات</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>دسته</label>
+                        <select id="timeline-category">
+                            <option value="">همه</option>
+                            <option value="auth">احراز هویت</option>
+                            <option value="api">API</option>
+                            <option value="vacation">مرخصی</option>
+                            <option value="appointment">نوبت</option>
+                            <option value="integration">یکپارچه‌سازی</option>
+                            <option value="webhook">وب‌هوک</option>
+                        </select>
+                    </div>
+                    <button id="timeline-load" type="button" class="btn-primary">نمایش تاریخچه</button>
                 </div>
-                <pre id="log-tail" class="log-tail"></pre>
+                <div class="timeline-search-row timeline-actions-row">
+                    <input id="timeline-search" type="search" class="flex-1" placeholder="جستجو در پیام یا عملیات...">
+                    <button id="timeline-export" type="button" class="btn-ghost sm">دانلود CSV</button>
+                    <button id="timeline-events-link" type="button" class="btn-ghost sm">مشاهده در گزارش رویدادها</button>
+                </div>
+            </div>
+
+            <div id="timeline-profile" class="timeline-profile hidden"></div>
+            <div id="timeline-stats" class="primary-metrics hidden"></div>
+
+            <div class="panel-card hidden" id="timeline-card">
+                <div class="card-head">
+                    <h2>خط زمانی فعالیت <span id="timeline-count" class="count-badge">0</span></h2>
+                </div>
+                <div id="timeline-feed" class="timeline-feed"></div>
+                <div class="pager">
+                    <button id="timeline-prev" type="button" class="btn-ghost sm">← قبلی</button>
+                    <span id="timeline-page" class="subtle">—</span>
+                    <button id="timeline-next" type="button" class="btn-ghost sm">بعدی →</button>
+                </div>
             </div>
         </section>
 
-        <section id="tab-system" class="tab-panel">
-            <div class="card">
-                <div class="card-header"><h2>بررسی سلامت سیستم</h2></div>
-                <div id="system-checks" class="checks-grid"></div>
+        <!-- ═══ لاگ ═══ -->
+        <section id="tab-logs" class="panel">
+            <div class="info-banner">
+                <strong>خطاهای PHP سرور</strong> — اگر مشکلی در کد باشد، اینجا ثبت می‌شود. برای debug توسعه‌دهندگان مفید است.
             </div>
+            <div class="panel-card">
+                <div class="card-head">
+                    <h2>php-errors.log</h2>
+                    <div class="head-tools">
+                        <span id="log-size" class="count-badge">—</span>
+                        <input id="log-search" type="search" placeholder="جستجو...">
+                        <select id="log-level-filter">
+                            <option value="">همه</option>
+                            <option value="error">خطا</option>
+                            <option value="warning">هشدار</option>
+                            <option value="notice">Notice</option>
+                        </select>
+                        <button id="log-copy" type="button" class="btn-ghost sm">کپی</button>
+                    </div>
+                </div>
+                <pre id="log-tail" class="log-viewer"></pre>
+            </div>
+        </section>
+
+        <!-- ═══ سیستم ═══ -->
+        <section id="tab-system" class="panel">
+            <div id="system-status" class="system-hero"></div>
+            <div class="system-sections" id="system-sections"></div>
         </section>
     </main>
 </div>
 
+<!-- جزئیات رویداد -->
 <div id="event-modal" class="modal hidden">
     <div class="modal-backdrop" data-close-modal></div>
-    <div class="modal-card">
-        <div class="modal-header">
+    <div class="modal-panel">
+        <div class="modal-head">
             <h3>جزئیات رویداد</h3>
-            <button type="button" class="ghost-btn" data-close-modal>بستن</button>
+            <div class="modal-actions">
+                <button type="button" id="event-open-timeline" class="btn-ghost sm hidden">تاریخچه پزشک</button>
+                <button type="button" id="copy-event-json" class="btn-ghost sm">کپی JSON</button>
+                <button type="button" class="icon-btn" data-close-modal aria-label="بستن">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </button>
+            </div>
         </div>
         <div id="event-detail" class="modal-body"></div>
     </div>
 </div>
 
-<script src="monitor.js?v=2"></script>
+<script src="monitor.js?v=6"></script>
 </body>
 </html>

@@ -98,8 +98,8 @@ $weeklyInstanceB = [
     'end' => ['dateTime' => '2026-06-27T11:00:00', 'timeZone' => 'Asia/Tehran'],
 ];
 assertSingle(
-    'weekly recurring instances with same clock time aggregate',
-    GoogleEventParser::shouldCollapseRecurringVacations(null, [$weeklyInstanceA, $weeklyInstanceB])
+    'weekly recurring instances with same clock time do not collapse',
+    !GoogleEventParser::shouldCollapseRecurringVacations(null, [$weeklyInstanceA, $weeklyInstanceB])
 );
 
 $aggregatedWeekly = GoogleEventParser::aggregateRecurringInstances(

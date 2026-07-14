@@ -51,6 +51,10 @@ try {
     $tokenRow = GoogleTokensRepository::findByUserId($userId);
     $savedSettings = GoogleTokensRepository::getSettings($tokenRow);
 
+    UserActivityLog::api($userId, 'settings.updated', 'تنظیمات ذخیره شد', 'info', [
+        'keys' => array_keys($body),
+    ]);
+
     $forceBackfill = false;
     if (array_key_exists('importFutureVacations', $body)) {
         $parsedImport = GoogleTokensRepository::parseImportFutureVacationsFlag($body['importFutureVacations']);

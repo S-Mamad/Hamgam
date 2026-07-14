@@ -301,12 +301,23 @@ final class ProviderIntegrationService
         bool $success,
         string $reason
     ): void {
-        RequestContext::log(
+        $doctorId = GoogleTokensRepository::normalizeUserId($doctorId);
+        $provider = IntegrationProviderConfig::normalizeSlug($provider);
+        RequestContext::logForUser(
             'integrations/oauth',
-            'doctor_id=' . GoogleTokensRepository::normalizeUserId($doctorId)
-            . ' provider=' . IntegrationProviderConfig::normalizeSlug($provider)
+            $doctorId,
+            'doctor_id=' . $doctorId
+            . ' provider=' . $provider
             . ' status=' . ($success ? 'success' : 'failure')
             . ' reason=' . $reason
+        );
+        UserActivityLog::integration(
+            $doctorId,
+            $provider,
+            $success ? 'integration.connected' : 'integration.failed',
+            ($success ? 'اتصال ' : 'خطای ') . $provider . ': ' . $reason,
+            $success ? 'info' : 'error',
+            ['reason' => $reason]
         );
     }
 }

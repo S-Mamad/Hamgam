@@ -44,7 +44,8 @@ try {
             $watchCleanup = GoogleTokensRepository::watchCleanupCredentials($tokenRow);
 
             GoogleTokensRepository::disconnectGoogleConnection($userId);
-            RequestContext::log('hamgam/button', 'disconnected user ' . $userId);
+            RequestContext::logForUser('hamgam/button', $userId, 'disconnected user ' . $userId);
+            UserActivityLog::auth($userId, 'google.disconnected', 'قطع اتصال از دکمه Hamgam');
 
             try {
                 Paziresh24Api::deleteWidget($userId);
@@ -63,7 +64,8 @@ try {
         }
 
         if ($hasRegisteredWidget) {
-            RequestContext::log('hamgam/button', 'opening app for connected user ' . $userId);
+            RequestContext::logForUser('hamgam/button', $userId, 'opening app for connected user ' . $userId);
+            UserActivityLog::api($userId, 'button.app_opened', 'باز کردن اپ از دکمه Hamgam');
 
             Response::redirectThenContinue(
                 HamgamRedirects::launcherAppOpenUrl(),
@@ -73,13 +75,15 @@ try {
                         hamgam_load_vacation_modules();
                         HamgamConnectionService::syncAfterAuth($userId, $accessToken);
                     } catch (Throwable $syncError) {
-                        RequestContext::log('hamgam/button', 'connected open sync failed: ' . $syncError->getMessage());
+                        RequestContext::logForUser('hamgam/button', $userId, 'connected open sync failed: ' . $syncError->getMessage(), 'error');
+                        UserActivityLog::api($userId, 'sync.failed', 'همگام‌سازی هنگام باز کردن اپ ناموفق', 'error', ['error' => $syncError->getMessage()]);
                     }
                 }
             );
         }
 
-        RequestContext::log('hamgam/button', 'repairing partial connection for user ' . $userId);
+        RequestContext::logForUser('hamgam/button', $userId, 'repairing partial connection for user ' . $userId);
+        UserActivityLog::api($userId, 'button.repair_connection', 'ترمیم اتصال ناقص (widget/sync)');
 
         try {
             if (!Paziresh24Api::upsertWidget($userId)) {
@@ -97,19 +101,22 @@ try {
                     hamgam_load_vacation_modules();
                     HamgamConnectionService::syncAfterAuth($userId, $accessToken);
                 } catch (Throwable $syncError) {
-                    RequestContext::log('hamgam/button', 'repair sync failed: ' . $syncError->getMessage());
+                    RequestContext::logForUser('hamgam/button', $userId, 'repair sync failed: ' . $syncError->getMessage(), 'error');
+                    UserActivityLog::api($userId, 'sync.failed', 'همگام‌سازی بعد از ترمیم ناموفق', 'error', ['error' => $syncError->getMessage()]);
                 }
             }
         );
     }
 
     $oauthUrl = Paziresh24Api::buildGoogleOAuthUrl($accessToken, 'launcher', null, $userId);
+    UserActivityLog::auth($userId, 'button.oauth_redirect', 'هدایت به اتصال Google (هنوز متصل نیست)');
     Response::redirectThenContinue(
         $oauthUrl,
         static function () use ($userId): void {
             try {
                 if (Paziresh24Api::hasWidget($userId)) {
-                    RequestContext::log('hamgam/button', 'removing orphan widget for user ' . $userId);
+                    RequestContext::logForUser('hamgam/button', $userId, 'removing orphan widget for user ' . $userId);
+                    UserActivityLog::api($userId, 'button.widget_cleanup', 'حذف widget یتیم قبل از OAuth');
                     Paziresh24Api::deleteWidget($userId);
                 }
             } catch (Throwable $cleanupError) {

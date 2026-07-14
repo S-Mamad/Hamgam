@@ -28,6 +28,10 @@ foreach (['channel', 'level', 'category', 'user_id', 'request_id', 'search'] as 
     }
 }
 
+if (isset($filters['user_id'])) {
+    $filters['user_id'] = GoogleTokensRepository::normalizeUserId($filters['user_id']);
+}
+
 if (isset($_GET['levels']) && is_string($_GET['levels']) && trim($_GET['levels']) !== '') {
     $filters['levels'] = array_values(array_filter(array_map('trim', explode(',', $_GET['levels']))));
 }

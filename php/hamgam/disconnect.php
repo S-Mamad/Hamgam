@@ -39,7 +39,8 @@ try {
         Response::jsonError('Google account not connected', 400);
     }
 
-    RequestContext::log('hamgam/disconnect', 'disconnected user ' . $userId);
+    RequestContext::logForUser('hamgam/disconnect', $userId, 'disconnected user ' . $userId);
+    UserActivityLog::auth($userId, 'google.disconnected', 'قطع اتصال Google Calendar');
 
     try {
         Paziresh24Api::deleteWidget($userId);

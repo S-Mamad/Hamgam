@@ -84,6 +84,9 @@ try {
     GoogleTokensRepository::markSyncPending($userId, 'sync');
 
     RequestContext::log('hamgam/google-oauth', 'OAuth success for user ' . $userId);
+    UserActivityLog::auth($userId, 'google.connected', 'اتصال Google Calendar موفق', 'info', [
+        'change_gmail' => $isChangeGmail,
+    ]);
 
     $googleAccessTokenForEmail = $googleAccessToken;
     $refreshTokenForEmail = $refreshToken;

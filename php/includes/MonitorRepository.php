@@ -379,6 +379,92 @@ final class MonitorRepository
     }
 
     /**
+     * @return array<int, array<string, mixed>>
+     */
+    public static function statsByLevel(string $since): array
+    {
+        $pdo = Database::connection();
+        self::ensureSchema($pdo);
+
+        $stmt = $pdo->prepare(
+            'SELECT level, COUNT(*) AS total
+             FROM monitor_events
+             WHERE created_at >= :since
+             GROUP BY level
+             ORDER BY total DESC'
+        );
+        $stmt->execute(['since' => $since]);
+
+        return $stmt->fetchAll() ?: [];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public static function statsByCategory(string $since): array
+    {
+        $pdo = Database::connection();
+        self::ensureSchema($pdo);
+
+        $stmt = $pdo->prepare(
+            'SELECT category, COUNT(*) AS total,
+                    SUM(CASE WHEN level IN (\'error\', \'critical\') THEN 1 ELSE 0 END) AS errors
+             FROM monitor_events
+             WHERE created_at >= :since
+             GROUP BY category
+             ORDER BY total DESC'
+        );
+        $stmt->execute(['since' => $since]);
+
+        return $stmt->fetchAll() ?: [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function statsForUser(string $userId, string $since): array
+    {
+        return self::statsFromFilters([
+            'user_id' => GoogleTokensRepository::normalizeUserId($userId),
+            'since' => $since,
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function statsFromFilters(array $filters): array
+    {
+        $pdo = Database::connection();
+        self::ensureSchema($pdo);
+
+        $built = self::buildWhereClause($filters);
+
+        $stmt = $pdo->prepare(
+            'SELECT COUNT(*) AS total,
+                    SUM(CASE WHEN level IN (\'error\', \'critical\') THEN 1 ELSE 0 END) AS errors,
+                    SUM(CASE WHEN level = \'warning\' THEN 1 ELSE 0 END) AS warnings,
+                    MIN(created_at) AS first_event,
+                    MAX(created_at) AS last_event
+             FROM monitor_events
+             WHERE 1=1' . $built['where']
+        );
+        $stmt->execute($built['params']);
+
+        $row = $stmt->fetch();
+
+        return is_array($row) ? $row : [];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public static function recentActivity(int $limit = 30): array
+    {
+        return self::listEvents([], max(1, min(100, $limit)), 0);
+    }
+
+    /**
      * @return array<int, string>
      */
     public static function distinctChannels(): array

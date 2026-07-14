@@ -75,6 +75,15 @@ final class AppointmentWebhookService
             . ' google_event_id=' . $googleEventId
         );
 
+        UserActivityLog::appointment(
+            $doctorUserId,
+            'appointment.created',
+            'نوبت در تقویم Google ثبت شد',
+            'info',
+            ['google_event_id' => $googleEventId],
+            $bookId
+        );
+
         $result = ['ok' => true, 'created' => true];
         if ($googleEventId !== '') {
             $result['google_event_id'] = $googleEventId;
@@ -120,6 +129,15 @@ final class AppointmentWebhookService
 
             return ['ok' => true, 'skipped' => 'event_not_found', 'deleted_count' => 0];
         }
+
+        UserActivityLog::appointment(
+            $doctorUserId,
+            'appointment.cancelled',
+            'نوبت از تقویم Google حذف شد',
+            'info',
+            ['deleted_count' => $deletedCount],
+            $bookId
+        );
 
         return ['ok' => true, 'deleted' => true, 'deleted_count' => $deletedCount];
     }
@@ -278,6 +296,15 @@ final class AppointmentWebhookService
                 $appointmentRange['to']
             );
 
+            UserActivityLog::appointment(
+                $doctorUserId,
+                'appointment.created',
+                'نوبت (بعد از جابجایی) در تقویم Google ثبت شد',
+                'info',
+                ['google_event_id' => $googleEventId],
+                $bookId
+            );
+
             return array_filter([
                 'ok' => true,
                 'created' => true,
@@ -318,6 +345,15 @@ final class AppointmentWebhookService
             . ' google_event_id=' . $eventId
             . ' from=' . $appointmentRange['from']
             . ' duplicate_deleted=' . $duplicateDeleted
+        );
+
+        UserActivityLog::appointment(
+            $doctorUserId,
+            'appointment.updated',
+            'نوبت در تقویم Google به‌روزرسانی شد',
+            'info',
+            ['google_event_id' => $eventId, 'duplicate_deleted' => $duplicateDeleted],
+            $bookId
         );
 
         return [

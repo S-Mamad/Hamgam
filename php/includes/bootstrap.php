@@ -11,6 +11,7 @@ require_once __DIR__ . '/RequestContext.php';
 require_once __DIR__ . '/MonitorAuth.php';
 require_once __DIR__ . '/MonitorRepository.php';
 require_once __DIR__ . '/MonitorService.php';
+require_once __DIR__ . '/UserActivityLog.php';
 require_once __DIR__ . '/HttpClient.php';
 require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/Paziresh24Api.php';

@@ -70,8 +70,17 @@ try {
     );
 
     if (!$needsBackgroundSync) {
+        UserActivityLog::auth($userId, 'session.authenticated', 'ورود به Hamgam', 'info', [
+            'connected' => $connected,
+            'background_sync' => false,
+        ]);
         Response::json($response);
     }
+
+    UserActivityLog::auth($userId, 'session.authenticated', 'ورود به Hamgam — sync در پس‌زمینه', 'info', [
+        'connected' => $connected,
+        'background_sync' => true,
+    ]);
 
     Response::jsonThenContinue(
         $response,
@@ -90,8 +99,15 @@ try {
                     'warnings' => $result['warnings'],
                     'backfill' => null,
                 ]);
+                UserActivityLog::api(
+                    $userId,
+                    'sync.completed',
+                    $result['ok'] ? 'همگام‌سازی بعد از ورود موفق بود' : 'همگام‌سازی بعد از ورود با هشدار',
+                    $result['ok'] ? 'info' : 'warning',
+                    ['warnings' => $result['warnings']]
+                );
             } catch (Throwable $syncError) {
-                RequestContext::log('hamgam/auth', 'syncAfterAuth failed: ' . $syncError->getMessage());
+                RequestContext::logForUser('hamgam/auth', $userId, 'syncAfterAuth failed: ' . $syncError->getMessage(), 'error');
                 GoogleTokensRepository::saveSyncStatus($userId, [
                     'pending' => false,
                     'operation' => 'sync',
@@ -99,6 +115,7 @@ try {
                     'warnings' => [HamgamSyncMessages::warning('sync_failed')],
                     'backfill' => null,
                 ]);
+                UserActivityLog::api($userId, 'sync.failed', 'همگام‌سازی بعد از ورود ناموفق: ' . $syncError->getMessage(), 'error');
             }
         }
     );

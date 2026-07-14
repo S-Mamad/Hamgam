@@ -44,7 +44,7 @@ final class MonitorService
         $level = self::normalizeLevel((string) ($options['level'] ?? 'info'));
         $category = self::normalizeCategory((string) ($options['category'] ?? self::inferCategory($channel)));
 
-        $dedupeKey = md5($channel . '|' . $level . '|' . $message);
+        $dedupeKey = md5($channel . '|' . $level . '|' . ($options['user_id'] ?? '') . '|' . $message);
         if (isset(self::$dedupeKeys[$dedupeKey])) {
             return;
         }
@@ -81,13 +81,14 @@ final class MonitorService
         MonitorRepository::insert($event);
     }
 
-    public static function log(string $channel, string $message, string $level = 'info', ?array $context = null): void
+    public static function log(string $channel, string $message, string $level = 'info', ?array $context = null, ?string $userId = null): void
     {
         self::record([
             'channel' => $channel,
             'message' => $message,
             'level' => $level,
             'context' => $context,
+            'user_id' => $userId,
         ]);
     }
 
@@ -192,6 +193,7 @@ final class MonitorService
         $checks = [
             'php' => PHP_VERSION,
             'env' => is_file(__DIR__ . '/../.env'),
+            'env_file' => is_file(__DIR__ . '/../.env'),
             'monitor_enabled' => Config::getBool('MONITOR_ENABLED', true),
             'db_driver' => Config::get('DB_DRIVER', 'sqlite'),
             'time' => date('c'),
@@ -217,6 +219,7 @@ final class MonitorService
         $logFile = __DIR__ . '/../storage/php-errors.log';
         $checks['error_log_exists'] = is_file($logFile);
         $checks['error_log_size_bytes'] = is_file($logFile) ? (int) filesize($logFile) : 0;
+        $checks['error_log_size'] = $checks['error_log_size_bytes'];
 
         try {
             $stmt = Database::connection()->query(
@@ -442,7 +445,15 @@ final class MonitorService
 
     private static function extractUserIdFromMessage(string $message): ?string
     {
-        if (preg_match('/\b(?:doctor|user|user_id|doctor_id)\=([0-9]+)/i', $message, $m)) {
+        if (preg_match('/\b(?:doctor|user|user_id|doctor_id)\s*=\s*([0-9]+)/i', $message, $m)) {
+            return GoogleTokensRepository::normalizeUserId((string) $m[1]);
+        }
+
+        if (preg_match('/\b(?:for|disconnected|connected|opening app for|repairing partial connection for|removing orphan widget for)\s+user\s+([0-9]+)/i', $message, $m)) {
+            return GoogleTokensRepository::normalizeUserId((string) $m[1]);
+        }
+
+        if (preg_match('/\buser\s+([0-9]+)\b/i', $message, $m)) {
             return GoogleTokensRepository::normalizeUserId((string) $m[1]);
         }
 

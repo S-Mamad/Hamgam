@@ -21,6 +21,7 @@ final class HamgamConnectionService
             if ($tokenRow === null) {
                 error_log('[hamgam-connection] no token row for user ' . $userId);
                 $warnings[] = HamgamSyncMessages::warning('no_token_row');
+                UserActivityLog::api($userId, 'sync.failed', 'ردیف توکن یافت نشد', 'error');
 
                 return ['ok' => false, 'warnings' => $warnings];
             }
@@ -84,6 +85,14 @@ final class HamgamConnectionService
             error_log('[hamgam-connection] syncAfterAuth failed for user ' . $userId . ': ' . $e->getMessage());
             $warnings[] = HamgamSyncMessages::warning('sync_failed');
         }
+
+        UserActivityLog::api(
+            $userId,
+            empty($warnings) ? 'sync.completed' : 'sync.partial',
+            empty($warnings) ? 'همگام‌سازی کامل شد' : 'همگام‌سازی با ' . count($warnings) . ' هشدار',
+            empty($warnings) ? 'info' : 'warning',
+            ['warnings' => $warnings]
+        );
 
         return ['ok' => empty($warnings), 'warnings' => $warnings];
     }
@@ -167,6 +176,14 @@ final class HamgamConnectionService
             'warnings' => $warnings,
             'backfill' => $backfillResult,
         ]);
+
+        UserActivityLog::api(
+            $userId,
+            $operation === 'backfill' ? 'backfill.completed' : 'sync.background_completed',
+            $operation === 'backfill' ? 'Backfill مرخصی انجام شد' : 'Sync پس‌زمینه انجام شد',
+            empty($warnings) ? 'info' : 'warning',
+            ['operation' => $operation, 'warnings' => $warnings, 'backfill' => $backfillResult]
+        );
     }
 
     /**
@@ -268,6 +285,7 @@ final class HamgamConnectionService
 
         GoogleVacationRepository::saveSyncToken($userId, $syncToken);
         error_log('[hamgam-connection] google_sync_token repaired for user ' . $userId);
+        UserActivityLog::vacation($userId, 'sync_token.repaired', 'توکن sync تقویم گوگل ترمیم شد');
 
         return true;
     }

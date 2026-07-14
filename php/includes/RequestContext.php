@@ -31,15 +31,23 @@ final class RequestContext
     {
         error_log('[' . $channel . '][req=' . self::id() . '] ' . $message);
 
-        if (class_exists('MonitorService', false)) {
-            $level = 'info';
-            if (preg_match('/\b(error|failed|failure|exception)\b/i', $message)) {
-                $level = 'error';
-            } elseif (preg_match('/\b(warn|warning|skipped|missing)\b/i', $message)) {
-                $level = 'warning';
-            }
-
-            MonitorService::log($channel, $message, $level);
+        if (!class_exists('MonitorService', false)) {
+            return;
         }
+
+        $level = 'info';
+        if (preg_match('/\b(error|failed|failure|exception)\b/i', $message)) {
+            $level = 'error';
+        } elseif (preg_match('/\b(warn|warning|skipped|missing)\b/i', $message)) {
+            $level = 'warning';
+        }
+
+        MonitorService::log($channel, $message, $level);
+    }
+
+    public static function logForUser(string $channel, string $userId, string $message, string $level = 'info'): void
+    {
+        error_log('[' . $channel . '][req=' . self::id() . '][user=' . $userId . '] ' . $message);
+        MonitorService::log($channel, $message, $level, null, $userId);
     }
 }

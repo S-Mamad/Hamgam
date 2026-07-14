@@ -19,8 +19,15 @@ $since = date('Y-m-d H:i:s', time() - ($hours * 3600));
 $overview = MonitorRepository::statsOverview($since);
 $byChannel = MonitorRepository::statsByChannel($since, 25);
 $byHour = MonitorRepository::statsByHour($since);
+$byLevel = MonitorRepository::statsByLevel($since);
+$byCategory = MonitorRepository::statsByCategory($since);
 $channels = MonitorRepository::distinctChannels();
-$recentErrors = MonitorRepository::recentErrors(15);
+$recentErrors = MonitorRepository::listEvents(
+    ['since' => $since, 'levels' => ['error', 'critical']],
+    15,
+    0
+);
+$recentActivity = MonitorRepository::listEvents(['since' => $since], 40, 0);
 
 Response::json([
     'ok' => true,
@@ -29,6 +36,9 @@ Response::json([
     'overview' => $overview,
     'by_channel' => $byChannel,
     'by_hour' => $byHour,
+    'by_level' => $byLevel,
+    'by_category' => $byCategory,
     'channels' => $channels,
     'recent_errors' => $recentErrors,
+    'recent_activity' => $recentActivity,
 ]);

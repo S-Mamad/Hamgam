@@ -54,6 +54,11 @@ final class VacationSyncService
 
         $userId = (string) ($tokenRow['paziresh24_user_id'] ?? '');
 
+        UserActivityLog::vacation($userId, 'webhook.received', 'وب‌هوک تقویم Google دریافت شد', 'info', [
+            'channel_id' => $channelId,
+            'resource_state' => $resourceState,
+        ]);
+
         $refreshToken = (string) ($tokenRow['google_refresh_token'] ?? '');
 
         $hamdastAccessToken = (string) ($tokenRow['hamdast_access_token'] ?? '');
@@ -168,6 +173,11 @@ final class VacationSyncService
             );
 
         }
+
+        UserActivityLog::vacation($userId, 'webhook.sync_completed', 'پردازش وب‌هوک تقویم انجام شد', 'info', [
+            'events_count' => count($events),
+            'resource_state' => $resourceState,
+        ]);
 
     }
 
@@ -434,6 +444,12 @@ final class VacationSyncService
             . ' skipped=' . $skipped
 
         );
+
+        UserActivityLog::vacation($userId, 'backfill.completed', 'Import مرخصی‌های آینده انجام شد', $failed > 0 ? 'warning' : 'info', [
+            'imported' => $imported,
+            'skipped' => $skipped,
+            'failed' => $failed,
+        ]);
 
 
 
@@ -1521,51 +1537,11 @@ final class VacationSyncService
 
 
 
-            if (!$isWholeSeriesDelete) {
-
-                $remainingInstances = self::resolveRecurringInstances($tokenRow, $seriesKey, $prefetchedInstances);
-
-                $aggregatedRemaining = GoogleEventParser::aggregateRecurringInstances($remainingInstances, $seriesKey);
-
-                if ($aggregatedRemaining !== null) {
-
-                    if (GoogleVacationRepository::hasProcessedEvent($userId, $seriesKey)) {
-
-                        $updated = self::processUpdatedRecurringSeries(
-
-                            $userId,
-
-                            $aggregatedRemaining,
-
-                            $autoVacation,
-
-                            $vacationCenters,
-
-                            $tokenRow,
-
-                            $hamdastAccessToken,
-
-                            $trackAsBackfill
-
-                        );
+            $deleteEventId = $isWholeSeriesDelete ? $seriesKey : $eventId;
 
 
 
-                        return $updated ? 'updated' : 'skipped';
-
-                    }
-
-
-
-                    return 'skipped';
-
-                }
-
-            }
-
-
-
-            self::processDeletedEvent($userId, $seriesKey, $parsed, $tokenRow, $hamdastAccessToken);
+            self::processDeletedEvent($userId, $deleteEventId, $parsed, $tokenRow, $hamdastAccessToken);
 
 
 
@@ -1597,9 +1573,9 @@ final class VacationSyncService
 
             : null;
 
-        $instances = self::resolveRecurringInstances($tokenRow, $seriesKey, $prefetchedInstances);
 
-        if (!GoogleEventParser::shouldAggregateRecurringVacationSeries($masterEvent, $instances)) {
+
+        if (!GoogleEventParser::shouldAggregateRecurringVacationSeries($masterEvent, [])) {
 
             if ($parsed === null) {
 
@@ -1654,205 +1630,7 @@ final class VacationSyncService
 
 
 
-        $aggregated = GoogleEventParser::aggregateRecurringInstances($instances, $seriesKey);
-
-        if ($aggregated === null) {
-
-            error_log('[google-vacation] recurring series has no active instances series=' . $seriesKey);
-
-            return 'skipped';
-
-        }
-
-
-
-        error_log(
-
-            '[google-vacation] recurring series aggregated id=' . $seriesKey
-
-            . ' instances=' . count($instances)
-
-            . ' from=' . $aggregated['start_ts']
-
-            . ' to=' . $aggregated['end_ts']
-
-        );
-
-
-
-        if (GoogleVacationRepository::hasProcessedEvent($userId, $seriesKey)) {
-
-            $updated = self::processUpdatedRecurringSeries(
-
-                $userId,
-
-                $aggregated,
-
-                $autoVacation,
-
-                $vacationCenters,
-
-                $tokenRow,
-
-                $hamdastAccessToken,
-
-                $trackAsBackfill
-
-            );
-
-
-
-            return $updated ? 'updated' : 'skipped';
-
-        }
-
-
-
-        if (!$autoVacation) {
-
-            error_log('[google-vacation] auto_vacation off, no Paziresh24 action for recurring ' . $seriesKey);
-
-            return 'skipped';
-
-        }
-
-
-
-        if ($hamdastAccessToken === '') {
-
-            error_log('[google-vacation] missing hamdast token for user ' . $userId);
-
-            return 'failed';
-
-        }
-
-
-
-        if ($vacationCenters === []) {
-
-            error_log('[google-vacation] missing medical centers for user ' . $userId);
-
-            return 'failed';
-
-        }
-
-
-
-        $createdCount = 0;
-
-        $failedCount = 0;
-
-
-
-        foreach ($vacationCenters as $vacationCenter) {
-
-            $response = self::createVacationWithConflictResolution(
-
-                $userId,
-
-                $tokenRow,
-
-                $aggregated['start_ts'],
-
-                $aggregated['end_ts'],
-
-                $vacationCenter,
-
-                $hamdastAccessToken,
-
-                $seriesKey
-
-            );
-
-
-
-            if ($response === null) {
-
-                error_log(
-
-                    '[google-vacation] vacation create failed for recurring series ' . $seriesKey
-
-                    . ' center=' . $vacationCenter['medical_center_id']
-
-                );
-
-                $failedCount++;
-
-                continue;
-
-            }
-
-
-
-            self::migrateRecurringTrackingToSeriesKey(
-
-                $userId,
-
-                $seriesKey,
-
-                $vacationCenter['medical_center_id'],
-
-                $tokenRow,
-
-                $hamdastAccessToken
-
-            );
-
-
-
-            GoogleVacationRepository::recordProcessedEvent(
-
-                $userId,
-
-                $seriesKey,
-
-                $aggregated['summary'],
-
-                $aggregated['start_ts'],
-
-                $aggregated['end_ts'],
-
-                self::attachCollapsedSeriesMetadata($response),
-
-                $vacationCenter['medical_center_id']
-
-            );
-
-            if ($trackAsBackfill) {
-                ImportFutureVacationsRepository::upsertBackfillSlotForEvent(
-                    $userId,
-                    $seriesKey,
-                    $vacationCenter['medical_center_id'],
-                    $aggregated['start_ts'],
-                    $aggregated['end_ts']
-                );
-            }
-
-
-
-            error_log(
-
-                '[google-vacation] vacation created for recurring series ' . $seriesKey
-
-                . ' center=' . $vacationCenter['medical_center_id']
-
-            );
-
-            $createdCount++;
-
-        }
-
-
-
-        if ($createdCount > 0) {
-
-            return 'created';
-
-        }
-
-
-
-        return $failedCount > 0 ? 'failed' : 'skipped';
+        return 'skipped';
 
     }
 
@@ -1884,11 +1662,9 @@ final class VacationSyncService
 
     {
 
-        $recurringGroups = [];
-
         $result = [];
 
-        $seenSingleIds = [];
+        $seenIds = [];
 
 
 
@@ -1902,27 +1678,9 @@ final class VacationSyncService
 
 
 
-            $seriesKey = GoogleEventParser::extractRecurringSeriesKey($event);
-
-            if ($seriesKey !== null) {
-
-                if (!isset($recurringGroups[$seriesKey])) {
-
-                    $recurringGroups[$seriesKey] = [];
-
-                }
-
-                $recurringGroups[$seriesKey][] = $event;
-
-                continue;
-
-            }
-
-
-
             $eventId = GoogleEventParser::extractEventId($event);
 
-            if ($eventId === null || isset($seenSingleIds[$eventId])) {
+            if ($eventId === null || isset($seenIds[$eventId])) {
 
                 continue;
 
@@ -1930,29 +1688,13 @@ final class VacationSyncService
 
 
 
-            $seenSingleIds[$eventId] = true;
+            $seenIds[$eventId] = true;
 
             $result[] = [
 
                 'type' => 'single',
 
                 'event' => $event,
-
-            ];
-
-        }
-
-
-
-        foreach ($recurringGroups as $seriesKey => $groupEvents) {
-
-            $result[] = [
-
-                'type' => 'recurring',
-
-                'seriesKey' => $seriesKey,
-
-                'events' => $groupEvents,
 
             ];
 

@@ -221,23 +221,7 @@ final class GoogleEventParser
      */
     public static function shouldAggregateRecurringVacationSeries(?array $masterEvent, array $instances): bool
     {
-        if ($masterEvent !== null && self::isAggregatableRecurrenceMaster($masterEvent)) {
-            return $instances !== [];
-        }
-
-        if (count($instances) < 2) {
-            return false;
-        }
-
-        if (self::instancesShareSameTimedSlot($instances)) {
-            return true;
-        }
-
-        $freq = self::extractRecurrenceFrequency($masterEvent);
-        if ($freq === 'DAILY') {
-            return self::areConsecutiveDailyInstances($instances);
-        }
-
+        // Each recurring instance syncs as its own vacation (no first-start → last-end collapse).
         return false;
     }
 

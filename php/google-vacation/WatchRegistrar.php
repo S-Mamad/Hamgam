@@ -32,6 +32,7 @@ final class WatchRegistrar
         if (!is_array($watchResponse)) {
             GoogleVacationRepository::clearWatchData($userId);
             error_log('[google-vacation] watch registration failed for user ' . $userId);
+            UserActivityLog::vacation($userId, 'watch.failed', 'ثبت Watch تقویم ناموفق', 'error');
             return false;
         }
 
@@ -77,6 +78,10 @@ final class WatchRegistrar
         }
 
         error_log('[google-vacation] watch registered for user ' . $userId . ' channel=' . $channelId);
+        UserActivityLog::vacation($userId, 'watch.registered', 'Watch تقویم Google ثبت شد', 'info', [
+            'channel_id' => $channelId,
+            'expiration' => (int) $expiration,
+        ]);
 
         return true;
     }
@@ -97,6 +102,7 @@ final class WatchRegistrar
         $googleAccessToken = is_array($googleTokenData) ? ($googleTokenData['access_token'] ?? '') : '';
         if (!is_string($googleAccessToken) || $googleAccessToken === '') {
             error_log('[google-vacation] renew watch: token refresh failed for user ' . $userId);
+            UserActivityLog::vacation($userId, 'watch.renew_failed', 'تمدید Watch: refresh token گوگل ناموفق', 'error');
             return false;
         }
 

@@ -137,8 +137,8 @@ assertRecurring(
     !GoogleEventParser::shouldCollapseRecurringVacations($monthlyMaster, [$instanceOne, $instanceTwo])
 );
 assertRecurring(
-    'daily recurring should collapse',
-    GoogleEventParser::shouldCollapseRecurringVacations($dailyMaster, [$dailyInstanceOne, $dailyInstanceTwo])
+    'daily recurring must not collapse',
+    !GoogleEventParser::shouldCollapseRecurringVacations($dailyMaster, [$dailyInstanceOne, $dailyInstanceTwo])
 );
 
 $syncRef = new ReflectionClass(VacationSyncService::class);
@@ -218,12 +218,8 @@ $weekdayInstance = [
     'end' => ['dateTime' => '2026-07-06T14:00:00', 'timeZone' => 'Asia/Tehran'],
 ];
 assertRecurring(
-    'weekday master is aggregatable',
-    GoogleEventParser::isAggregatableRecurrenceMaster($weekdayMaster)
-);
-assertRecurring(
-    'single weekday instance aggregates with master',
-    GoogleEventParser::shouldAggregateRecurringVacationSeries($weekdayMaster, [$weekdayInstance])
+    'weekday master is not aggregated into one span',
+    !GoogleEventParser::shouldAggregateRecurringVacationSeries($weekdayMaster, [$weekdayInstance])
 );
 
 echo PHP_EOL . "Total: {$passed} passed, {$failed} failed" . PHP_EOL;
