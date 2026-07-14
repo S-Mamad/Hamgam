@@ -7,6 +7,7 @@ declare(strict_types=1);
  *
  * GET ...?user_id=ID&key=KEY&book_id=UUID                     — dry run (slots only)
  * GET ...?user_id=ID&key=KEY&book_id=UUID&confirm=1           — execute move + calendar sync
+ * GET ...?user_id=ID&key=KEY&book_id=UUID&target_from=UNIX     — move to exact slot (with confirm=1)
  * GET ...?user_id=ID&key=KEY&book_id=UUID&sync_only=1         — calendar sync only (no API move)
  */
 
@@ -31,6 +32,7 @@ $bookId = isset($_GET['book_id']) ? trim((string) $_GET['book_id']) : '';
 $confirm = isset($_GET['confirm']) && (string) $_GET['confirm'] === '1';
 $syncOnly = isset($_GET['sync_only']) && (string) $_GET['sync_only'] === '1';
 $debug = isset($_GET['debug']) && (string) $_GET['debug'] === '1';
+$explicitTargetFrom = isset($_GET['target_from']) ? (int) $_GET['target_from'] : 0;
 
 if ($userId === '' || $bookId === '') {
     http_response_code(400);
@@ -71,7 +73,9 @@ $userCenterId = BookingAppointmentResolver::resolveUserCenterIdForReschedule(
 );
 
 $targetFrom = null;
-if ($medicalCenterId !== '' && $userCenterId !== null && $userCenterId !== '') {
+if ($explicitTargetFrom > 0) {
+    $targetFrom = $explicitTargetFrom;
+} elseif ($medicalCenterId !== '' && $userCenterId !== null && $userCenterId !== '') {
     $targetFrom = Paziresh24AppointmentApi::getFirstAvailableSlot(
         $hamdastAccessToken,
         $medicalCenterId,
@@ -91,10 +95,13 @@ $result = [
     'book_from' => $range['from'] > 0 ? $range['from'] : null,
     'book_to' => $range['to'] > 0 ? $range['to'] : null,
     'target_from' => $targetFrom,
+    'target_from_iso' => $targetFrom !== null && $targetFrom > 0 ? date('Y-m-d H:i:s', $targetFrom) : null,
+    'explicit_target' => $explicitTargetFrom > 0,
     'ready_to_move' => $medicalCenterId !== ''
         && $userCenterId !== null
         && $userCenterId !== ''
         && $targetFrom !== null
+        && $targetFrom > 0
         && $range['from'] > 0
         && $range['to'] > $range['from'],
 ];
@@ -122,17 +129,29 @@ if ($syncOnly) {
         $result['ok'] = false;
     }
 } elseif ($confirm && $result['ready_to_move']) {
-    $move = Paziresh24AppointmentApi::rescheduleToFirstAvailableSlot(
-        $hamdastAccessToken,
-        $bookId,
-        $medicalCenterId,
-        $userCenterId,
-        $range['from'],
-        $range['to']
-    );
-    $result['move'] = $move;
+    if ($explicitTargetFrom > 0) {
+        $move = Paziresh24AppointmentApi::moveAppointmentWithCenterFallback(
+            $hamdastAccessToken,
+            $medicalCenterId,
+            $userCenterId,
+            $range['from'],
+            $range['to'],
+            $explicitTargetFrom
+        );
+        $result['move'] = $move;
+    } else {
+        $move = Paziresh24AppointmentApi::rescheduleToFirstAvailableSlot(
+            $hamdastAccessToken,
+            $bookId,
+            $medicalCenterId,
+            $userCenterId,
+            $range['from'],
+            $range['to']
+        );
+        $result['move'] = $move;
+    }
 
-    if ($move['success']) {
+    if (($result['move']['success'] ?? false)) {
         try {
             $result['calendar_sync'] = AppointmentWebhookService::syncCalendarFromApiMove($userId, $bookId);
         } catch (Throwable $e) {
@@ -140,7 +159,7 @@ if ($syncOnly) {
         }
     }
 
-    $result['ok'] = (bool) ($move['success'] ?? false);
+    $result['ok'] = (bool) ($result['move']['success'] ?? false);
 }
 
 echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
