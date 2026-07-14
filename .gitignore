@@ -1,6 +1,8 @@
 # Secrets & local config
 php/.env
 php/.env.local
+php/handoff/
+php/handoff-for-team.zip
 deploy/
 
 # Local storage / dev artifacts

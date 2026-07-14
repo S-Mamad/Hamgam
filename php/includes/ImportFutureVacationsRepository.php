@@ -31,12 +31,16 @@ final class ImportFutureVacationsRepository
             return;
         }
 
-        $driver = Config::get('DB_DRIVER', 'sqlite');
-
-        if ($driver === 'mysql') {
+        if (Database::isMysql()) {
             $stmt = Database::connection()->prepare(
                 'INSERT IGNORE INTO import_future_vacations_doctor_lock (paziresh24_user_id, used_at)
                  VALUES (:doctor_id, CURRENT_TIMESTAMP)'
+            );
+        } elseif (Database::isPgsql()) {
+            $stmt = Database::connection()->prepare(
+                'INSERT INTO import_future_vacations_doctor_lock (paziresh24_user_id, used_at)
+                 VALUES (:doctor_id, CURRENT_TIMESTAMP)
+                 ON CONFLICT (paziresh24_user_id) DO NOTHING'
             );
         } else {
             $stmt = Database::connection()->prepare(
@@ -230,9 +234,7 @@ final class ImportFutureVacationsRepository
             return;
         }
 
-        $driver = Config::get('DB_DRIVER', 'sqlite');
-
-        if ($driver === 'mysql') {
+        if (Database::isMysql()) {
             $stmt = Database::connection()->prepare(
                 'INSERT IGNORE INTO import_future_vacations_backfill_slots (
                     paziresh24_user_id,
@@ -245,6 +247,21 @@ final class ImportFutureVacationsRepository
                     :vacation_from,
                     :vacation_to
                 )'
+            );
+        } elseif (Database::isPgsql()) {
+            $stmt = Database::connection()->prepare(
+                'INSERT INTO import_future_vacations_backfill_slots (
+                    paziresh24_user_id,
+                    medical_center_id,
+                    vacation_from,
+                    vacation_to
+                ) VALUES (
+                    :doctor_id,
+                    :medical_center_id,
+                    :vacation_from,
+                    :vacation_to
+                )
+                ON CONFLICT (paziresh24_user_id, medical_center_id, vacation_from, vacation_to) DO NOTHING'
             );
         } else {
             $stmt = Database::connection()->prepare(
@@ -661,15 +678,25 @@ final class ImportFutureVacationsRepository
 
     public static function migrateExistingDoctorLocks(PDO $pdo): void
     {
-        $driver = Config::get('DB_DRIVER', 'sqlite');
-
         try {
-            if ($driver === 'mysql') {
+            if (Database::isMysql()) {
                 $pdo->exec(
                     'INSERT IGNORE INTO import_future_vacations_doctor_lock (paziresh24_user_id, used_at)
                      SELECT paziresh24_user_id, import_future_vacations_done_at
                      FROM google_tokens
                      WHERE import_future_vacations_done_at IS NOT NULL'
+                );
+
+                return;
+            }
+
+            if (Database::isPgsql()) {
+                $pdo->exec(
+                    'INSERT INTO import_future_vacations_doctor_lock (paziresh24_user_id, used_at)
+                     SELECT paziresh24_user_id, import_future_vacations_done_at
+                     FROM google_tokens
+                     WHERE import_future_vacations_done_at IS NOT NULL
+                     ON CONFLICT (paziresh24_user_id) DO NOTHING'
                 );
 
                 return;

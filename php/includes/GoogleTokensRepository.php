@@ -39,7 +39,7 @@ final class GoogleTokensRepository
             $stmt->execute(['user_id' => $variant]);
             $row = $stmt->fetch();
             if ($row !== false) {
-                return $row;
+                return self::normalizeTokenRow($row);
             }
         }
 
@@ -135,13 +135,17 @@ final class GoogleTokensRepository
      */
     private static function findAllRowsByNumericUserId(int $numericUserId): array
     {
-        $driver = Config::get('DB_DRIVER', 'sqlite');
-
-        if ($driver === 'mysql') {
+        if (Database::isMysql()) {
             $stmt = Database::connection()->prepare(
                 'SELECT * FROM google_tokens
                  WHERE paziresh24_user_id REGEXP \'^[0-9]+$\'
                    AND CAST(paziresh24_user_id AS UNSIGNED) = :uid'
+            );
+        } elseif (Database::isPgsql()) {
+            $stmt = Database::connection()->prepare(
+                "SELECT * FROM google_tokens
+                 WHERE paziresh24_user_id ~ '^[0-9]+$'
+                   AND CAST(paziresh24_user_id AS BIGINT) = :uid"
             );
         } else {
             $stmt = Database::connection()->prepare(
@@ -154,7 +158,58 @@ final class GoogleTokensRepository
         $stmt->execute(['uid' => $numericUserId]);
         $rows = $stmt->fetchAll();
 
-        return is_array($rows) ? $rows : [];
+        $rows = is_array($rows) ? $rows : [];
+
+        return array_map(static fn (array $row): array => self::normalizeTokenRow($row) ?? $row, $rows);
+    }
+
+    private static function patientColumnsForInsert(): string
+    {
+        return implode(', ', [
+            Database::column('Patient_name'),
+            Database::column('Patient_date_time'),
+            Database::column('Patient_national'),
+            Database::column('Patient_phone'),
+            Database::column('Patient_center'),
+        ]);
+    }
+
+    private static function patientAssignmentsForUpdate(): string
+    {
+        return implode(', ', [
+            Database::column('Patient_name') . ' = :patient_name',
+            Database::column('Patient_date_time') . ' = :patient_date_time',
+            Database::column('Patient_national') . ' = :patient_national',
+            Database::column('Patient_phone') . ' = :patient_phone',
+            Database::column('Patient_center') . ' = :patient_center',
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @return array<string, mixed>
+     */
+    private static function normalizeTokenRow(array $row): array
+    {
+        if (!Database::isPgsql()) {
+            return $row;
+        }
+
+        $map = [
+            'patient_name' => 'Patient_name',
+            'patient_date_time' => 'Patient_date_time',
+            'patient_national' => 'Patient_national',
+            'patient_phone' => 'Patient_phone',
+            'patient_center' => 'Patient_center',
+        ];
+
+        foreach ($map as $lower => $pascal) {
+            if (array_key_exists($lower, $row) && !array_key_exists($pascal, $row)) {
+                $row[$pascal] = $row[$lower];
+            }
+        }
+
+        return $row;
     }
 
     public static function updateHamdastAccessToken(string $userId, string $hamdastAccessToken): void
@@ -280,8 +335,7 @@ final class GoogleTokensRepository
             return;
         }
 
-        $driver = Config::get('DB_DRIVER', 'sqlite');
-        if ($driver === 'mysql') {
+        if (Database::isMysql()) {
             $stmt = Database::connection()->prepare(
                 'INSERT INTO google_tokens (paziresh24_user_id, hamdast_access_token, color_id)
                  VALUES (:user_id, :hamdast_access_token, :color_id)
@@ -381,21 +435,16 @@ final class GoogleTokensRepository
         $existing = $existingRow ?? self::findByUserId($userId);
         $prefs = self::getSettings($existing);
 
-        $driver = Config::get('DB_DRIVER', 'sqlite');
-
-        if ($driver === 'mysql') {
+        if (Database::isMysql()) {
+            $patientColumns = self::patientColumnsForInsert();
             $stmt = Database::connection()->prepare(
-                'INSERT INTO google_tokens (
+                "INSERT INTO google_tokens (
                     paziresh24_user_id,
                     hamdast_access_token,
                     google_refresh_token,
                     google_access_token,
                     color_id,
-                    Patient_name,
-                    Patient_date_time,
-                    Patient_national,
-                    Patient_phone,
-                    Patient_center,
+                    {$patientColumns},
                     cancel_conflicting_appointments
                 ) VALUES (
                     :user_id,
@@ -414,21 +463,18 @@ final class GoogleTokensRepository
                     hamdast_access_token = VALUES(hamdast_access_token),
                     google_refresh_token = VALUES(google_refresh_token),
                     google_access_token = VALUES(google_access_token),
-                    updated_at = CURRENT_TIMESTAMP'
+                    updated_at = CURRENT_TIMESTAMP"
             );
         } else {
+            $patientColumns = self::patientColumnsForInsert();
             $stmt = Database::connection()->prepare(
-                'INSERT INTO google_tokens (
+                "INSERT INTO google_tokens (
                     paziresh24_user_id,
                     hamdast_access_token,
                     google_refresh_token,
                     google_access_token,
                     color_id,
-                    Patient_name,
-                    Patient_date_time,
-                    Patient_national,
-                    Patient_phone,
-                    Patient_center,
+                    {$patientColumns},
                     cancel_conflicting_appointments,
                     updated_at
                 ) VALUES (
@@ -449,7 +495,7 @@ final class GoogleTokensRepository
                     hamdast_access_token = excluded.hamdast_access_token,
                     google_refresh_token = excluded.google_refresh_token,
                     google_access_token = excluded.google_access_token,
-                    updated_at = CURRENT_TIMESTAMP'
+                    updated_at = CURRENT_TIMESTAMP"
             );
         }
 
@@ -574,11 +620,7 @@ final class GoogleTokensRepository
         $stmt = Database::connection()->prepare(
             'UPDATE google_tokens SET
                 color_id = :color_id,
-                Patient_name = :patient_name,
-                Patient_date_time = :patient_date_time,
-                Patient_national = :patient_national,
-                Patient_phone = :patient_phone,
-                Patient_center = :patient_center,
+                ' . self::patientAssignmentsForUpdate() . ',
                 auto_vacation = :auto_vacation,
                 import_future_vacations = :import_future_vacations,
                 cancel_appointment_on_event_delete = :cancel_appointment_on_event_delete,
@@ -624,15 +666,12 @@ final class GoogleTokensRepository
      */
     private static function insertSettingsRow(string $userId, array $settings): void
     {
+        $patientColumns = self::patientColumnsForInsert();
         $stmt = Database::connection()->prepare(
-            'INSERT INTO google_tokens (
+            "INSERT INTO google_tokens (
                 paziresh24_user_id,
                 color_id,
-                Patient_name,
-                Patient_date_time,
-                Patient_national,
-                Patient_phone,
-                Patient_center,
+                {$patientColumns},
                 auto_vacation,
                 import_future_vacations,
                 cancel_appointment_on_event_delete,
@@ -651,7 +690,7 @@ final class GoogleTokensRepository
                 :cancel_appointment_on_event_delete,
                 :cancel_conflicting_appointments,
                 :vacation_sync_centers
-            )'
+            )"
         );
 
         $stmt->execute([

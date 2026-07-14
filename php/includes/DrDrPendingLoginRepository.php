@@ -33,9 +33,7 @@ final class DrDrPendingLoginRepository
     {
         $pdo = Database::connection();
         $expiresAt = $now + self::TTL_SECONDS;
-        $driver = Config::get('DB_DRIVER', 'sqlite');
-
-        if ($driver === 'mysql') {
+        if (Database::isMysql()) {
             $stmt = $pdo->prepare(
                 'INSERT INTO drdr_pending_otp (doctor_id, mobile, init_payload, sent_at, expires_at)
                  VALUES (:doctor_id, :mobile, :init_payload, :sent_at, :expires_at)
@@ -44,6 +42,27 @@ final class DrDrPendingLoginRepository
                     init_payload = VALUES(init_payload),
                     sent_at = VALUES(sent_at),
                     expires_at = VALUES(expires_at)'
+            );
+            $stmt->execute([
+                'doctor_id' => $doctorId,
+                'mobile' => $mobile,
+                'init_payload' => $payloadJson,
+                'sent_at' => $now,
+                'expires_at' => $expiresAt,
+            ]);
+
+            return;
+        }
+
+        if (Database::isPgsql()) {
+            $stmt = $pdo->prepare(
+                'INSERT INTO drdr_pending_otp (doctor_id, mobile, init_payload, sent_at, expires_at)
+                 VALUES (:doctor_id, :mobile, :init_payload, :sent_at, :expires_at)
+                 ON CONFLICT (doctor_id) DO UPDATE SET
+                    mobile = EXCLUDED.mobile,
+                    init_payload = EXCLUDED.init_payload,
+                    sent_at = EXCLUDED.sent_at,
+                    expires_at = EXCLUDED.expires_at'
             );
             $stmt->execute([
                 'doctor_id' => $doctorId,

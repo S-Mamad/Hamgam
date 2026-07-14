@@ -124,9 +124,7 @@ final class GoogleCalendarBookingRepository
         }
 
         $googleEventId = is_string($googleEventId) ? trim($googleEventId) : '';
-        $driver = Config::get('DB_DRIVER', 'sqlite');
-
-        if ($driver === 'mysql') {
+        if (Database::isMysql()) {
             $stmt = Database::connection()->prepare(
                 'INSERT INTO google_calendar_bookings (paziresh24_user_id, book_id, google_event_id)
                  VALUES (:user_id, :book_id, :google_event_id)
