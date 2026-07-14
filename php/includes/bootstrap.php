@@ -8,6 +8,9 @@ if (!ob_get_level()) {
 
 require_once __DIR__ . '/Config.php';
 require_once __DIR__ . '/RequestContext.php';
+require_once __DIR__ . '/MonitorAuth.php';
+require_once __DIR__ . '/MonitorRepository.php';
+require_once __DIR__ . '/MonitorService.php';
 require_once __DIR__ . '/HttpClient.php';
 require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/Paziresh24Api.php';
@@ -24,6 +27,7 @@ require_once __DIR__ . '/GoogleCalendarBookingRepository.php';
 
 Config::load(__DIR__ . '/../.env');
 RequestContext::generateRequestId();
+MonitorService::bootRequest();
 
 $logFile = __DIR__ . '/../storage/php-errors.log';
 if (is_dir(dirname($logFile)) || @mkdir(dirname($logFile), 0750, true)) {

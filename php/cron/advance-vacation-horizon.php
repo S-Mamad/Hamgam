@@ -21,7 +21,17 @@ try {
         . ' skipped=' . ($summary['skipped'] ?? 0)
         . ' failed=' . ($summary['failed'] ?? 0)
     );
+    MonitorService::cron(
+        'advance-vacation-horizon',
+        'users=' . ($summary['users'] ?? 0)
+        . ' imported=' . ($summary['imported'] ?? 0)
+        . ' skipped=' . ($summary['skipped'] ?? 0)
+        . ' failed=' . ($summary['failed'] ?? 0),
+        ((int) ($summary['failed'] ?? 0)) > 0 ? 'warning' : 'info',
+        is_array($summary) ? $summary : null
+    );
 } catch (Throwable $e) {
     error_log('[google-vacation] cron rolling horizon error: ' . $e->getMessage());
+    MonitorService::cron('advance-vacation-horizon', 'error: ' . $e->getMessage(), 'error');
     exit(1);
 }

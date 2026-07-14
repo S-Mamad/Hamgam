@@ -89,6 +89,7 @@ final class Database
             self::migrateImportFutureVacationsSchema($pdo, 'mysql');
             self::migrateExternalConnectionsSchema($pdo, 'mysql');
             self::migrateDrdrPendingOtpSchema($pdo, 'mysql');
+            self::migrateMonitorSchema($pdo, 'mysql');
             self::migrateLegacyDefaultColorId($pdo);
             return;
         }
@@ -113,6 +114,7 @@ final class Database
         self::migrateImportFutureVacationsSchema($pdo, 'sqlite');
         self::migrateExternalConnectionsSchema($pdo, 'sqlite');
         self::migrateDrdrPendingOtpSchema($pdo, 'sqlite');
+        self::migrateMonitorSchema($pdo, 'sqlite');
         self::migrateLegacyDefaultColorId($pdo);
     }
 
@@ -236,6 +238,16 @@ final class Database
             $pdo->exec('CREATE INDEX IF NOT EXISTS idx_drdr_pending_otp_expires ON drdr_pending_otp (expires_at)');
         } catch (Throwable $e) {
             error_log('[Database] drdr_pending_otp migration failed: ' . $e->getMessage());
+        }
+    }
+
+    private static function migrateMonitorSchema(PDO $pdo, string $driver): void
+    {
+        try {
+            require_once __DIR__ . '/MonitorRepository.php';
+            MonitorRepository::ensureSchema($pdo);
+        } catch (Throwable $e) {
+            error_log('[Database] monitor migration failed: ' . $e->getMessage());
         }
     }
 

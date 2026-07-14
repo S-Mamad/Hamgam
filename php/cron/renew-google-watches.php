@@ -41,7 +41,14 @@ try {
     }
 
     error_log('[google-vacation] cron renew: renewed=' . $renewed . ' failed=' . $failed);
+    MonitorService::cron(
+        'renew-google-watches',
+        'renewed=' . $renewed . ' failed=' . $failed,
+        $failed > 0 ? 'warning' : 'info',
+        ['renewed' => $renewed, 'failed' => $failed, 'users_seen' => count($seen)]
+    );
 } catch (Throwable $e) {
     error_log('[google-vacation] cron renew error: ' . $e->getMessage());
+    MonitorService::cron('renew-google-watches', 'error: ' . $e->getMessage(), 'error');
     exit(1);
 }

@@ -116,6 +116,24 @@ final class Response
 
                 error_log('[Response] jsonThenContinue callback failed: ' . $e->getMessage());
 
+                if (class_exists('MonitorService', false)) {
+
+                    MonitorService::record([
+
+                        'channel' => 'response',
+
+                        'level' => 'error',
+
+                        'category' => 'system',
+
+                        'action' => 'jsonThenContinue.failed',
+
+                        'message' => 'jsonThenContinue callback failed: ' . $e->getMessage(),
+
+                    ]);
+
+                }
+
             }
 
         }

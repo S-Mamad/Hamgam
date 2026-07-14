@@ -56,6 +56,8 @@ final class HttpClient
 
         $attempt = 0;
 
+        $startedAt = microtime(true);
+
 
 
         while (true) {
@@ -119,6 +121,20 @@ final class HttpClient
             if ($raw === false) {
 
                 throw new RuntimeException('HTTP request failed: ' . $curlError);
+
+            }
+
+
+
+            $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
+
+            if (class_exists('MonitorService', false)) {
+
+                MonitorService::http($method, $url, $status, $durationMs, [
+
+                    'attempts' => $attempt + 1,
+
+                ]);
 
             }
 

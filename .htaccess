@@ -38,6 +38,18 @@ RewriteRule ^hamgam/sync-status/?$ php/hamgam/sync-status.php [L,QSA]
 RewriteRule ^webhook/paziresh24-hamgam/?$ php/webhook/paziresh24-hamgam.php [L,QSA]
 RewriteRule ^webhook/google-calendar/?$ php/webhook/google-calendar.php [L,QSA]
 
+# Monitor dashboard (admin — auth via MONITOR_API_KEY)
+RewriteRule ^monitor/?$ php/monitor/index.html [L,QSA]
+RewriteRule ^monitor/index\.html$ php/monitor/index.html [L,QSA]
+RewriteRule ^monitor/monitor\.css$ php/monitor/monitor.css [L]
+RewriteRule ^monitor/monitor\.js$ php/monitor/monitor.js [L]
+RewriteRule ^monitor/api/events/?$ php/monitor/api/events.php [L,QSA]
+RewriteRule ^monitor/api/event/?$ php/monitor/api/event.php [L,QSA]
+RewriteRule ^monitor/api/stats/?$ php/monitor/api/stats.php [L,QSA]
+RewriteRule ^monitor/api/overview/?$ php/monitor/api/overview.php [L,QSA]
+RewriteRule ^monitor/api/users/?$ php/monitor/api/users.php [L,QSA]
+RewriteRule ^monitor/api/log-tail/?$ php/monitor/api/log-tail.php [L,QSA]
+
 # External provider OAuth (DrDr, ...)
 RewriteRule ^integrations/([a-z0-9_-]+)/connect/?$ php/integrations/connect.php?provider=$1 [L,QSA]
 RewriteRule ^integrations/([a-z0-9_-]+)/callback/?$ php/integrations/callback.php?provider=$1 [L,QSA]
