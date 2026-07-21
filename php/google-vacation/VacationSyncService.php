@@ -20,6 +20,10 @@ final class VacationSyncService
 
     {
 
+        if (!VacationFeature::isEnabled()) {
+            return;
+        }
+
         error_log('[google-vacation] webhook received channel=' . $channelId . ' state=' . $resourceState);
 
 
@@ -200,6 +204,10 @@ final class VacationSyncService
     ): array {
 
         $empty = ['ran' => false, 'imported' => 0, 'skipped' => 0, 'failed' => 0];
+
+        if (!VacationFeature::isEnabled()) {
+            return $empty;
+        }
 
 
 
@@ -476,8 +484,12 @@ final class VacationSyncService
      */
     public static function runDailyRollingVacationSync(?int $now = null): array
     {
-        $now = $now ?? time();
         $summary = ['users' => 0, 'imported' => 0, 'skipped' => 0, 'failed' => 0];
+        if (!VacationFeature::isEnabled()) {
+            return $summary;
+        }
+
+        $now = $now ?? time();
         $dayBounds = GoogleEventParser::resolveRollingSyncTargetDayBounds($now);
         $timeMin = gmdate('Y-m-d\TH:i:s\Z', $dayBounds['from_ts']);
         $timeMax = gmdate('Y-m-d\TH:i:s\Z', $dayBounds['to_ts']);

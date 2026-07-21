@@ -31,6 +31,10 @@ try {
 
     GoogleTokensRepository::upsertHamdastAccessToken($userId, $accessToken);
 
+    if (!VacationFeature::isEnabled()) {
+        Response::jsonError('Vacation feature is disabled', 403);
+    }
+
     $tokenRow = GoogleTokensRepository::findByUserId($userId);
     ImportFutureVacationsRepository::reconcileBackfillSlotsFromTrackedEvents($userId);
     $targets = ImportFutureVacationsRepository::listDeletableImportVacationTargets($userId);

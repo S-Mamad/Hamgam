@@ -36,6 +36,7 @@ const appState = {
     connected: false,
     oauthUrl: null,
     settingsLoadedFromAuth: false,
+    vacationFeatureEnabled: false,
     previewOpen: false,
     saving: false,
     changingGmail: false,
@@ -106,7 +107,8 @@ function mapApiError(error) {
         "Authentication failed": "خطا در احراز هویت. صفحه را از پنل پذیرش۲۴ مجدداً باز کنید.",
         "Missing session token": "توکن نشست یافت نشد. صفحه را از پنل پذیرش۲۴ دوباره باز کنید.",
         "Invalid session token": "نشست نامعتبر است. صفحه را از پنل پذیرش۲۴ دوباره باز کنید.",
-        "Method not allowed": "درخواست نامعتبر است. صفحه را رفرش کنید."
+        "Method not allowed": "درخواست نامعتبر است. صفحه را رفرش کنید.",
+        "Vacation feature is disabled": "قابلیت مرخصی فعلاً غیرفعال است."
     };
 
     if (error === "Failed to fetch") {
@@ -644,6 +646,10 @@ async function startImportFutureBackfillPoll() {
 }
 
 async function handleImportFutureBackfillClick() {
+    if (!isVacationFeatureEnabled()) {
+        return;
+    }
+
     if (
         appState.importFutureBackfillStarting
         || appState.importFutureBackfillPending
@@ -2601,6 +2607,8 @@ async function initApp() {
 }
 
 function bindUiEvents() {
+    applyVacationFeatureLock();
+
     document.querySelectorAll(".circle-opt").forEach(circle => {
         circle.addEventListener("click", () => handleColorSelect(circle));
         circle.addEventListener("keydown", (e) => {
@@ -2614,6 +2622,10 @@ function bindUiEvents() {
     document.querySelectorAll(".switch input").forEach(sw => {
         sw.addEventListener("click", (e) => e.stopPropagation());
         sw.addEventListener("change", () => {
+            if (!isVacationFeatureEnabled() && sw.dataset.field === "autoVacation") {
+                sw.checked = false;
+                return;
+            }
             updateLiveBadge();
             pulseField(sw.closest(".field"));
             if (sw.dataset.field === "autoVacation") {
@@ -2985,6 +2997,41 @@ function setupMainTabSwipe(triggers, activateTab) {
     }, { passive: true });
 }
 
+function isVacationFeatureEnabled() {
+    return appState.vacationFeatureEnabled === true;
+}
+
+function applyVacationFeatureLock() {
+    const section = document.getElementById("vacationSettingsSection");
+    const tabBadge = document.getElementById("vacationTabSoonBadge");
+    const soonNote = document.getElementById("vacationSoonNote");
+    const enabled = isVacationFeatureEnabled();
+
+    section?.classList.toggle("vacation-section--locked", !enabled);
+    if (tabBadge) tabBadge.hidden = enabled;
+    if (soonNote) soonNote.hidden = enabled;
+
+    document.querySelectorAll('[data-field="autoVacation"], [data-field="cancelAppointmentOnEventDelete"]').forEach((input) => {
+        input.disabled = !enabled;
+        if (!enabled) {
+            input.checked = false;
+        }
+    });
+
+    ["vacationGuideBtn", "vacationCentersRefresh", "importFutureBackfillBtn", "deleteSyncedBackfillBtn"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = !enabled;
+    });
+
+    document.querySelectorAll("#vacationConflictCancelBtn, #vacationConflictRescheduleBtn").forEach((btn) => {
+        btn.disabled = !enabled;
+    });
+
+    updateVacationSubPanel();
+    applyImportFutureBackfillCardUiState();
+    applyImportFutureBackfillUndoUiState();
+}
+
 function isVacationPanelOpen() {
     return document.getElementById("vacationSubPanel")?.classList.contains("open") ?? false;
 }
@@ -3011,6 +3058,18 @@ function updateVacationSubPanel() {
     const autoVacation = document.querySelector('[data-field="autoVacation"]');
     const panel = document.getElementById("vacationSubPanel");
     if (!autoVacation || !panel) return;
+
+    if (!isVacationFeatureEnabled()) {
+        autoVacation.checked = false;
+        panel.classList.remove("open");
+        panel.setAttribute("aria-hidden", "true");
+        autoVacation.setAttribute("aria-expanded", "false");
+        renderVacationCenters();
+        updateVacationSubOptionsState();
+        applyImportFutureBackfillCardUiState();
+        applyImportFutureBackfillUndoUiState();
+        return;
+    }
 
     const open = autoVacation.checked;
     panel.classList.toggle("open", open);
@@ -3341,6 +3400,10 @@ function resetImportFutureVacationsAfterSyncedDelete() {
 }
 
 async function handleDeleteSyncedBackfillClick() {
+    if (!isVacationFeatureEnabled()) {
+        return;
+    }
+
     if (!appState.importFutureVacationsUsed) {
         return;
     }
@@ -3626,6 +3689,7 @@ function handleVacationCenterCheckboxChange(event) {
 }
 
 async function fetchMedicalCenters(force = false) {
+    if (!isVacationFeatureEnabled()) return;
     if (!force && appState.centersFetchState === "loading") return;
     if (!force && appState.centersFetchState === "ready" && appState.medicalCenters.length > 0) return;
 
@@ -3674,6 +3738,7 @@ async function fetchMedicalCenters(force = false) {
 }
 
 function validateVacationCentersBeforeSave(autoVacation) {
+    if (!isVacationFeatureEnabled()) return true;
     if (!autoVacation) return true;
 
     const centers = appState.medicalCenters;
@@ -3775,10 +3840,10 @@ function collectSettingsPayload() {
         datetime: fields.datetime,
         nationalId: fields.nationalId,
         phone: fields.phone,
-        autoVacation: fields.autoVacation,
+        autoVacation: isVacationFeatureEnabled() ? fields.autoVacation : false,
         importFutureVacations: false,
-        cancelAppointmentOnEventDelete: fields.cancelAppointmentOnEventDelete,
-        cancelConflictingAppointments: fields.autoVacation ? fields.cancelConflictingAppointments : false,
+        cancelAppointmentOnEventDelete: isVacationFeatureEnabled() ? fields.cancelAppointmentOnEventDelete : false,
+        cancelConflictingAppointments: isVacationFeatureEnabled() && fields.autoVacation ? fields.cancelConflictingAppointments : false,
         vacationSyncCenters: buildVacationSyncCentersPayload()
     };
 }
@@ -3883,7 +3948,11 @@ function showApp() {
             requestAnimationFrame(() => refreshMainTabPill());
         });
         setTimeout(() => refreshMainTabPill(), 120);
-        setTimeout(() => showVacationGuideHint(), 420);
+        setTimeout(() => {
+            if (isVacationFeatureEnabled()) {
+                showVacationGuideHint();
+            }
+        }, 420);
     }, 280);
 }
 
@@ -4043,6 +4112,10 @@ function getFieldState() {
 }
 
 function applySettingsToForm(settings) {
+    if (typeof settings.vacation_feature_enabled === "boolean") {
+        appState.vacationFeatureEnabled = settings.vacation_feature_enabled;
+    }
+
     const targetColorId = String(settings.color_id || DEFAULT_COLOR_ID);
 
     document.querySelectorAll(".circle-opt").forEach(circle => {
@@ -4054,19 +4127,24 @@ function applySettingsToForm(settings) {
     document.querySelector('[data-field="datetime"]').checked = !!settings.Patient_date_time;
     document.querySelector('[data-field="nationalId"]').checked = !!settings.Patient_national;
     document.querySelector('[data-field="phone"]').checked = !!settings.Patient_phone;
-    document.querySelector('[data-field="autoVacation"]').checked = !!settings.auto_vacation;
+    document.querySelector('[data-field="autoVacation"]').checked = !!settings.auto_vacation && isVacationFeatureEnabled();
 
-    setImportFutureVacationsUsed(!!settings.import_future_vacations_used);
-    const slotCount = Math.max(
-        0,
-        Number(settings.synced_vacation_count ?? settings.import_future_backfill_slot_count ?? 0)
+    setImportFutureVacationsUsed(isVacationFeatureEnabled() && !!settings.import_future_vacations_used);
+    const slotCount = isVacationFeatureEnabled()
+        ? Math.max(
+            0,
+            Number(settings.synced_vacation_count ?? settings.import_future_backfill_slot_count ?? 0)
+        )
+        : 0;
+    setImportFutureBackfillUndoAvailable(
+        isVacationFeatureEnabled()
+        && (!!settings.import_future_backfill_undo_available || slotCount > 0)
     );
-    setImportFutureBackfillUndoAvailable(!!settings.import_future_backfill_undo_available || slotCount > 0);
     setImportFutureBackfillSlotCount(slotCount);
 
     const cancelOnDeleteEl = document.querySelector('[data-field="cancelAppointmentOnEventDelete"]');
     if (cancelOnDeleteEl) {
-        cancelOnDeleteEl.checked = !!settings.cancel_appointment_on_event_delete;
+        cancelOnDeleteEl.checked = isVacationFeatureEnabled() && !!settings.cancel_appointment_on_event_delete;
     }
 
     const cancelConflictEl = document.querySelector('[data-field="cancelConflictingAppointments"]');
@@ -4092,6 +4170,7 @@ function applySettingsToForm(settings) {
     }
 
     applyImportFutureBackfillCardUiState();
+    applyVacationFeatureLock();
 }
 
 function updateGoogleAccountBanner(email) {

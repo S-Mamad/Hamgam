@@ -56,13 +56,14 @@ try {
     ]);
 
     $forceBackfill = false;
-    if (array_key_exists('importFutureVacations', $body)) {
+    if (VacationFeature::isEnabled() && array_key_exists('importFutureVacations', $body)) {
         $parsedImport = GoogleTokensRepository::parseImportFutureVacationsFlag($body['importFutureVacations']);
         $forceBackfill = $parsedImport === true
             && !GoogleTokensRepository::hasCompletedImportFutureVacations($tokenRow);
     }
 
-    $shouldRunBackfill = $forceBackfill || GoogleTokensRepository::shouldRunFutureVacationsBackfill($tokenRow);
+    $shouldRunBackfill = VacationFeature::isEnabled()
+        && ($forceBackfill || GoogleTokensRepository::shouldRunFutureVacationsBackfill($tokenRow));
     $backfillResult = ['ran' => false, 'imported' => 0, 'skipped' => 0, 'failed' => 0];
 
     if ($shouldRunBackfill) {

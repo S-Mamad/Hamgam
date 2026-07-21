@@ -11,10 +11,10 @@
     <meta name="description" content="شخصی‌سازی نحوه ثبت نوبت‌های پذیرش۲۴ در Google Calendar">
     <link rel="dns-prefetch" href="https://accounts.google.com">
     <link rel="preconnect" href="https://accounts.google.com" crossorigin>
-    <link rel="stylesheet" href="style.css?v=ae869123">
+    <link rel="stylesheet" href="style.css?v=8149c25a">
     <link href="https://fonts.paziresh24.com/iran-sans-x.css" rel="stylesheet">
     <script src="https://hamdast.paziresh24.com/sdk/hamdast.js"></script>
-    <script src="script.js?v=ae869123" defer></script>
+    <script src="script.js?v=8149c25a" defer></script>
 </head>
 
 <body>
@@ -43,15 +43,20 @@
 
         <nav class="main-tab-wrapper" id="mainTabSwitcher" role="tablist" aria-label="بخش‌های تنظیمات">
             <div class="main-tab-pill" id="mainTabPill" aria-hidden="true"></div>
-            <button type="button" class="main-tab-trigger active" role="tab" data-target="tab-vacation" aria-selected="true" aria-controls="tab-vacation">مدیریت مرخصی و نوبت</button>
+            <button type="button" class="main-tab-trigger active" role="tab" data-target="tab-vacation" aria-selected="true" aria-controls="tab-vacation">
+                <span class="main-tab-trigger__label">مدیریت مرخصی و نوبت</span>
+                <span class="vacation-soon-badge" id="vacationTabSoonBadge">به زودی</span>
+            </button>
             <button type="button" class="main-tab-trigger" role="tab" data-target="tab-personalize" aria-selected="false" aria-controls="tab-personalize">شخصی سازی ایونت‌</button>
         </nav>
 
         <div id="tab-vacation" class="main-tab-content active font-medium" role="tabpanel" aria-label="مدیریت مرخصی">
 
-        <section class="settings-section settings-section--vacation" aria-label="همگام‌سازی مرخصی">
+        <section class="settings-section settings-section--vacation vacation-section--locked" id="vacationSettingsSection" aria-label="همگام‌سازی مرخصی">
 
             <main class="settings-card settings-card--vacation">
+
+                <p class="vacation-soon-note" id="vacationSoonNote">این بخش به‌زودی فعال می‌شود.</p>
 
                 <div id="googleAccountGroup" class="gmail-row" hidden>
                     <button type="button" id="changeGmailBtn" class="gmail-row__track" aria-label="تغییر حساب Google" title="تغییر حساب Google">
@@ -81,7 +86,7 @@
                         </div>
                     </div>
                     <label class="switch">
-                        <input type="checkbox" data-field="autoVacation" id="autoVacationToggle" aria-controls="vacationSubPanel">
+                        <input type="checkbox" data-field="autoVacation" id="autoVacationToggle" aria-controls="vacationSubPanel" disabled>
                         <span></span>
                     </label>
                 </div>
@@ -191,7 +196,7 @@
                         <span class="vacation-event-delete__label">لغو نوبت در صورت حذف ایونت‌ آن در تقویم</span>
                     </div>
                     <label class="switch switch--mini" for="cancelAppointmentOnEventDelete">
-                        <input type="checkbox" data-field="cancelAppointmentOnEventDelete" id="cancelAppointmentOnEventDelete" checked>
+                        <input type="checkbox" data-field="cancelAppointmentOnEventDelete" id="cancelAppointmentOnEventDelete" checked disabled>
                         <span></span>
                     </label>
                 </div>

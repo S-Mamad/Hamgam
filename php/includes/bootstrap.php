@@ -7,6 +7,7 @@ if (!ob_get_level()) {
 }
 
 require_once __DIR__ . '/Config.php';
+require_once __DIR__ . '/VacationFeature.php';
 require_once __DIR__ . '/RequestContext.php';
 require_once __DIR__ . '/MonitorAuth.php';
 require_once __DIR__ . '/MonitorRepository.php';

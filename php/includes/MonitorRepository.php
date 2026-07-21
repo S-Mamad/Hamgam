@@ -58,44 +58,6 @@ final class MonitorRepository
                     PRIMARY KEY (rollup_date, channel, level)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
             );
-        } elseif ($driver === 'pgsql') {
-            $pdo->exec(
-                'CREATE TABLE IF NOT EXISTS monitor_events (
-                    id BIGSERIAL PRIMARY KEY,
-                    request_id VARCHAR(64) NOT NULL DEFAULT \'\',
-                    channel VARCHAR(64) NOT NULL DEFAULT \'system\',
-                    level VARCHAR(16) NOT NULL DEFAULT \'info\',
-                    category VARCHAR(32) NOT NULL DEFAULT \'system\',
-                    action VARCHAR(128) NULL,
-                    message TEXT NOT NULL,
-                    user_id VARCHAR(64) NULL,
-                    entity_type VARCHAR(32) NULL,
-                    entity_id VARCHAR(256) NULL,
-                    context_json TEXT NULL,
-                    duration_ms INTEGER NULL,
-                    http_status INTEGER NULL,
-                    ip_address VARCHAR(45) NULL,
-                    source_file VARCHAR(255) NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )'
-            );
-            $pdo->exec('CREATE INDEX IF NOT EXISTS idx_monitor_events_created ON monitor_events (created_at)');
-            $pdo->exec('CREATE INDEX IF NOT EXISTS idx_monitor_events_channel ON monitor_events (channel, created_at)');
-            $pdo->exec('CREATE INDEX IF NOT EXISTS idx_monitor_events_level ON monitor_events (level, created_at)');
-            $pdo->exec('CREATE INDEX IF NOT EXISTS idx_monitor_events_user ON monitor_events (user_id, created_at)');
-            $pdo->exec('CREATE INDEX IF NOT EXISTS idx_monitor_events_request ON monitor_events (request_id)');
-            $pdo->exec('CREATE INDEX IF NOT EXISTS idx_monitor_events_category ON monitor_events (category, created_at)');
-            $pdo->exec(
-                'CREATE TABLE IF NOT EXISTS monitor_daily_rollups (
-                    rollup_date DATE NOT NULL,
-                    channel VARCHAR(64) NOT NULL DEFAULT \'_all\',
-                    level VARCHAR(16) NOT NULL DEFAULT \'_all\',
-                    event_count INTEGER NOT NULL DEFAULT 0,
-                    error_count INTEGER NOT NULL DEFAULT 0,
-                    avg_duration_ms DOUBLE PRECISION NULL,
-                    PRIMARY KEY (rollup_date, channel, level)
-                )'
-            );
         } else {
             $schemaFile = __DIR__ . '/../sql/monitor_events.sql';
             if (is_file($schemaFile)) {
@@ -339,16 +301,6 @@ final class MonitorRepository
                  GROUP BY hour_bucket
                  ORDER BY hour_bucket ASC'
             );
-        } elseif ($driver === 'pgsql') {
-            $stmt = $pdo->prepare(
-                "SELECT to_char(created_at, 'YYYY-MM-DD HH24:00:00') AS hour_bucket,
-                        COUNT(*) AS total,
-                        SUM(CASE WHEN level IN ('error', 'critical') THEN 1 ELSE 0 END) AS errors
-                 FROM monitor_events
-                 WHERE created_at >= :since
-                 GROUP BY hour_bucket
-                 ORDER BY hour_bucket ASC"
-            );
         } else {
             $stmt = $pdo->prepare(
                 "SELECT strftime('%Y-%m-%d %H:00:00', created_at) AS hour_bucket,
@@ -579,11 +531,6 @@ final class MonitorRepository
                 $pdo->exec(
                     'DELETE FROM monitor_events
                      WHERE created_at < DATE_SUB(NOW(), INTERVAL ' . self::RETENTION_DAYS . ' DAY)'
-                );
-            } elseif ($driver === 'pgsql') {
-                $pdo->exec(
-                    "DELETE FROM monitor_events
-                     WHERE created_at < NOW() - INTERVAL '" . self::RETENTION_DAYS . " days'"
                 );
             } else {
                 $pdo->exec(

@@ -6,51 +6,13 @@ final class Database
 {
     private static ?PDO $pdo = null;
 
-    public static function driver(): string
-    {
-        return (string) Config::get('DB_DRIVER', 'sqlite');
-    }
-
-    public static function isMysql(): bool
-    {
-        return self::driver() === 'mysql';
-    }
-
-    public static function isPgsql(): bool
-    {
-        return self::driver() === 'pgsql';
-    }
-
-    public static function isSqlite(): bool
-    {
-        return !self::isMysql() && !self::isPgsql();
-    }
-
-    /** SQLite and PostgreSQL both use ON CONFLICT upsert syntax. */
-    public static function usesOnConflictUpsert(): bool
-    {
-        return self::isSqlite() || self::isPgsql();
-    }
-
-    /**
-     * PostgreSQL folds unquoted identifiers to lowercase; keep PascalCase columns portable.
-     */
-    public static function column(string $name): string
-    {
-        if (self::isPgsql()) {
-            return strtolower($name);
-        }
-
-        return $name;
-    }
-
     public static function connection(): PDO
     {
         if (self::$pdo instanceof PDO) {
             return self::$pdo;
         }
 
-        $driver = self::driver();
+        $driver = Config::get('DB_DRIVER', 'sqlite');
 
         if ($driver === 'mysql') {
             $host = Config::require('DB_HOST');
@@ -60,24 +22,6 @@ final class Database
             $pass = Config::get('DB_PASS', '');
 
             $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
-            self::$pdo = new PDO($dsn, $user, $pass, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
-            ]);
-        } elseif ($driver === 'pgsql') {
-            $host = Config::require('DB_HOST');
-            $port = Config::get('DB_PORT', '5432');
-            $name = Config::require('DB_NAME');
-            $user = Config::require('DB_USER');
-            $pass = Config::get('DB_PASS', '');
-            $sslMode = Config::get('DB_SSLMODE', '');
-
-            $dsn = "pgsql:host={$host};port={$port};dbname={$name}";
-            if ($sslMode !== '') {
-                $dsn .= ';sslmode=' . $sslMode;
-            }
-
             self::$pdo = new PDO($dsn, $user, $pass, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -112,7 +56,7 @@ final class Database
             return;
         }
 
-        $driver = self::driver();
+        $driver = Config::get('DB_DRIVER', 'sqlite');
 
         if ($driver === 'mysql') {
             $pdo->exec(
@@ -146,42 +90,6 @@ final class Database
             self::migrateExternalConnectionsSchema($pdo, 'mysql');
             self::migrateDrdrPendingOtpSchema($pdo, 'mysql');
             self::migrateMonitorSchema($pdo, 'mysql');
-            self::migrateLegacyDefaultColorId($pdo);
-            return;
-        }
-
-        if ($driver === 'pgsql') {
-            $pdo->exec(
-                'CREATE TABLE IF NOT EXISTS google_tokens (
-                    id SERIAL PRIMARY KEY,
-                    paziresh24_user_id VARCHAR(64) NOT NULL UNIQUE,
-                    google_refresh_token TEXT NULL,
-                    google_access_token TEXT NULL,
-                    hamdast_access_token TEXT NULL,
-                    color_id VARCHAR(8) NOT NULL DEFAULT \'9\',
-                    patient_name SMALLINT NOT NULL DEFAULT 1,
-                    patient_date_time SMALLINT NOT NULL DEFAULT 0,
-                    patient_national SMALLINT NOT NULL DEFAULT 1,
-                    patient_phone SMALLINT NOT NULL DEFAULT 0,
-                    patient_center SMALLINT NOT NULL DEFAULT 1,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )'
-            );
-            $pdo->exec('CREATE INDEX IF NOT EXISTS idx_google_tokens_user_id ON google_tokens (paziresh24_user_id)');
-            self::ensureColumn($pdo, 'google_tokens', 'hamdast_access_token', 'TEXT NULL');
-            self::ensureColumn($pdo, 'google_tokens', 'color_id', 'VARCHAR(8) NOT NULL DEFAULT \'9\'');
-            self::ensureColumn($pdo, 'google_tokens', 'patient_name', 'SMALLINT NOT NULL DEFAULT 1');
-            self::ensureColumn($pdo, 'google_tokens', 'patient_date_time', 'SMALLINT NOT NULL DEFAULT 0');
-            self::ensureColumn($pdo, 'google_tokens', 'patient_national', 'SMALLINT NOT NULL DEFAULT 1');
-            self::ensureColumn($pdo, 'google_tokens', 'patient_phone', 'SMALLINT NOT NULL DEFAULT 0');
-            self::ensureColumn($pdo, 'google_tokens', 'patient_center', 'SMALLINT NOT NULL DEFAULT 1');
-            self::migrateVacationSchema($pdo, 'pgsql');
-            self::migrateBookingSchema($pdo, 'pgsql');
-            self::migrateImportFutureVacationsSchema($pdo, 'pgsql');
-            self::migrateExternalConnectionsSchema($pdo, 'pgsql');
-            self::migrateDrdrPendingOtpSchema($pdo, 'pgsql');
-            self::migrateMonitorSchema($pdo, 'pgsql');
             self::migrateLegacyDefaultColorId($pdo);
             return;
         }
@@ -236,28 +144,6 @@ final class Database
                         INDEX idx_backfill_slots_active (paziresh24_user_id, deleted_at)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
                 );
-            } elseif ($driver === 'pgsql') {
-                $pdo->exec(
-                    'CREATE TABLE IF NOT EXISTS import_future_vacations_doctor_lock (
-                        paziresh24_user_id VARCHAR(64) NOT NULL PRIMARY KEY,
-                        used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )'
-                );
-                $pdo->exec(
-                    'CREATE TABLE IF NOT EXISTS import_future_vacations_backfill_slots (
-                        id SERIAL PRIMARY KEY,
-                        paziresh24_user_id VARCHAR(64) NOT NULL,
-                        google_event_id VARCHAR(256) NULL,
-                        medical_center_id VARCHAR(64) NOT NULL,
-                        vacation_from BIGINT NOT NULL,
-                        vacation_to BIGINT NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        deleted_at TIMESTAMP NULL,
-                        UNIQUE (paziresh24_user_id, medical_center_id, vacation_from, vacation_to)
-                    )'
-                );
-                $pdo->exec('CREATE INDEX IF NOT EXISTS idx_backfill_slots_doctor ON import_future_vacations_backfill_slots (paziresh24_user_id)');
-                $pdo->exec('CREATE INDEX IF NOT EXISTS idx_backfill_slots_active ON import_future_vacations_backfill_slots (paziresh24_user_id, deleted_at)');
             } else {
                 $pdo->exec(
                     'CREATE TABLE IF NOT EXISTS import_future_vacations_doctor_lock (
@@ -280,12 +166,7 @@ final class Database
                 );
             }
 
-            self::ensureColumn(
-                $pdo,
-                'import_future_vacations_backfill_slots',
-                'google_event_id',
-                $driver === 'mysql' ? 'VARCHAR(256) NULL' : ($driver === 'pgsql' ? 'VARCHAR(256) NULL' : 'TEXT')
-            );
+            self::ensureColumn($pdo, 'import_future_vacations_backfill_slots', 'google_event_id', $driver === 'mysql' ? 'VARCHAR(256) NULL' : 'TEXT');
 
             require_once __DIR__ . '/ImportFutureVacationsRepository.php';
             ImportFutureVacationsRepository::migrateExistingDoctorLocks($pdo);
@@ -312,26 +193,6 @@ final class Database
                         INDEX idx_doctor_external_connections_doctor (doctor_id)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
                 );
-
-                return;
-            }
-
-            if ($driver === 'pgsql') {
-                $pdo->exec(
-                    'CREATE TABLE IF NOT EXISTS doctor_external_connections (
-                        id SERIAL PRIMARY KEY,
-                        doctor_id VARCHAR(64) NOT NULL,
-                        provider VARCHAR(32) NOT NULL,
-                        access_token TEXT NOT NULL,
-                        refresh_token TEXT NULL,
-                        expires_at BIGINT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        UNIQUE (doctor_id, provider)
-                    )'
-                );
-                $pdo->exec('CREATE INDEX IF NOT EXISTS idx_doctor_external_connections_doctor ON doctor_external_connections (doctor_id)');
-
                 return;
             }
 
@@ -361,21 +222,6 @@ final class Database
                         INDEX idx_drdr_pending_otp_expires (expires_at)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
                 );
-
-                return;
-            }
-
-            if ($driver === 'pgsql') {
-                $pdo->exec(
-                    'CREATE TABLE IF NOT EXISTS drdr_pending_otp (
-                        doctor_id VARCHAR(64) NOT NULL PRIMARY KEY,
-                        mobile VARCHAR(16) NOT NULL,
-                        init_payload TEXT NULL,
-                        sent_at INTEGER NOT NULL,
-                        expires_at INTEGER NOT NULL
-                    )'
-                );
-                $pdo->exec('CREATE INDEX IF NOT EXISTS idx_drdr_pending_otp_expires ON drdr_pending_otp (expires_at)');
 
                 return;
             }
@@ -435,24 +281,6 @@ final class Database
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
                 );
                 self::ensureColumn($pdo, 'google_calendar_bookings', 'google_event_id', 'VARCHAR(256) NULL');
-
-                return;
-            }
-
-            if ($driver === 'pgsql') {
-                $pdo->exec(
-                    'CREATE TABLE IF NOT EXISTS google_calendar_bookings (
-                        id SERIAL PRIMARY KEY,
-                        paziresh24_user_id VARCHAR(64) NOT NULL,
-                        book_id VARCHAR(128) NOT NULL,
-                        google_event_id VARCHAR(256) NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        UNIQUE (paziresh24_user_id, book_id)
-                    )'
-                );
-                $pdo->exec('CREATE INDEX IF NOT EXISTS idx_calendar_bookings_user ON google_calendar_bookings (paziresh24_user_id)');
-                self::ensureColumn($pdo, 'google_calendar_bookings', 'google_event_id', 'VARCHAR(256) NULL');
-
                 return;
             }
 
@@ -509,45 +337,6 @@ final class Database
                 );
                 self::ensureColumn($pdo, 'google_event_vacations', 'medical_center_id', 'VARCHAR(64) NOT NULL DEFAULT \'\'');
                 self::migrateEventVacationsUniqueKey($pdo, 'mysql');
-
-                return;
-            }
-
-            if ($driver === 'pgsql') {
-                self::ensureColumn($pdo, 'google_tokens', 'auto_vacation', 'SMALLINT NOT NULL DEFAULT 0');
-                self::ensureColumn($pdo, 'google_tokens', 'center_id', 'VARCHAR(64) NULL');
-                self::ensureColumn($pdo, 'google_tokens', 'google_channel_id', 'VARCHAR(128) NULL');
-                self::ensureColumn($pdo, 'google_tokens', 'google_resource_id', 'VARCHAR(256) NULL');
-                self::ensureColumn($pdo, 'google_tokens', 'google_watch_expiration', 'BIGINT NULL');
-                self::ensureColumn($pdo, 'google_tokens', 'google_sync_token', 'TEXT NULL');
-                self::ensureColumn($pdo, 'google_tokens', 'google_account_email', 'VARCHAR(255) NULL');
-                self::ensureColumn($pdo, 'google_tokens', 'import_future_vacations', 'SMALLINT NOT NULL DEFAULT 0');
-                self::ensureColumn($pdo, 'google_tokens', 'import_future_vacations_done_at', 'TIMESTAMP NULL');
-                self::ensureColumn($pdo, 'google_tokens', 'import_future_vacations_window_end', 'BIGINT NULL');
-                self::ensureColumn($pdo, 'google_tokens', 'import_future_vacations_last_cleared_at', 'TIMESTAMP NULL');
-                self::ensureColumn($pdo, 'google_tokens', 'cancel_appointment_on_event_delete', 'SMALLINT NOT NULL DEFAULT 1');
-                self::ensureColumn($pdo, 'google_tokens', 'cancel_conflicting_appointments', 'SMALLINT NOT NULL DEFAULT 0');
-                self::ensureColumn($pdo, 'google_tokens', 'vacation_sync_centers', 'TEXT NULL');
-                self::ensureColumn($pdo, 'google_tokens', 'last_sync_status', 'TEXT NULL');
-
-                $pdo->exec(
-                    'CREATE TABLE IF NOT EXISTS google_event_vacations (
-                        id SERIAL PRIMARY KEY,
-                        paziresh24_user_id VARCHAR(64) NOT NULL,
-                        google_event_id VARCHAR(256) NOT NULL,
-                        medical_center_id VARCHAR(64) NOT NULL DEFAULT \'\',
-                        event_summary VARCHAR(512) NULL,
-                        vacation_from BIGINT NOT NULL,
-                        vacation_to BIGINT NOT NULL,
-                        paziresh24_response TEXT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        UNIQUE (paziresh24_user_id, google_event_id, medical_center_id)
-                    )'
-                );
-                $pdo->exec('CREATE INDEX IF NOT EXISTS idx_event_vacations_user ON google_event_vacations (paziresh24_user_id)');
-                self::ensureColumn($pdo, 'google_event_vacations', 'medical_center_id', 'VARCHAR(64) NOT NULL DEFAULT \'\'');
-                self::migrateEventVacationsUniqueKey($pdo, 'pgsql');
-
                 return;
             }
 
@@ -612,33 +401,6 @@ final class Database
                     $pdo->exec(
                         'ALTER TABLE google_event_vacations
                          ADD UNIQUE KEY uq_user_event_center (paziresh24_user_id, google_event_id, medical_center_id)'
-                    );
-                }
-
-                return;
-            }
-
-            if ($driver === 'pgsql') {
-                $stmt = $pdo->query(
-                    "SELECT COUNT(*) FROM pg_indexes
-                     WHERE schemaname = current_schema()
-                       AND tablename = 'google_event_vacations'
-                       AND indexname = 'uq_user_event'"
-                );
-                if ($stmt !== false && (int) $stmt->fetchColumn() > 0) {
-                    $pdo->exec('DROP INDEX IF EXISTS uq_user_event');
-                }
-
-                $stmt = $pdo->query(
-                    "SELECT COUNT(*) FROM pg_indexes
-                     WHERE schemaname = current_schema()
-                       AND tablename = 'google_event_vacations'
-                       AND indexname = 'uq_user_event_center'"
-                );
-                if ($stmt !== false && (int) $stmt->fetchColumn() === 0) {
-                    $pdo->exec(
-                        'CREATE UNIQUE INDEX IF NOT EXISTS uq_user_event_center
-                         ON google_event_vacations (paziresh24_user_id, google_event_id, medical_center_id)'
                     );
                 }
 
@@ -730,26 +492,6 @@ final class Database
                 }
 
                 $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
-
-                return;
-            }
-
-            if ($driver === 'pgsql') {
-                $lookupColumn = strtolower($column);
-                $lookupTable = strtolower($table);
-                $stmt = $pdo->prepare(
-                    'SELECT COUNT(*) FROM information_schema.columns
-                     WHERE table_schema = current_schema()
-                       AND table_name = :table
-                       AND column_name = :column'
-                );
-                $stmt->execute(['table' => $lookupTable, 'column' => $lookupColumn]);
-                if ((int) $stmt->fetchColumn() > 0) {
-                    return;
-                }
-
-                $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$lookupColumn} {$definition}");
-
                 return;
             }
 

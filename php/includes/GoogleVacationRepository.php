@@ -720,6 +720,8 @@ final class GoogleVacationRepository
 
     ): void {
 
+        $driver = Config::get('DB_DRIVER', 'sqlite');
+
         $responseJson = $response !== null
 
             ? json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
@@ -730,7 +732,7 @@ final class GoogleVacationRepository
 
 
 
-        if (Database::isMysql()) {
+        if ($driver === 'mysql') {
 
             $stmt = Database::connection()->prepare(
 

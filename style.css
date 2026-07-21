@@ -133,6 +133,11 @@ body {
     flex: 1;
     position: relative;
     z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
     padding: 10px 12px;
     border: none;
     outline: none;
@@ -159,6 +164,59 @@ body {
     outline: 2px solid var(--blue-500);
     outline-offset: 1px;
     border-radius: calc(var(--radius) - 3px);
+}
+
+.main-tab-trigger__label {
+    line-height: 1.35;
+}
+
+.vacation-soon-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--slate-500);
+    background: rgba(148, 163, 184, 0.14);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    white-space: nowrap;
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+}
+
+.vacation-soon-note {
+    margin: 8px 10px 2px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--slate-500);
+    text-align: center;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px dashed rgba(148, 163, 184, 0.35);
+    line-height: 1.55;
+}
+
+.vacation-section--locked {
+    pointer-events: none;
+    user-select: none;
+}
+
+.vacation-section--locked .settings-card--vacation {
+    opacity: 0.78;
+}
+
+.vacation-section--locked .switch input:disabled + span {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.vacation-section--locked .field,
+.vacation-section--locked .vacation-sub-panel,
+.vacation-section--locked .vacation-standalone-block,
+.vacation-section--locked .gmail-row {
+    cursor: not-allowed;
 }
 
 .main-tab-content {

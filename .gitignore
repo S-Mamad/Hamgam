@@ -3,6 +3,7 @@ php/.env
 php/.env.local
 php/handoff/
 php/handoff-for-team.zip
+eavlxtce_hamgam_db.sql
 deploy/
 
 # Local storage / dev artifacts
